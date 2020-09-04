@@ -4,7 +4,8 @@ author: "[FILL IN YOUR NAME]"
 date: "[FILL IN THE DATE]"
 output: html_document
 ---
-asas
+
+
 # Assignment 1, Language development in Autism Spectrum Disorder (ASD) - Brushing up your code skills
 
 In this first part of the assignment we will brush up your programming skills, and make you familiar with the data sets you will be analysing for the next parts of the assignment.
@@ -59,7 +60,7 @@ If you're not in a project in Rstudio, make sure to set your working directory h
 If you created an RStudio project, then your working directory (the directory with your data and code for these assignments) is the project directory.
 
 ```{r}
-pacman::p_load(tidyverse,janitor)
+pacman::p_load(tidyverse,janitor, dplyr)
 ```
 
 Load the three data sets, after downloading them from dropbox and saving them in your working directory:
@@ -68,6 +69,10 @@ Load the three data sets, after downloading them from dropbox and saving them in
 * Word data: https://www.dropbox.com/s/8ng1civpl2aux58/token_train.csv?dl=0
 
 ```{r}
+library(readr)
+demo_train <- read_csv("demo_train.csv")
+LU_train <- read_csv("LU_train.csv")
+token_train <- read_csv("token_train.csv")
 
 ```
 
@@ -88,8 +93,78 @@ Tip: look through the chapter on data transformation in R for data science (http
 
 
 ```{r}
+numchi1 <-length(unique(demo_train$Child.ID))
+numchi2 <- length(unique(LU_train$SUBJ))
+numchi3 <-length(unique(token_train$SUBJ))
+
+##### CHANGING COLOUMN NAMES ############
+
+#changing to SUBJ in demo_train
+colnames(demo_train)[1:2] <- c("SUBJ", "VISIT")
+
+
+########### CHANGINS VISIT COLOUMN ###########
+
+#making into characters
+LU_train$VISIT <- as.character(LU_train$VISIT)
+
+#doing substring
+LU_train$VISIT <- substring(LU_train$VISIT[1:352], 6, 6)
+
+#making into factor again
+LU_train$VISIT <- as.factor(LU_train$VISIT)
+
+#making VISIT on demo_train into factor
+demo_train$VISIT <- as.factor(demo_train$VISIT)
+
+
+#making into characters
+token_train$VISIT <- as.character(token_train$VISIT)
+
+#doing substring
+token_train$VISIT <- substring(token_train$VISIT[1:352], 6, 6)
+
+#making into factor again
+token_train$VISIT <- as.factor(token_train$VISIT)
+
+
+########### CHANGING ID COLOUMN ##############
+
+demo_train$SUBJ <- str_replace_all(demo_train$SUBJ, "[[:punct:]]", "")
+LU_train$SUBJ <- str_replace_all(LU_train$SUBJ, "[[:punct:]]", "")
+token_train$SUBJ <- str_replace_all(token_train$SUBJ, "[[:punct:]]", "")
+
+#making it into factor
+demo_train$SUBJ <- as.factor(demo_train$SUBJ)
+LU_train$SUBJ <- as.factor(LU_train$SUBJ)
+token_train$SUBJ <- as.factor(token_train$SUBJ)
+```
+
+
+```{r}
+##################### REMOVING THE EXTRA PARTICIPANTS IN DEMO_TRAIN ##########
+
+# LU and token datasets have the same participants
+levels(token_train$SUBJ) == levels(LU_train$SUBJ)
+
+#Converting to tibbles
+demo_train <- as_tibble(demo_train)
+LU_train <- as_tibble(LU_train)
+
+#semi_join function Compare two data.frames to find the rows in data.frame 1 that are not present in data.frame 2
+b <- semi_join(LU_train, demo_train)
+
+#Now all the 3 dataframes have the same participants
+levels(b$SUBJ) == levels(token_train$SUBJ)
+levels(b$SUBJ) == levels(LU_train$SUBJ)
+
+#They also have the same values in VISIT
+levels(b$VISIT) == levels(token_train$VISIT)
+levels(b$VISIT) == levels(LU_train$VISIT)
+
 
 ```
+
 
 2b. Find a way to homogeneize the way "visit" is reported (visit1 vs. 1).
 
