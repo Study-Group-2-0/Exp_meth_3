@@ -151,7 +151,7 @@ levels(token_train$SUBJ) == levels(LU_train$SUBJ)
 demo_train <- as_tibble(demo_train)
 LU_train <- as_tibble(LU_train)
 
-#semi_join function Compare two data.frames to find the rows in data.frame 1 that are not present in data.frame 2
+#semi_join function Compare two data.frames to find the rows in data.frame    1 that are not present in data.frame 2
 b <- semi_join(LU_train, demo_train)
 
 #Now all the 3 dataframes have the same participants
