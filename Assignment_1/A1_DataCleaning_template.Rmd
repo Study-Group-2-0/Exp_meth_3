@@ -1,7 +1,7 @@
 ---
 title: "Assignment 1 - Data Cleaning - Instructions"
-author: "[FILL IN YOUR NAME]"
-date: "[FILL IN THE DATE]"
+author: Sigrid Snapfield, Anders Wheelman and Gustav Helms
+date: 04/09/2020
 output: html_document
 ---
 
@@ -68,7 +68,20 @@ Load the three data sets, after downloading them from dropbox and saving them in
 * Word data: https://www.dropbox.com/s/8ng1civpl2aux58/token_train.csv?dl=0
 
 ```{r}
+#Loading data sets
+demo_train <- read.csv("demo_train.csv")
+LU_train <- read.csv("LU_train.csv")
+token_train <- read.csv("token_train.csv")
 
+#Checking how many participants in each df
+length(unique(demo_train$Child.ID))
+length(unique(LU_train$SUBJ))
+length(unique(token_train$SUBJ))
+
+#Investigating how many times each child participated
+demo_train %>% group_by(Child.ID) %>% summarise(length(Child.ID))
+LU_train %>% group_by(SUBJ) %>% summarise(length(SUBJ))
+token_train %>% group_by(SUBJ) %>% summarise(length(SUBJ))
 ```
 
 Explore the 3 datasets (e.g. visualize them, summarize them, etc.). You will see that the data is messy, since the psychologist collected the demographic data, the linguist analyzed the length of utterance in May 2014 and the fumbling jack-of-all-trades analyzed the words several months later. 
@@ -88,7 +101,8 @@ Tip: look through the chapter on data transformation in R for data science (http
 
 
 ```{r}
-
+#Changing collumn names
+colnames(demo_train)[1:2] <- c("SUBJ","VISIT")
 ```
 
 2b. Find a way to homogeneize the way "visit" is reported (visit1 vs. 1).
@@ -97,7 +111,14 @@ Tip: The stringr package is what you need. str_extract () will allow you to extr
 
 
 ```{r}
+#Changing visit number to numeric
+LU_train$VISIT <- str_extract(LU_train$VISIT, "\\d")
+token_train$VISIT <- str_extract(token_train$VISIT, "\\d")
 
+#Changing visit variable into a factor:
+demo_train$VISIT <- as.factor(demo_train$VISIT)
+LU_train$VISIT <- as.factor(LU_train$VISIT)
+token_train$VISIT <- as.factor(token_train$VISIT)
 
 ```
 
@@ -109,7 +130,15 @@ Tip: You can either have one line of code for each child name that is to be chan
 
 
 ```{r}
+#Changing subject.ID.
+demo_train$SUBJ <- str_replace_all(demo_train$SUBJ, "[[:punct:]]", "")
+LU_train$SUBJ <- str_replace_all(LU_train$SUBJ, "[[:punct:]]", "")
+token_train$SUBJ <- str_replace_all(token_train$SUBJ, "[[:punct:]]", "")
 
+#Making a factor
+demo_train$SUBJ <- as.factor(demo_train$SUBJ)
+LU_train$SUBJ <- as.factor(LU_train$SUBJ)
+token_train$SUBJ <- as.factor(token_train$SUBJ)
 ```
 
 2d. Now that the nitty gritty details of the different data sets are fixed, we want to make a subset of each data set only containig the variables that we wish to use in the final data set.
@@ -145,7 +174,15 @@ Most variables should make sense, here the less intuitive ones.
 Feel free to rename the variables into something you can remember (i.e. nonVerbalIQ, verbalIQ)
 
 ```{r}
+#Selecting relevant variables for each df
+variables_to_include1 <- c("SUBJ", "VISIT", "Diagnosis","Ethnicity", "Gender", "Age", "ADOS",  "MullenRaw","ExpressiveLangRaw", "Socialization")
+variables_to_include2 <- c("SUBJ", "VISIT", "MOT_MLU", "CHI_MLU")
+variables_to_include3 <- c("SUBJ", "VISIT", "types_MOT", "types_CHI", "tokens_MOT", "tokens_CHI")
 
+#subsetting relevant variables
+demo_train <- select(demo_train, variables_to_include1)
+LU_train <- select(LU_train, variables_to_include2)
+token_train <- select(token_train, variables_to_include3)
 ```
 
 2e. Finally we are ready to merge all the data sets into just one. 
@@ -155,8 +192,9 @@ Some things to pay attention to:
 * make sure to understand whether (and if so why) there are NAs in the dataset (e.g. some measures were not taken at all visits, some recordings were lost or permission to use was withdrawn)
 
 ```{r}
-
-
+#Merging the dataframes:
+df <- merge(demo_train, LU_train, by = c("SUBJ","VISIT"))
+df <- merge(df, token_train, by = c("SUBJ","VISIT"))
 ```
 
 
@@ -171,7 +209,16 @@ A possible way to do so:
 
 
 ```{r}
+#Creating new df for visit 1 only including the relevant variables.
+visit1 <- select(filter(df, df$VISIT==1), c("SUBJ","VISIT","ADOS", "MullenRaw","ExpressiveLangRaw","Socialization"))
 
+#Renaming the collumns:
+new_names <- c("ADOS1", "MullenRaw1","ExpressiveLangRaw1","Socialization1")
+colnames(visit1)[3:6] <- new_names
+
+#Removing visit variable and merging 
+visit1$VISIT <- NULL
+df <- merge(df,visit1, by = "SUBJ")
 ```
 
 2g. Final touches
@@ -182,9 +229,20 @@ Now we want to
 * Save the data set using into a csv file. Hint: look into write.csv()
 
 ```{r}
+#Anomymizing the names
+df$SUBJ <- as.integer(df$SUBJ)
+df$SUBJ <- as.factor(df$SUBJ)
 
+#Changing gender and diagnosis names:
+df$Gender <- as.factor(df$Gender)
+levels(df$Gender) <- c("F","M")
+levels(df$Diagnosis) <- c("ASD","TD")
 ```
 
+```{r}
+#Saving the df as a CSV
+write_csv(df,path="ASD_Children.csv")
+```
 
 3) BONUS QUESTIONS
 The aim of this last section is to make sure you are fully fluent in the tidyverse.
