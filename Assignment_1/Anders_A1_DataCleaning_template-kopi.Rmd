@@ -151,8 +151,8 @@ levels(token_train$SUBJ) == levels(LU_train$SUBJ)
 demo_train <- as_tibble(demo_train)
 LU_train <- as_tibble(LU_train)
 
-#semi_join function Compare two data.frames to find the rows in data.frame 1 that are not present in data.frame 2
-b <- semi_join(LU_train, demo_train)
+#semi_join function Compare two data.frames to find the rows in data.frame    1 that are not present in data.frame 2
+demo_train <- semi_join(LU_train, demo_train)
 
 #Now all the 3 dataframes have the same participants
 levels(b$SUBJ) == levels(token_train$SUBJ)
@@ -220,6 +220,21 @@ Most variables should make sense, here the less intuitive ones.
 Feel free to rename the variables into something you can remember (i.e. nonVerbalIQ, verbalIQ)
 
 ```{r}
+#writing out the variables
+#for demotrain
+var1 <- c("SUBJ", "VISIT", "Diagnosis", "Ethnicity", "Gender", "Age", "ADOS", "MullenRaw", "ExpressiveLangRaw", "Socialization")
+
+# for LU_train
+var2 <- c("SUBJ", "VISIT", "MOT_MLU", "CHI_MLU")
+
+#for token_train
+var3 <- c("SUBJ", "VISIT", "types_MOT", "types_CHI", "tokens_MOT", "tokens_CHI")
+
+
+#making the subsettes dataframes
+demo_train <- select(demo_train, var1)
+LU_train <- select(LU_train, var2)
+token_train <- select(token_train, var3)
 
 ```
 
@@ -230,7 +245,8 @@ Some things to pay attention to:
 * make sure to understand whether (and if so why) there are NAs in the dataset (e.g. some measures were not taken at all visits, some recordings were lost or permission to use was withdrawn)
 
 ```{r}
-
+df <- merge(demo_train, LU_train)
+df <- merge(df, token_train)
 
 ```
 
@@ -246,6 +262,22 @@ A possible way to do so:
 
 
 ```{r}
+#variables to only take VISIT1 values from
+newvar <- c("SUBJ", "VISIT", "ADOS", "MullenRaw", "ExpressiveLangRaw", "Socialization")
+
+# filter chooses which rows to keep, select chooses the coloumns to keep
+dff <- select(filter(df, df$VISIT==1), newvar)
+
+#renaming coloumns
+newnames <- c("SUBJ", "VISIT", "ADOS1", "MullenRaw1", "ExpressiveLangRaw1", "Socialization1")
+colnames(dff)[1:6] <- newnames
+
+#removing VISIT
+dff$VISIT <- NULL
+
+#merging with original df
+df <- merge(df, dff)
+
 
 ```
 
@@ -257,6 +289,31 @@ Now we want to
 * Save the data set using into a csv file. Hint: look into write.csv()
 
 ```{r}
+#anonymize kids
+df$SUBJ <- as.integer(df$SUBJ)
+df$SUBJ <- as.factor(df$SUBJ)
+
+#making gender nice
+df$Gender <- as.factor(df$Gender)
+levels(df$Gender) <- c("F", "M")
+
+#making diagnosis nice
+df$Diagnosis <- as.factor(df$Diagnosis)
+levels(df$Diagnosis) <- c("ASD", "TD")
+
+```
+
+```{r}
+#Same as the chunk before just using ifelse
+
+#making gender nice
+df$Gender <- as.factor(df$Gender)
+df$Gender <- ifelse(df$Gender == 1, "F", "M")
+
+#making diagnosis nice
+df$Diagnosis <- as.factor(df$Diagnosis)
+df$Diagnosis <- ifelse(df$Diagnosis == "A", "ASD", "TD")
+
 
 ```
 
@@ -273,6 +330,22 @@ List all kids who:
 3. have not completed all trials. Tip: Use pipes to solve this
 
 ```{r}
+#1
+bonus1 <- df %>% group_by(SUBJ) %>% summarize(mean(CHI_MLU))
+filter(bonus1, bonus1[2] > 2.7)
+
+
+#2
+bonus2 <- df %>% filter(df$VISIT==1) %>% filter(CHI_MLU<1.5)
+
+
+#3
+#how many sessions each subject has
+bonus3 <- df %>% group_by(SUBJ) %>% summarize(length(SUBJ))
+
+#filtering out subjects with less than 6 sessions
+bonus3_1 <- filter(bonus3, bonus3[2] < 6)
+
 
 
 ```
@@ -284,6 +357,11 @@ USING ARRANGE
 2. Sort kids to find the kid who produced the least amount of words on the 1st visit.
 
 ```{r}
+#most amount of words on 6.th visit, cant get descending order to work
+bonusarr <- df %>% filter(df$VISIT==6) %>% arrange(tokens_CHI)
+
+
+bonusarr2 <- df %>% filter(df$VISIT==1) %>% arrange(tokens_CHI)
 
 
 ```
@@ -294,6 +372,14 @@ USING SELECT
 2. What happens if you include the name of a variable multiple times in a select() call?
 
 ```{r}
+#1
+bonussel <- select(df, "Diagnosis", "MOT_MLU", "CHI_MLU", "tokens_MOT", "tokens_CHI")
+bonussel <- filter(bonussel, Diagnosis == "ASD")
+
+#2
+#lets see about that
+bonussel2 <- select(bonussel, "Diagnosis", "Diagnosis", "MOT_MLU", "tokens_MOT", "tokens_MOT")
+#It ignores the second call
 
 ```
 
@@ -304,6 +390,15 @@ USING MUTATE, SUMMARISE and PIPES
 3. The solution to task above enables us to assess the average amount of words produced by each child. Why don't we just use these average values to describe the language production of the children? What is the advantage of keeping all the data?
 
 ```{r}
+#1.
+dfm <- mutate(df, mean_num_of_words = (mean(df$tokens_MOT) + mean(df$tokens_CHI))/2)
+
+#2.
+dfmm <- df %>% group_by(SUBJ) %>% summarize(mean(tokens_CHI))
+df <- merge(df, dfmm)
+
+# by summarizing we lose the development that the children has. Maybe normal kids have a stronger language developmelt as they grow. This info is lost when we take a mean. 
+
 
 
 ```
