@@ -1,7 +1,7 @@
 ---
 title: "Assignment 1 - Data Cleaning - Instructions"
-author: "[FILL IN YOUR NAME]"
-date: "[FILL IN THE DATE]"
+author: "Sigrid Agersnap"
+date: "4/9 2020"
 output: html_document
 ---
 
@@ -68,6 +68,9 @@ Load the three data sets, after downloading them from dropbox and saving them in
 * Word data: https://www.dropbox.com/s/8ng1civpl2aux58/token_train.csv?dl=0
 
 ```{r}
+demo_train <- read_csv("demo_train.csv")
+LU_train <- read_csv("LU_train.csv")
+word_data <- read_csv("token_train.csv")
 
 ```
 
@@ -87,7 +90,25 @@ Pay particular attention to the variables indicating participant and visit.
 Tip: look through the chapter on data transformation in R for data science (http://r4ds.had.co.nz). Alternatively you can look into the package dplyr (part of tidyverse), or google "how to rename variables in R". Or check the janitor R package. There are always multiple ways of solving any problem and no absolute best method.
 
 
-```{r}
+```{r 2a}
+#a little bit of exploring
+head(demo_train)
+head(LU_train)
+head(word_data)
+
+######visit column
+class(demo_train$Visit)
+demo_train$Visit <- as.factor(demo_train$Visit)
+
+#renaming variables
+colnames(LU_train)[2] <- "Visit"
+colnames(word_data)[2] <- "Visit"
+
+#renaming child ID/subject column
+colnames(LU_train)[1] <- "Child.ID"
+colnames(word_data)[1] <- "Child.ID"
+colnames(demo_train)[1] <- 'Child.ID'
+
 
 ```
 
@@ -96,7 +117,10 @@ Tip: look through the chapter on data transformation in R for data science (http
 Tip: The stringr package is what you need. str_extract () will allow you to extract only the digit (number) from a string, by using the regular expression \\d.
 
 
-```{r}
+```{r 2b}
+
+LU_train$Visit <- str_extract(LU_train$Visit, '\\d')
+word_data$Visit <- str_extract(word_data$Visit, '\\d')
 
 
 ```
@@ -108,7 +132,15 @@ Tip: stringr is helpful again. Look up str_replace_all
 Tip: You can either have one line of code for each child name that is to be changed (easier, more typing) or specify the pattern that you want to match (more complicated: look up "regular expressions", but less typing)
 
 
-```{r}
+```{r 2c}
+
+demo_train$Child.ID<- str_replace_all(demo_train$Child.ID, "[:punct:]", " ")
+LU_train$Child.ID <- str_replace_all(LU_train$Child.ID, "[:punct:]", " ")
+word_data$Child.ID <- str_replace_all(word_data$Child.ID, "[:punct:]", " ")
+
+LU_train$Child.ID <- as.factor(LU_train$Child.ID)
+demo_train$Child.ID <- as.factor(demo_train$Child.ID)
+word_data$Child.ID <- as.factor(word_data$Child.ID)
 
 ```
 
@@ -144,7 +176,20 @@ Most variables should make sense, here the less intuitive ones.
 
 Feel free to rename the variables into something you can remember (i.e. nonVerbalIQ, verbalIQ)
 
-```{r}
+```{r 2d}
+
+#variables <- c('Child.ID', 'Visit', 'Diagnosis', 'Ethnicity', 'Gender', 'Age', 'ADOS', 'MullenRaw', 'ExpressiveLangRaw', 'Socialization', 'MOT_MLU', 'CHI_MLU', 'types_MOT', 'types_CHI', 'tokens_MOT', 'tokens_CHI')
+
+#Selecting relevant variables for each df
+variables_to_include1 <- c("Child.ID", "Visit", "Diagnosis","Ethnicity", "Gender", "Age", "ADOS",  "MullenRaw","ExpressiveLangRaw", "Socialization")
+variables_to_include2 <- c("Child.ID", "Visit", "MOT_MLU", "CHI_MLU")
+variables_to_include3 <- c("Child.ID", "Visit", "types_MOT", "types_CHI", "tokens_MOT", "tokens_CHI")
+
+#subsetting relevant variables
+demo_train <- select(demo_train, variables_to_include1)
+LU_train <- select(LU_train, variables_to_include2)
+word_data <- select(word_data, variables_to_include3)
+
 
 ```
 
@@ -154,8 +199,11 @@ Some things to pay attention to:
 * make sure to check that the merge has included all relevant data (e.g. by comparing the number of rows)
 * make sure to understand whether (and if so why) there are NAs in the dataset (e.g. some measures were not taken at all visits, some recordings were lost or permission to use was withdrawn)
 
-```{r}
+```{r 2e}
 
+#Merging the dataframes:
+df <- merge(demo_train, LU_train, by = c("Child.ID","Visit"))
+df <- merge(df, word_data, by = c("Child.ID","Visit"))
 
 ```
 
