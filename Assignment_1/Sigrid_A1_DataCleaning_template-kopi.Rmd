@@ -188,7 +188,7 @@ variables_to_include3 <- c("Child.ID", "Visit", "types_MOT", "types_CHI", "token
 #subsetting relevant variables
 demo_train <- select(demo_train, variables_to_include1)
 LU_train <- select(LU_train, variables_to_include2)
-word_data <- select(word_data, variables_to_include3)
+word_data <- select(word_data, variables_to_include3)  
  
 
 ```
