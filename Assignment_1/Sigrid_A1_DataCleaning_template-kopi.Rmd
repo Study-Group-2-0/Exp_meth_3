@@ -220,6 +220,19 @@ A possible way to do so:
 
 ```{r}
 
+new_df <- df %>% filter(Visit == 1)
+new_df <- new_df %>% select(c(Subject, ADOS, MullenRaw, ExpressiveLangRaw, Socialization))
+
+#renaming columns
+colnames(new_df)[2] <- "ADOS1"
+colnames(new_df)[3] <- "MullenRaw1"
+colnames(new_df)[4] <- "ExpressiveLangRaw1"
+colnames(new_df)[5] <- "Socialization1"
+
+#merging the new dataset with the old
+df <- merge(df, new_df, by = c("Subject"))
+
+
 ```
 
 2g. Final touches
@@ -230,6 +243,15 @@ Now we want to
 * Save the data set using into a csv file. Hint: look into write.csv()
 
 ```{r}
+
+# 1 is male
+# 2 is female
+
+df$Gender <- as.character(df$Gender)
+
+df$Gender[df$Gender == '1'] <- 'M'
+df$Gender[df$Gender == '2'] <- 'F'
+
 
 ```
 
