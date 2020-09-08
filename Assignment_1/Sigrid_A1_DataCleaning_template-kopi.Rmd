@@ -70,7 +70,7 @@ Load the three data sets, after downloading them from dropbox and saving them in
 ```{r}
 demo_train <- read_csv("demo_train.csv")
 LU_train <- read_csv("LU_train.csv")
-word_data <- read_csv("token_train.csv")
+token_train <- read_csv("token_train.csv")
 
 ```
 
@@ -94,7 +94,7 @@ Tip: look through the chapter on data transformation in R for data science (http
 #a little bit of exploring
 head(demo_train)
 head(LU_train)
-head(word_data)
+head(token_train)
 
 ######visit column
 class(demo_train$Visit)
@@ -102,12 +102,12 @@ demo_train$Visit <- as.factor(demo_train$Visit)
 
 #renaming variables
 colnames(LU_train)[2] <- "Visit"
-colnames(word_data)[2] <- "Visit"
+colnames(token_train)[2] <- "Visit"
 
 #renaming child ID/subject column
-colnames(LU_train)[1] <- "Child.ID"
-colnames(word_data)[1] <- "Child.ID"
-colnames(demo_train)[1] <- 'Child.ID'
+colnames(LU_train)[1] <- "Subject"
+colnames(token_train)[1] <- "Subject"
+colnames(demo_train)[1] <- 'Subject'
 
 
 ```
@@ -120,7 +120,7 @@ Tip: The stringr package is what you need. str_extract () will allow you to extr
 ```{r 2b}
 
 LU_train$Visit <- str_extract(LU_train$Visit, '\\d')
-word_data$Visit <- str_extract(word_data$Visit, '\\d')
+token_train$Visit <- str_extract(token_train$Visit, '\\d')
 
 
 ```
@@ -134,13 +134,13 @@ Tip: You can either have one line of code for each child name that is to be chan
 
 ```{r 2c}
 
-demo_train$Child.ID<- str_replace_all(demo_train$Child.ID, "[:punct:]", " ")
-LU_train$Child.ID <- str_replace_all(LU_train$Child.ID, "[:punct:]", " ")
-word_data$Child.ID <- str_replace_all(word_data$Child.ID, "[:punct:]", " ")
+demo_train$Subject<- str_replace_all(demo_train$Subject, "[:punct:]", "")
+LU_train$Subject <- str_replace_all(LU_train$Subject, "[:punct:]", "")
+token_train$Subject <- str_replace_all(token_train$Subject, "[:punct:]", "")
 
-LU_train$Child.ID <- as.factor(LU_train$Child.ID)
-demo_train$Child.ID <- as.factor(demo_train$Child.ID)
-word_data$Child.ID <- as.factor(word_data$Child.ID)
+LU_train$Subject <- as.factor(LU_train$Subject)
+demo_train$Subject <- as.factor(demo_train$Subject)
+token_train$Subject <- as.factor(token_train$Subject)
 
 ```
 
@@ -181,14 +181,14 @@ Feel free to rename the variables into something you can remember (i.e. nonVerba
 #variables <- c('Child.ID', 'Visit', 'Diagnosis', 'Ethnicity', 'Gender', 'Age', 'ADOS', 'MullenRaw', 'ExpressiveLangRaw', 'Socialization', 'MOT_MLU', 'CHI_MLU', 'types_MOT', 'types_CHI', 'tokens_MOT', 'tokens_CHI')
 
 #Selecting relevant variables for each df
-variables_to_include1 <- c("Child.ID", "Visit", "Diagnosis","Ethnicity", "Gender", "Age", "ADOS",  "MullenRaw","ExpressiveLangRaw", "Socialization")
-variables_to_include2 <- c("Child.ID", "Visit", "MOT_MLU", "CHI_MLU")
-variables_to_include3 <- c("Child.ID", "Visit", "types_MOT", "types_CHI", "tokens_MOT", "tokens_CHI")
+variables_to_include1 <- c("Subject", "Visit", "Diagnosis","Ethnicity", "Gender", "Age", "ADOS",  "MullenRaw","ExpressiveLangRaw", "Socialization")
+variables_to_include2 <- c("Subject", "Visit", "MOT_MLU", "CHI_MLU")
+variables_to_include3 <- c("Subject", "Visit", "types_MOT", "types_CHI", "tokens_MOT", "tokens_CHI")
 
 #subsetting relevant variables
 demo_train <- select(demo_train, variables_to_include1)
 LU_train <- select(LU_train, variables_to_include2)
-word_data <- select(word_data, variables_to_include3)  
+token_train <- select(token_train, variables_to_include3)  
  
 
 ```
@@ -202,8 +202,8 @@ Some things to pay attention to:
 ```{r 2e}
 
 #Merging the dataframes:
-df <- merge(demo_train, LU_train, by = c("Child.ID","Visit"))
-df <- merge(df, word_data, by = c("Child.ID","Visit"))
+df <- merge(demo_train, LU_train, by = c("Subject","Visit"))
+df <- merge(df, token_train, by = c("Subject","Visit"))
 
 ```
 
