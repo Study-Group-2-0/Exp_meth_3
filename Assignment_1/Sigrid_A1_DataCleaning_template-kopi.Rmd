@@ -72,7 +72,10 @@ demo_train <- read_csv("demo_train.csv")
 LU_train <- read_csv("LU_train.csv")
 token_train <- read_csv("token_train.csv")
 
+
 ```
+
+
 
 Explore the 3 datasets (e.g. visualize them, summarize them, etc.). You will see that the data is messy, since the psychologist collected the demographic data, the linguist analyzed the length of utterance in May 2014 and the fumbling jack-of-all-trades analyzed the words several months later. 
 In particular:
@@ -95,6 +98,18 @@ Tip: look through the chapter on data transformation in R for data science (http
 head(demo_train)
 head(LU_train)
 head(token_train)
+
+#Gustav's code
+
+#Checking how many participants in each df
+length(unique(demo_train$Child.ID))
+length(unique(LU_train$SUBJ))
+length(unique(token_train$SUBJ))
+
+#Investigating how many times each child participated
+demo_train %>% group_by(Child.ID) %>% summarise(length(Child.ID))
+LU_train %>% group_by(SUBJ) %>% summarise(length(SUBJ))
+token_train %>% group_by(SUBJ) %>% summarise(length(SUBJ))
 
 ######visit column
 class(demo_train$Visit)
@@ -220,14 +235,23 @@ A possible way to do so:
 
 ```{r}
 
+#creating a new df with only visit 1
 new_df <- df %>% filter(Visit == 1)
+#adding the relevant variables
 new_df <- new_df %>% select(c(Subject, ADOS, MullenRaw, ExpressiveLangRaw, Socialization))
+
+### one liner from Gustav
+#Creating new df for visit 1 only including the relevant variables.
+#visit1 <- select(filter(df, df$VISIT==1), c("SUBJ","VISIT","ADOS", "MullenRaw","ExpressiveLangRaw","Socialization"))
 
 #renaming columns
 colnames(new_df)[2] <- "ADOS1"
 colnames(new_df)[3] <- "MullenRaw1"
 colnames(new_df)[4] <- "ExpressiveLangRaw1"
 colnames(new_df)[5] <- "Socialization1"
+
+#making a oneliner for the code above
+colnames(new_df)[2:5] = c('ADOS1', 'MullenRaw1', 'ExpressiveLangRaw1', 'Socialization1')
 
 #merging the new dataset with the old
 df <- merge(df, new_df, by = c("Subject"))
@@ -246,11 +270,27 @@ Now we want to
 
 # 1 is male
 # 2 is female
-
 df$Gender <- as.character(df$Gender)
 
 df$Gender[df$Gender == '1'] <- 'M'
 df$Gender[df$Gender == '2'] <- 'F'
+
+#changing diagnosis columns
+df$Diagnosis[df$Diagnosis == 'A'] <- 'ASD'
+df$Diagnosis[df$Diagnosis == 'B'] <- 'TD'
+
+
+#Anomymizing the names
+df$Subject <- as.integer(df$Subject)
+df$Subject <- as.factor(df$Subject)
+
+### ANOTHER way of change the Gender and diagnosis values - from Gustav
+#Changing gender and diagnosis names:
+#df$Gender <- as.factor(df$Gender)
+#levels(df$Gender) <- c("F","M")
+#levels(df$Diagnosis) <- c("ASD","TD")
+
+write.csv(df, 'final.data.sigrid.csv')
 
 
 ```
@@ -267,9 +307,27 @@ List all kids who:
 2. have a mean length of utterance of less than 1.5 morphemes at the first visit
 3. have not completed all trials. Tip: Use pipes to solve this
 
-```{r}
+```{r Bonus questions}
 
+# 1 kids with MLU > 2.7
+class(df$Subject)
+df_group <- df %>% group_by(Subject) %>% summarise(mean(CHI_MLU))
+df_group <- filter(df_group, df_group[2]>2.7)
 
+# 2 kids with mean MLU < 1.5 at visit 1
+
+df_group_2 <- df %>% group_by(Subject) %>% filter(Visit == '1')
+df_group_2 <- filter(df_group_2, mean(CHI_MLU) < 1.5)
+#easier way of doing it... from gustav
+select(filter(df, Visit == '1' & CHI_MLU < 1.5), c('Subject', 'Visit', 'CHI_MLU'))
+
+# 3 kids who have not completed all trials
+# all the rows which contain NAs.. not what we wanted
+df_3 <- df[!complete.cases(df),]
+
+# 3) Gustav's version
+long <- df %>% group_by(Subject) %>% summarise(length(Subject))
+long <- filter(long, long[2] < 6)
 ```
 
 
@@ -279,7 +337,16 @@ USING ARRANGE
 2. Sort kids to find the kid who produced the least amount of words on the 1st visit.
 
 ```{r}
+# 1) 
 
+df_2_1 <- df %>% select(c('Subject', 'Visit', 'tokens_CHI')) %>% filter(Visit == '6') %>% arrange(desc(tokens_CHI))
+# Subject 59 produced the most words on visit 6 with 1294 words
+# could also be written like.. doesn't work
+#select(arrange(filter(df, Visit == 6), desc(tokens_CHI), c('Subject', 'Visit', 'tokens_chi')))
+
+# 2)
+df_2_2 <- df %>% select(c('Subject', 'Visit', 'tokens_CHI')) %>% filter(Visit == '1') %>% arrange(tokens_CHI)
+# Subject 61 produced the least amount of words on the 1st visit with 0 words
 
 ```
 
@@ -289,6 +356,12 @@ USING SELECT
 2. What happens if you include the name of a variable multiple times in a select() call?
 
 ```{r}
+# 1)
+df_3_1 <- select(filter(df, Diagnosis == 'ASD'), c('Subject', 'Diagnosis', 'CHI_MLU', 'tokens_CHI'))
+
+# 2)
+df_3_2 <-select(df, c('Subject', 'Diagnosis', 'Subject'))
+# it appears to only select the column once. so nothing happens
 
 ```
 
@@ -299,6 +372,14 @@ USING MUTATE, SUMMARISE and PIPES
 3. The solution to task above enables us to assess the average amount of words produced by each child. Why don't we just use these average values to describe the language production of the children? What is the advantage of keeping all the data?
 
 ```{r}
+# 1)
+df_4_1 <- df %>% group_by(Subject) %>% summarise(mean(tokens_CHI))
+df <- merge(df_4_1, df, by = 'Subject')
+colnames(df)[2] <- 'tokens_CHI_mean'
+
+# 2)
+#df_4_2 <- df %>% group_by()
+# what's the difference??
 
 
 ```
