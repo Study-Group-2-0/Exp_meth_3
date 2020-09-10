@@ -239,6 +239,7 @@ df$SUBJ <- as.factor(df$SUBJ)
 df$Gender <- as.factor(df$Gender)
 levels(df$Gender) <- c("M","F")
 levels(df$Diagnosis) <- c("ASD","TD")
+#...
 ```
 
 ```{r}
