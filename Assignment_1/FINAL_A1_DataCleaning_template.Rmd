@@ -237,7 +237,7 @@ df$SUBJ <- as.factor(df$SUBJ)
 
 #Changing gender and diagnosis names:
 df$Gender <- as.factor(df$Gender)
-levels(df$Gender) <- c("F","M")
+levels(df$Gender) <- c("M","F")
 levels(df$Diagnosis) <- c("ASD","TD")
 ```
 
