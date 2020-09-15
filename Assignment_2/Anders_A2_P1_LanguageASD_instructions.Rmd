@@ -4,6 +4,7 @@ author: "[YOUR NAME]"
 date: "[DATE]"
 output: html_document
 ---
+
     
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -75,6 +76,12 @@ Load necessary libraries : what will you need?
 - e.g. something to plot with
 
 ```{r Load Libraries, include = FALSE}
+#Loading packages
+pacman::p_load(tidyverse, lmerTest, lme4, ggplot2, MuMIn)
+
+
+
+
 
 ```
 
@@ -88,6 +95,22 @@ If you opened this Rmd file outside of a project, you will need some code to fin
 - Load the data you saved last time (use read_csv(fileName))
 
 ```{r Load Data, include = FALSE}
+##################################### LOADING AND PREPARING DATA ###########################
+
+#Loading dataset
+df <- read_csv("ASD_Children.csv")
+
+#CHanging coloumn names
+colnames(df)[8:9] <- c("Non_Verbal_IQ", "Verbal_IQ")
+colnames(df)[18:19] <- c("Non_Verbal_IQ1", "Verbal_IQ1")
+
+#Make them into factors
+df$SUBJ <- as.factor(df$SUBJ)
+df$VISIT <- as.factor(df$VISIT)
+df$Diagnosis <- as.factor(df$Diagnosis)
+df$Ethnicity <- as.factor(df$Ethnicity)
+df$Gender <- as.factor(df$Gender)
+
 
 ```
 
@@ -100,6 +123,25 @@ Make sure the variables are in the right format.
 Describe the characteristics of the two groups of participants and whether the two groups are well matched.
 
 ```{r descriptive stats, include = FALSE}
+####################### EYEBALLING DATA FOR DIFFERENCES BETWEEN GROUPS ##############################
+
+#describing the two groups across visits
+df %>% 
+  split(df$Diagnosis) %>% 
+map(summary)
+
+distinct(df)
+
+
+#Only take visit 1
+df1 <- filter(df, df$VISIT == 1)
+
+df1 %>% 
+  split(df1$Diagnosis) %>% 
+map(summary)
+
+distinct(df1)
+
 
 ```
 
@@ -115,16 +157,123 @@ Let's start with a simple mixed effects linear model
 
 Remember to plot the data first and then to run a statistical test.
 - Which variable(s) should be included as fixed factors?
-- Which variable(s) should be included as random factors?
+-Diagnosis
+-Age
 
-```{r ex2, include = FALSE}
+
+- Which variable(s) should be included as random factors?
+-random intercept: SUBJ
+-random intercept: VISIT
+
+
+```{r}
+################## choosing age over visit ################
+ggplot(df, aes(y = Age, x = VISIT, color = Diagnosis)) + 
+  geom_point()
+
+
+#making subsets with ASD and TD, didnt work
+df_asd <- filter(df, df$Diagnosis == "ASD")
+df_td <- filter(df, df$Diagnosis == "TD")
+
+
+df_asd %>% group_by(VISIT) %>% 
+  summarize(mean(Age))
+
+df_td %>% group_by(VISIT) %>% 
+  summarize(mean(Age))
+```
+
+
+```{r}
+#plotting random intercept for SUBJ
+
+ggplot(df, aes(x = SUBJ, y = CHI_MLU)) + 
+  geom_boxplot()
+
+# This is the varience that we will account for by including SUBJ as random intercept
+
+
 
 ```
+
+
+
+```{r ex2, include = FALSE}
+#plotting fixed effects
+ggplot(df, aes(x = Age, y = CHI_MLU, color = Diagnosis)) + 
+  geom_point() + 
+  geom_smooth(method = "lm")
+
+
+```
+
+
+```{r}
+#Plotting random intercept of age
+ggplot(df, aes(x = Age, y = CHI_MLU, color = SUBJ)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se=FALSE) + 
+  #geom_smooth(method = "lm", data = mean())
+  facet_wrap(df$Diagnosis)
+
+
+
+```
+
+
+```{r}
+###################### MAKING MODELS ###########################
+
+#without interaction
+m1 <- lmer(CHI_MLU ~ Age + Diagnosis + (Age|SUBJ), df)
+summary(m1)
+
+m2 <- lmer(CHI_MLU ~ Age + Diagnosis + (1|SUBJ), df)
+summary(m2)
+
+
+#with interaction
+m3 <- lmer(CHI_MLU ~ Age * Diagnosis + (Age|SUBJ), df)
+summary(m3)
+
+m4 <- lmer(CHI_MLU ~ Age * Diagnosis + (1|SUBJ), df)
+summary(m4)
+
+
+
+
+
+```
+
+
 
 How would you evaluate whether the model is a good model?
 
 ```{r ex2 evaluate, include = FALSE}
+############################ ASSESING MODEL FITNESS ##############################
 
+#Using a function to find r^2
+r2 <- function(model){
+  
+  r.squaredGLMM(model)
+}
+
+r2(m1)
+r2(m2)
+r2(m3)
+r2(m4)
+
+
+#Doing anovas
+anova(m1,m2) #including random intercept "age" is better
+anova(m3,m4) #including random intercept "age" is better
+anova(m1,m3) #interaction between age*diagnosis is good
+anova(m2,m4) #interaction between age*diagnosis is good
+
+
+
+#From the anovas and R^2 we see that interaction and age as random intercept is making the model better.
 ```
 
 Not too good, right? Let's check whether a growth curve model is better.
@@ -133,11 +282,46 @@ First build the different models, then compare them to see which one is better.
 
 ```{r ex2 growth curve, include = FALSE}
 
+nl1 <- lmer(CHI_MLU ~ Age + Diagnosis + (Age|SUBJ) + I(Age^2), df)
+summary(nl1)
+
+anova(m3,nl1)
+r2(nl1)
+
 ```
 
 Exciting right? Let's check whether the model is doing an alright job at fitting the data. Plot the actual CHI_MLU data against the predictions of the model fitted(model). 
 
 ```{r}
+############### THIS IS OKAY ####################
+predictt <- as.data.frame(predict(nl1))
+row_nr <- seq.int(1:346)
+predictt$row_nr <- row_nr
+colnames(predictt)[1] <- c("CHI_MLU")
+
+row_nr_df <- seq.int(1:372)
+df$row_nr <- row_nr_df
+
+ggplot(df, aes(y = CHI_MLU, x = row_nr)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", color = "black") +
+  geom_point(data = predictt, color = "red") + 
+  geom_smooth(method = "lm", color = "red")
+```
+
+
+
+
+```{r}
+#################### DIDNT WORK VERY WELL #############################
+#FUAARS
+predict_df <- merge(predictt, df, all = True, by = SUBJ)
+
+
+#this is not the reason
+sum(is.na(df$Age))
+sum(is.na(df$Diagnosis))
+sum(is.na(df$CHI_MLU))
 
 ```
 
@@ -155,6 +339,23 @@ Linguistic development of children MLU is affected by ... [COMPLETE]
 ### Hypothesis: Parental MLU changes: i) over time, ii) according to diagnosis
 
 ```{r ex3, include = FALSE}
+################# PLOTS FOR MOT_MLU #######################
+
+ggplot(df, aes(x = Age, y = MOT_MLU, color = Diagnosis)) + 
+  geom_point() + 
+  geom_smooth(method = "lm") + 
+  facet_wrap(df$Diagnosis)
+
+
+
+```
+
+```{r}
+##################### MODELS FOR MOT_MLU #####################
+mot <- lmer(MOT_MLU ~ Age * Diagnosis + (Age|SUBJ), df)
+summary(mot)
+
+#mother is only acting according to age, not to diagnosis?
 
 ```
 
@@ -168,7 +369,42 @@ Your task now is to figure out how to best describe the children linguistic traj
 
 ```{r ex4, include = FALSE}
 
+
+#EXCLUDE FROM MODEL
+#bad because of too many whites, too small number in the other groups
+n1 <- lmer(CHI_MLU ~ Ethnicity + (1|SUBJ), df)
+summary(n1)
+
+# gender ns
+n2 <- lmer(CHI_MLU ~ Gender + (1|SUBJ), df)
+summary(n2)
+
+
+
+#INCLUDE IN MODEL
+#non_verbal_iq significant
+n3 <- lmer(CHI_MLU ~ Non_Verbal_IQ1 + (1|SUBJ), df)
+summary(n3)
+
+# verbal iq significait
+n4 <- lmer(CHI_MLU ~ Verbal_IQ1 + (1|SUBJ), df)
+summary(n4)
+
+#significant
+n5 <- lmer(CHI_MLU ~ Socialization + (1|SUBJ), df)
+summary(n5)
+
+
+
 ```
+
+```{r}
+############## FINAL MODEL #################################
+
+
+
+```
+
 
 In addition to ..., the MLU of the children is also correlated with ...
 Using AIC / nested F-tests as a criterium, we compared models of increasing complexity and found that ...
