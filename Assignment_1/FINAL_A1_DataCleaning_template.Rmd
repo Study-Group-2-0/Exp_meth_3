@@ -195,8 +195,8 @@ Some things to pay attention to:
 
 ```{r}
 #Merging the dataframes:
-df <- merge(demo_train, LU_train, by = c("SUBJ","VISIT"))
-df <- merge(df, token_train, by = c("SUBJ","VISIT"))
+df <- merge(demo_train, LU_train, by = c("SUBJ","VISIT"), all = T)
+df <- merge(df, token_train, by = c("SUBJ","VISIT"), all = T)
 ```
 
 
@@ -239,6 +239,7 @@ df$SUBJ <- as.factor(df$SUBJ)
 df$Gender <- as.factor(df$Gender)
 levels(df$Gender) <- c("M","F")
 levels(df$Diagnosis) <- c("ASD","TD")
+#...
 ```
 
 ```{r}
