@@ -183,14 +183,29 @@ summary(m4)
 How would you evaluate whether the model is a good model?
 
 ```{r ex2 evaluate, include = FALSE}
-#Accesesing the r-squared values
-r.squaredGLMM(m1)
-r.squaredGLMM(m2)
-r.squaredGLMM(m3)
-r.squaredGLMM(m4)
+############################ ASSESING MODEL FITNESS ##############################
 
-#Doing ANOVA
-anova(m1,m2,m3,m4)
+#Using a function to find r^2
+r2 <- function(model){
+  r.squaredGLMM(model)
+}
+
+#Using the function on each model
+r2(c(m1)
+r2(m2)
+r2(m3)
+r2(m4)
+
+
+#Doing anovas
+anova(m1,m2) #including random intercept "age" is better
+anova(m3,m4) #including random intercept "age" is better
+anova(m1,m3) #interaction between age*diagnosis is good
+anova(m2,m4) #interaction between age*diagnosis is good
+
+
+
+#From the anovas and R^2 we see that interaction and age as random intercept is making the model better.
 ```
 
 

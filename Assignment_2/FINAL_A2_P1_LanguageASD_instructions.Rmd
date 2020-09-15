@@ -75,7 +75,9 @@ Load necessary libraries : what will you need?
 - e.g. something to plot with
 
 ```{r Load Libraries, include = FALSE}
+#NAME OF AUTHOR: SIGRID
 
+pacman::p_load("tidyverse","lme4","purrr", "lmerTest","MuMIn")
 ```
 
 ### Define your working directory and load the data
@@ -88,6 +90,28 @@ If you opened this Rmd file outside of a project, you will need some code to fin
 - Load the data you saved last time (use read_csv(fileName))
 
 ```{r Load Data, include = FALSE}
+#NAME OF AUTHOR: ANDERS
+
+#Loading the data
+df <- read_csv("ASD_Children.csv")
+
+#Changing variables to right format and 
+df <- df %>% 
+  mutate(
+    SUBJ = as.factor(SUBJ),
+    VISIT = as.factor(VISIT),
+    Diagnosis = as.factor(Diagnosis),
+    Ethnicity = as.factor(Ethnicity),
+    Gender = as.factor(Gender)
+  ) %>% 
+  rename(
+    Subject = SUBJ,
+    Visit = VISIT,
+    Verbal_IQ = ExpressiveLangRaw,
+    Verbal_IQ1 = ExpressiveLangRaw1,
+    Nonverbal_IQ = MullenRaw,
+    Nonverbal_IQ1 = MullenRaw1
+  )
 
 ```
 
@@ -100,12 +124,23 @@ Make sure the variables are in the right format.
 Describe the characteristics of the two groups of participants and whether the two groups are well matched.
 
 ```{r descriptive stats, include = FALSE}
+#NAME OF AUTHOR: GUSTAV
 
+#Doing descriptive statistics.
+df %>% 
+  split(df$Diagnosis) %>%  # Making two new df. One for each level of the factor
+  map(summary) # doing the summary function on each collumn of the two df
+
+#Accessing data only for visit 1
+df %>% 
+  filter(Visit == 1) %>% 
+  split(df$Diagnosis) %>% 
+  map(summary)
 ```
 
 The sample included mostly young (<20) white males ...
 
-[REPORT THE RESULTS]
+[REPORT THE RESULTS] - SEE GOOGLE DOCS
 
 ## Let's test hypothesis 1: Children with ASD display a language impairment  (Exercise 2)
 
@@ -118,13 +153,73 @@ Remember to plot the data first and then to run a statistical test.
 - Which variable(s) should be included as random factors?
 
 ```{r ex2, include = FALSE}
+#NAME OF AUTHOR: SIGRID
 
+#Visualizing the data with random intercepts for participants and random slopes for age
+df %>% 
+  ggplot()+
+  aes(x= Age, y= CHI_MLU, colour = Subject)+
+  geom_point()+
+  geom_smooth(method = lm, alpha = 0, size = 0.5)+
+  geom_smooth(method = lm, aes(colour = Diagnosis), alpha = 0, size = 2)+
+  facet_wrap(~Diagnosis)
+
+#Accessing the participants age across diagnosis
+df %>% 
+  ggplot()+
+  aes(x = Diagnosis, y = Age)+
+  geom_boxplot()
+
+#Age for visit 1 only
+df %>% 
+  filter(Visit == 1) %>% 
+  ggplot()+
+  aes(x = Diagnosis, y = Age)+
+  geom_boxplot()
 ```
+```{r}
+#NAME OF AUTHOR: ANDERS
+###################### DOING a little p-hacking ###########################
+
+#Model without interaction and random slopes
+m1 <- lmer(CHI_MLU ~ Diagnosis + Age + (1|Subject), df)
+summary(m1)
+
+#Model without interaction but with random slopes
+m2 <- lmer(CHI_MLU ~ Diagnosis + Age + (Age|Subject), df)
+summary(m2)
+
+#Model with interaction but without random slopes
+m3 <- lmer(CHI_MLU ~ Diagnosis * Age + (1|Subject), df)
+summary(m3)
+
+#Model with interaction and random slopes
+m4 <- lmer(CHI_MLU ~ Diagnosis * Age + (Age|Subject), df)
+summary(m4)
+```
+
 
 How would you evaluate whether the model is a good model?
 
 ```{r ex2 evaluate, include = FALSE}
+#NAME OF AUTHOR: GUSTAV
+############################ ASSESING MODEL FITNESS ##############################
 
+#Using a function to find r^2
+r2 <- function(model){
+  r.squaredGLMM(model)
+}
+
+#Using the function on the different models
+r2(m1)
+r2(m2)
+r2(m3)
+r2(m4)
+
+#Doing anovas
+anova(m1,m2,m3,m4)
+
+#From the anovas and R^2 we see that interaction and age as random intercept is making the model better.
 ```
 
 Not too good, right? Let's check whether a growth curve model is better.
@@ -132,12 +227,36 @@ Remember: a growth curve model assesses whether changes in time can be described
 First build the different models, then compare them to see which one is better.
 
 ```{r ex2 growth curve, include = FALSE}
+#NAME OF AUTHOR: SIGRID
 
+# doing a model with different curve model:
+m5 <- lmer(CHI_MLU ~ Diagnosis * Age + (Age|Subject)+I(Age^2), df)
+summary(m5)
+r.squaredGLMM(m5)
+
+#Anova
+anova(m4,m5)
+
+#The growth curve model is significantly better than m4. 
 ```
 
 Exciting right? Let's check whether the model is doing an alright job at fitting the data. Plot the actual CHI_MLU data against the predictions of the model fitted(model). 
 
 ```{r}
+#NAME OF AUTHOR: ANDERS
+
+#Plotting the fitted values together with the actual CHI_MLU data
+df %>% 
+  filter(is.na(CHI_MLU) == F, is.na(Age) == F) %>% 
+  mutate(FITTED = fitted(m5)) %>% 
+  ggplot()+
+    aes(x= Age, y = CHI_MLU)+
+    geom_point(colour = "blue")+
+    geom_point(aes(x = Age, y = FITTED), colour = "red")+
+    geom_smooth(method = lm, formula = y ~ x + I(x^2))+
+    geom_smooth(method = lm, aes(x = Age, y = FITTED), formula = y ~ x + I(x^2), colour = "red")+
+  facet_wrap(~Diagnosis)
+
 
 ```
 
@@ -148,18 +267,61 @@ Remember to report:
 - A plot of your model's predictions (and some comments on whether the predictions are sensible)
 
 [REPORT THE RESULTS]
-Linguistic development of children MLU is affected by ... [COMPLETE]
+Linguistic development of children MLU is affected by ... [COMPLETE] - SEE REPORT
 
 ## Let's test hypothesis 2: Parents speak equally to children with ASD and TD  (Exercise 3)
 
 ### Hypothesis: Parental MLU changes: i) over time, ii) according to diagnosis
 
 ```{r ex3, include = FALSE}
+#NAME OF AUTHOR: GUSTAV
 
+#Visualizing the data
+df %>% 
+  ggplot()+
+  aes(x= Age, y= MOT_MLU, colour = Subject)+
+  geom_point()+
+  geom_smooth(method = lm, alpha = 0, size = 0.5)+
+  geom_smooth(method = lm, aes(colour = Diagnosis), alpha = 0, size = 2)+
+  facet_wrap(~Diagnosis)
+
+#By eyeballing the data it does not look like there is an interaction effect between age and diagnosis with MOT_MLU
+```
+```{r}
+#NAME OF AUTHOR: ANDERS
+###################### MAKING MODELS ###########################
+
+#Model without interaction and random slopes
+mo1 <- lmer(MOT_MLU ~ Diagnosis + Age + (1|Subject), df)
+summary(mo1)
+
+#Model without interaction but with random slopes
+mo2 <- lmer(MOT_MLU ~ Diagnosis + Age + (Age|Subject), df)
+summary(mo2)
+
+#Model with interaction - the interaction is as predicted not significant
+mo3 <- lmer(MOT_MLU ~ Diagnosis * Age + (1|Subject), df)
+summary(mo3)
 ```
 
+
+```{r}
+#NAME OF AUTHOR: SIGRID
+
+#Acessing R-squared values
+r.squaredGLMM(mo1)
+r.squaredGLMM(mo2)
+r.squaredGLMM(mo3)
+
+#Comparing models
+anova(mo1,mo2,mo3)
+
+#As predicted does the interaction effect not improve the model. The best model is model m2 which includes random slopes. 
+```
+
+
 Parent MLU is affected by ... but probably not ...
-[REPORT THE RESULTS]
+[REPORT THE RESULTS] - SEE REPORT
 
 ### Adding new variables (Exercise 4)
 
@@ -167,10 +329,39 @@ Your task now is to figure out how to best describe the children linguistic traj
 
 
 ```{r ex4, include = FALSE}
+#################### DOING Exploratory analysis of predictors (p-hacking)##############
 
+#Non significant predictors
+#Ethnicity
+n1 <- lmer(CHI_MLU ~ Ethnicity + (1|Subject), df)
+summary(n1)
+
+# Gender
+n2 <- lmer(CHI_MLU ~ Gender + (1|Subject), df)
+summary(n2)
+
+
+#Significant predictors
+#non_verbal_iq significant
+n3 <- lmer(CHI_MLU ~ Nonverbal_IQ1 + (1|Subject), df)
+summary(n3)
+
+# verbal iq significait
+n4 <- lmer(CHI_MLU ~ Verbal_IQ1 + (1|Subject), df)
+summary(n4)
+
+#Socialization
+n5 <- lmer(CHI_MLU ~ Socialization1 + (1|Subject), df)
+summary(n5)
+```
+
+```{r}
+#PLotting a final model including all significant predictors
+FINAL_MODEL <- lmer(CHI_MLU ~ Diagnosis*Age+Nonverbal_IQ1+Verbal_IQ1+Socialization1+(Age|Subject)+I(Age^2),df)
+summary(FINAL_MODEL)
 ```
 
 In addition to ..., the MLU of the children is also correlated with ...
 Using AIC / nested F-tests as a criterium, we compared models of increasing complexity and found that ...
 
-[REPORT THE RESULTS]
+[REPORT THE RESULTS] _ SEE REPORT
