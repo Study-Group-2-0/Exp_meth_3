@@ -303,6 +303,15 @@ summary(mo2)
 #Model with interaction - the interaction is as predicted not significant
 mo3 <- lmer(MOT_MLU ~ Diagnosis * Age + (1|Subject), df)
 summary(mo3)
+
+#Visualizing the data
+df %>% 
+  ggplot()+
+  aes(x= Age, y= MOT_MLU, colour = Diagnosis)+
+  geom_point()+
+  geom_smooth(method = lm, alpha = 0, size = 1) + labs(x = 'Age (months)', y = 'Mother MLU', title = 'Mother MLU according to the age and the diagnosis of the child')
+
+
 ```
 
 
