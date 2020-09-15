@@ -214,14 +214,15 @@ Exciting right? Let's check whether the model is doing an alright job at fitting
 #df_no_na_select <- select(df, c(df$SUBJ, df$Age, df$CHI_MLU))
 
 # rows of MLU CHI with NA's
-df[!complete.cases(df[,12]),]
+#df[!complete.cases(df[,12]),]
+df <- filter(df, is.na(CHI_MLU) == F, is.na(Age) == F)
+
+#creating a column with row number in orignial df
+df$X <- seq(1:346)
+
 
 # getting the fitted values into a dataframe using model 5
 fit_model <- data.frame(X = seq(1:346), FIT = fitted(m5))
-
-#creating a column with row number in orignial df
-df$X <- seq(1:372)
-
 
 
 # saving all fitted values - merging the two data frames into a new one
