@@ -77,7 +77,7 @@ Load necessary libraries : what will you need?
 
 ```{r Load Libraries, include = FALSE}
 #Loading packages
-pacman::p_load(tidyverse, lmerTest, lme4, ggplot2, MuMIn)
+pacman::p_load(tidyverse, lmerTest, lme4, ggplot2, MuMIn, modelr)
 
 
 
@@ -282,7 +282,7 @@ First build the different models, then compare them to see which one is better.
 
 ```{r ex2 growth curve, include = FALSE}
 
-nl1 <- lmer(CHI_MLU ~ Age + Diagnosis + (Age|SUBJ) + I(Age^2), df)
+nl1 <- lmer(CHI_MLU ~ Age * Diagnosis + (Age|SUBJ) + I(Age^2), df)
 summary(nl1)
 
 anova(m3,nl1)
@@ -294,7 +294,7 @@ Exciting right? Let's check whether the model is doing an alright job at fitting
 
 ```{r}
 ############### THIS IS OKAY ####################
-predictt <- as.data.frame(predict(nl1))
+predictt <- as.data.frame(predict(nl1, allow.new.levels = TRUE))
 row_nr <- seq.int(1:346)
 predictt$row_nr <- row_nr
 colnames(predictt)[1] <- c("CHI_MLU")
@@ -307,6 +307,8 @@ ggplot(df, aes(y = CHI_MLU, x = row_nr)) +
   geom_smooth(method = "lm", color = "black") +
   geom_point(data = predictt, color = "red") + 
   geom_smooth(method = "lm", color = "red")
+
+
 ```
 
 
