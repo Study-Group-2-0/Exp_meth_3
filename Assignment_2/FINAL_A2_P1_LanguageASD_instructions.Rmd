@@ -287,6 +287,8 @@ df %>%
 
 #By eyeballing the data it does not look like there is an interaction effect between age and diagnosis with MOT_MLU
 ```
+
+
 ```{r}
 #NAME OF AUTHOR: ANDERS
 ###################### MAKING MODELS ###########################
