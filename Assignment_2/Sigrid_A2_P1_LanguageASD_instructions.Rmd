@@ -137,7 +137,7 @@ df1 %>% split(df1$Diagnosis) %>% map(summary)
 
 The sample included mostly young (<20) white males ...
 
-[REPORT THE RESULTS]
+[REPORT THE RESULTS] --> see google docs
 
 ## Let's test hypothesis 1: Children with ASD display a language impairment  (Exercise 2)
 
