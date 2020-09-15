@@ -109,7 +109,7 @@ df$SUBJ <- as.factor(df$SUBJ)
 df$VISIT <- as.factor(df$VISIT)
 df$Diagnosis <- as.factor(df$Diagnosis)
 df$Ethnicity <- as.factor(df$Ethnicity)
-df$Gender <- as.factor(df$Gender)
+df$Gender <- as.factor(df$Gender)<
 
 
 ```
@@ -169,7 +169,8 @@ Remember to plot the data first and then to run a statistical test.
 ```{r}
 ################## choosing age over visit ################
 ggplot(df, aes(y = Age, x = VISIT, color = Diagnosis)) + 
-  geom_point()
+  geom_point() + 
+  geom_smooth(method = "lm")
 
 
 #making subsets with ASD and TD, didnt work
