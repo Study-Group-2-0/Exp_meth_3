@@ -199,7 +199,7 @@ First build the different models, then compare them to see which one is better.
 
 ggplot(df, aes(Age, CHI_MLU, color=Diagnosis)) + geom_point() + geom_smooth(method=loess)
 
-m5 <- lmer(CHI_MLU ~ Diagnosis + Age + (Age|SUBJ) + I(Age^2),df)
+m5 <- lmer(CHI_MLU ~ Diagnosis * Age + (Age|SUBJ) + I(Age^2),df)
 summary(m5)
 
 r.squaredGLMM(m5)
@@ -213,24 +213,28 @@ Exciting right? Let's check whether the model is doing an alright job at fitting
 #df$SUBJ <- as.factor(df$SUBJ)
 #df_no_na_select <- select(df, c(df$SUBJ, df$Age, df$CHI_MLU))
 
+# rows of MLU CHI with NA's
+df[!complete.cases(df[,12]),]
+
 # getting the fitted values into a dataframe using model 5
 fit_model <- data.frame(X = seq(1:346), FIT = fitted(m5))
 
 #creating a column with row number in orignial df
 df$X <- seq(1:372)
 
+
+
 # saving all fitted values - merging the two data frames into a new one
 test <- merge(fit_model, df, by = 'X', all = T)
 
 # plotting the actual versus the fitted data
-ggplot(test, aes(X, CHI_MLU)) + geom_point() + geom_smooth(method = 'lm', color = 'blue') +
-  geom_point(aes(X, FIT, color = 'red')) + geom_smooth(method = 'lm', color = 'red') + labs(x = 'Subject', y = 'Child_MLU') + theme(legend.position = 'none')
+ggplot(test, aes(Age, CHI_MLU)) + geom_point() + geom_smooth(method = 'lm', color = 'blue') +
+  geom_point(aes(Age, FIT, color = 'red')) + geom_smooth(method = 'lm', color = 'red') + labs(x = 'Age', y = 'Child_MLU') + theme(legend.position = 'none')
 
 # how many rows contain N/As
 df[!complete.cases(df),]
 
-# rows of MLU CHI with NA's
-df[!complete.cases(df$CHI_MLU),]
+
 
 # number of rows
 length(df[!complete.cases(df$CHI_MLU),])
