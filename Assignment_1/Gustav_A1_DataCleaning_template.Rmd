@@ -59,7 +59,7 @@ If you're not in a project in Rstudio, make sure to set your working directory h
 If you created an RStudio project, then your working directory (the directory with your data and code for these assignments) is the project directory.
 
 ```{r}
-pacman::p_load(tidyverse,janitor)
+pacman::p_load("tidyverse","janitor")
 ```
 
 Load the three data sets, after downloading them from dropbox and saving them in your working directory:
@@ -69,9 +69,9 @@ Load the three data sets, after downloading them from dropbox and saving them in
 
 ```{r}
 #Loading data sets
-demo_train <- read.csv("demo_train.csv")
-LU_train <- read.csv("LU_train.csv")
-token_train <- read.csv("token_train.csv")
+demo_train <- read_csv("demo_train.csv")
+LU_train <- read_csv("LU_train.csv")
+token_train <- read_csv("token_train.csv")
 
 #Checking how many participants in each df
 length(unique(demo_train$Child.ID))
@@ -101,8 +101,14 @@ Tip: look through the chapter on data transformation in R for data science (http
 
 
 ```{r}
+#Getting an overview of the different collumns using Janitor package
+compare_df_cols(demo_train,LU_train,token_train) 
+
+
 #Changing collumn names
-colnames(demo_train)[1:2] <- c("SUBJ","VISIT")
+demo_train <- demo_train %>% 
+  rename(SUBJ = Child.ID,
+         VISIT = Visit)
 ```
 
 2b. Find a way to homogeneize the way "visit" is reported (visit1 vs. 1).
@@ -111,20 +117,19 @@ Tip: The stringr package is what you need. str_extract () will allow you to extr
 
 
 ```{r}
-#Changing visit number to numeric
-#levels(LU_train$VISIT)
-#new_levels <- c("1","1","2","2","3","3","4","4","5","5","6","6")
-#levels(LU_train$VISIT) <- new_levels
-#levels(token_train$VISIT) <- new_levels
+#Tidyverse way
 
-#Another way:
-LU_train$VISIT <- str_extract(LU_train$VISIT, "\\d")
-token_train$VISIT <- str_extract(token_train$VISIT, "\\d")
+#Making a function:
+extractor <- function(df){
+  df <- df %>% 
+    mutate_at("VISIT",str_extract, "\\d") %>% 
+    mutate(VISIT= as.integer(VISIT))
+}
 
-#Changing visit variable into a factor:
-demo_train$VISIT <- as.factor(demo_train$VISIT)
-LU_train$VISIT <- as.factor(LU_train$VISIT)
-token_train$VISIT <- as.factor(token_train$VISIT)
+#using the function on all the df
+LU_train <- extractor(LU_train)
+token_train <- extractor(token_train)
+demo_train <- extractor(demo_train)
 ```
 
 2c. We also need to make a small adjustment to the content of the Child.ID coloumn in the demographic data. Within this column, names that are not abbreviations do not end with "." (i.e. Adam), which is the case in the other two data sets (i.e. Adam.). If The content of the two variables isn't identical the rows will not be merged.
@@ -135,15 +140,26 @@ Tip: You can either have one line of code for each child name that is to be chan
 
 
 ```{r}
-#Changing subject.ID.
-demo_train$SUBJ <- str_replace_all(demo_train$SUBJ, "[[:punct:]]", "")
-LU_train$SUBJ <- str_replace_all(LU_train$SUBJ, "[[:punct:]]", "")
-token_train$SUBJ <- str_replace_all(token_train$SUBJ, "[[:punct:]]", "")
+#Making a function
+stringer <- function(df){
+  df <- df %>% 
+    mutate_at("SUBJ", str_replace_all, "[.]", "") %>% 
+    mutate(SUBJ=as.factor(SUBJ))
+}
 
-#Making a factor
-demo_train$SUBJ <- as.factor(demo_train$SUBJ)
-LU_train$SUBJ <- as.factor(LU_train$SUBJ)
-token_train$SUBJ <- as.factor(token_train$SUBJ)
+#Aplllying the function
+demo_train <- stringer(demo_train)
+LU_train <- stringer(LU_train)
+token_train <- stringer(token_train)
+
+
+#Changing subject.ID. 
+#demo_train$SUBJ <- str_replace_all(demo_train$SUBJ, "[.]", "")
+#LU_train$SUBJ <- str_replace_all(LU_train$SUBJ, "[\\.]", "")
+#token_train$SUBJ <- str_replace_all(token_train$SUBJ, "[[:punct:]]", "") #ALL THREE WAYS OF SELECTING THE SPECIAL CHARACTERS
+
+#Comparing collumns 
+compare_df_cols(demo_train,LU_train,token_train)
 ```
 
 2d. Now that the nitty gritty details of the different data sets are fixed, we want to make a subset of each data set only containig the variables that we wish to use in the final data set.
@@ -179,15 +195,19 @@ Most variables should make sense, here the less intuitive ones.
 Feel free to rename the variables into something you can remember (i.e. nonVerbalIQ, verbalIQ)
 
 ```{r}
-#Selecting relevant variables for each df
-variables_to_include1 <- c("SUBJ", "VISIT", "Diagnosis","Ethnicity", "Gender", "Age", "ADOS",  "MullenRaw","ExpressiveLangRaw", "Socialization")
-variables_to_include2 <- c("SUBJ", "VISIT", "MOT_MLU", "CHI_MLU")
-variables_to_include3 <- c("SUBJ", "VISIT", "types_MOT", "types_CHI", "tokens_MOT", "tokens_CHI")
+#Making a function:
+selector2 <- function(df){
+  df <- df %>% 
+    select(one_of(c("SUBJ", "VISIT", "Diagnosis", "Ethnicity",
+           "Gender", "Age", "ADOS", "MullenRaw", "ExpressiveLangRaw",
+           "Socialization", "MOT_MLU", "CHI_MLU", "types_MOT",
+           "types_CHI", "tokens_MOT", "tokens_CHI"))) 
+}
 
-#subsetting relevant variables
-demo_train <- select(demo_train, variables_to_include1)
-LU_train <- select(LU_train, variables_to_include2)
-token_train <- select(token_train, variables_to_include3)
+#Using the function on the df
+demo_train <- selector2(demo_train)
+LU_train <- selector2(LU_train)
+token_train <- selector2(token_train)
 ```
 
 2e. Finally we are ready to merge all the data sets into just one. 
@@ -198,8 +218,8 @@ Some things to pay attention to:
 
 ```{r}
 #Merging the dataframes:
-df <- merge(demo_train, LU_train, by = c("SUBJ","VISIT"))
-df <- merge(df, token_train, by = c("SUBJ","VISIT"))
+df <- merge(demo_train, LU_train, by = c("SUBJ","VISIT"), all = TRUE)
+df <- merge(df, token_train, by = c("SUBJ","VISIT"), all = TRUE)
 ```
 
 
@@ -214,15 +234,16 @@ A possible way to do so:
 
 
 ```{r}
-#Creating new df for visit 1 only including the relevant variables.
-visit1 <- select(filter(df, df$VISIT==1), c("SUBJ","VISIT","ADOS", "MullenRaw","ExpressiveLangRaw","Socialization"))
+#Creating new variables
+visit1 <- df %>% 
+  filter(VISIT == 1) %>% 
+  select(SUBJ,
+         ADOS1 = ADOS,
+         MullenRaw1 = MullenRaw,
+         ExpressiveLangRaw1 = ExpressiveLangRaw,
+         Socialization1 = Socialization)
 
-#Renaming the collumns:
-new_names <- c("ADOS1", "MullenRaw1","ExpressiveLangRaw1","Socialization1")
-colnames(visit1)[3:6] <- new_names
-
-#Removing visit variable and merging 
-visit1$VISIT <- NULL
+#Merging the df
 df <- merge(df,visit1, by = "SUBJ")
 ```
 
@@ -235,13 +256,12 @@ Now we want to
 
 ```{r}
 #Anomymizing the names
-df$SUBJ <- as.integer(df$SUBJ)
-df$SUBJ <- as.factor(df$SUBJ)
+df <- df %>% 
+  mutate(SUBJ = as.factor(as.integer(SUBJ)),
+         VISIT = as.factor(VISIT),
+         Gender = as.factor(if_else(Gender == 1, "M", "F")),
+         Diagnosis = as.factor(if_else(Diagnosis == 1, "ASD", "TD")))
 
-#Changing gender and diagnosis names:
-df$Gender <- as.factor(df$Gender)
-levels(df$Gender) <- c("F","M")
-levels(df$Diagnosis) <- c("ASD","TD")
 ```
 
 ```{r}
@@ -263,17 +283,22 @@ List all kids who:
 
 ```{r}
 # 1) 
-good <- df %>% group_by(SUBJ) %>% summarise(mean(CHI_MLU))
-good <- filter(good, good[2]>2.7)
+df %>% 
+  group_by(SUBJ) %>% 
+  summarise(MEAN_CHI_MLU = mean(CHI_MLU)) %>% 
+  filter(MEAN_CHI_MLU>2.7)
 
 
 # 2)
-select(filter(df,VISIT==1 & CHI_MLU<1.5), c("SUBJ","CHI_MLU"))
+df %>% 
+  filter(VISIT == 1 & CHI_MLU<1.5) %>% 
+  select(SUBJ,CHI_MLU)
 
 # 3) 
-long <- df %>% group_by(SUBJ) %>% summarise(length(SUBJ))
-long <- filter(long, long[2]==6)
-
+df %>% 
+  group_by(SUBJ) %>% 
+  summarise(LENGTH_VISIT = length(SUBJ)) %>% 
+  filter(LENGTH_VISIT == 6)
 ```
 
 
@@ -284,11 +309,17 @@ USING ARRANGE
 
 ```{r}
 # 1)
-select(arrange(filter(df, VISIT==6),-tokens_CHI),c("SUBJ","tokens_CHI"))
+df %>% 
+  filter(VISIT == 6) %>% 
+  arrange(-tokens_CHI) %>% 
+  select(SUBJ, tokens_CHI)
 #Kid 59 produced the most words on visit 6, with 1294 words
 
 # 2) 
-select(arrange(filter(df, VISIT==1),tokens_CHI),c("SUBJ","tokens_CHI"))
+df %>% 
+  filter(VISIT == 1) %>% 
+  arrange(tokens_CHI) %>% 
+  select(SUBJ, tokens_CHI)
 #Kid 61 produced the least words on visit 1 with 0 words
 
 ```
@@ -300,7 +331,10 @@ USING SELECT
 
 ```{r}
 # 1) 
-select(filter(df, Diagnosis == "ASD"), c("SUBJ","CHI_MLU","tokens_CHI"))
+df %>% 
+  filter(Diagnosis== "ASD") %>% 
+  select(SUBJ, CHI_MLU, tokens_CHI)
+
 
 # 2) 
 select(df, c("SUBJ","VISIT","SUBJ","VISIT","tokens_CHI","VISIT"))
