@@ -210,20 +210,21 @@ Exciting right? Let's check whether the model is doing an alright job at fitting
 
 ```{r}
 # putting all the fitted values into a df
-df$SUBJ <- as.factor(df$SUBJ)
-df_no_na_select <- select(df, c(df$SUBJ, df$Age, df$CHI_MLU))
+#df$SUBJ <- as.factor(df$SUBJ)
+#df_no_na_select <- select(df, c(df$SUBJ, df$Age, df$CHI_MLU))
 
+# getting the fitted values into a dataframe using model 5
 fit_model <- data.frame(X = seq(1:346), FIT = fitted(m5))
 
+#creating a column with row number in orignial df
 df$X <- seq(1:372)
 
-# saving all fitted values
+# saving all fitted values - merging the two data frames into a new one
 test <- merge(fit_model, df, by = 'X', all = T)
 
-#plotting the fitted values
-test %>% ggplot() + 
-  aes(X, CHI_MLU) + geom_point() + geom_smooth(method=lm) +
-  geom_point(x = X, y = FIT, color = 'blue')
+# plotting the actual versus the fitted data
+ggplot(test, aes(X, CHI_MLU)) + geom_point() + geom_smooth(method = 'lm', color = 'blue') +
+  geom_point(aes(X, FIT, color = 'red')) + geom_smooth(method = 'lm', color = 'red') + labs(x = 'Subject', y = 'Child_MLU') + theme(legend.position = 'none')
 
 # how many rows contain N/As
 df[!complete.cases(df),]
@@ -233,7 +234,6 @@ df[!complete.cases(df$CHI_MLU),]
 
 # number of rows
 length(df[!complete.cases(df$CHI_MLU),])
-
 
 ```
 
@@ -272,10 +272,27 @@ summary(p2)
 summary(p3)
 summary(p4)
 
+# assesing the worth of each of the models
+
+r2 <- function(model){
+  
+  r.squaredGLMM()
+}
+
+r2(p1)
+r2(p2)
+r2(p3)
+r2(p4)
+
+r.squaredGLMM(p1)
+r.squaredGLMM(p2) #best?
+r.squaredGLMM(p3)
+r.squaredGLMM(p4)
 
 ```
 
-Parent MLU is affected by ... but probably not ...
+*We built a model to investigate how the MLU of the parent is predicted by the diagnosis and the age of the child..... *
+.parameter name | beta | lower-95 | upper-95 | random effect (SD)
 [REPORT THE RESULTS]
 
 ### Adding new variables (Exercise 4)
@@ -284,6 +301,31 @@ Your task now is to figure out how to best describe the children linguistic traj
 
 
 ```{r ex4, include = FALSE}
+
+#significant
+mo1 <- lmer(CHI_MLU ~ df$ExpressiveLangRaw + (1|SUBJ), df)
+
+#significant
+mo2 <- lmer(CHI_MLU ~ df$MullenRaw + (1|SUBJ), df)
+
+#significant
+mo3 <- lmer(CHI_MLU ~ df$Socialization + (1|SUBJ), df)
+
+#not interesting, too unbalanced
+mo4 <- lmer(CHI_MLU ~ df$Gender + (1|SUBJ), df)
+
+#also too unbalanced
+mo5 <- lmer(CHI_MLU ~ df$Ethnicity + (1|SUBJ), df)
+
+summary(mo1)
+summary(mo2)
+summary(mo3)
+summary(mo4)
+summary(mo5)
+
+r.squaredGLMM(mo1) #wauw - so verbal IQ is a good predictor of child MLU
+r.squaredGLMM(mo2) #also pretty nice
+r.squaredGLMM(mo3) #kinda bad compared to the other models
 
 ```
 
