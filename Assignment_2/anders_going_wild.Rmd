@@ -1,0 +1,51 @@
+---
+title: "anders_going_wild"
+author: "Anders Hjulmand"
+date: "9/16/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Here i will try to make and understand the k-fold loop that Byrakin presented for class 3.
+
+```{r}
+pacman::p_load("tidyverse", "caret")
+```
+
+```{r}
+#Loading the data
+df <- read_csv("ASD_Children.csv")
+
+#Changing variables to right format and renaming
+df <- df %>% 
+  mutate(
+    SUBJ = as.factor(SUBJ),
+    VISIT = as.factor(VISIT),
+    Diagnosis = as.factor(Diagnosis),
+    Ethnicity = as.factor(Ethnicity),
+    Gender = as.factor(Gender)
+  ) %>% 
+  rename(
+    Subject = SUBJ,
+    Visit = VISIT,
+    Verbal_IQ = ExpressiveLangRaw,
+    Verbal_IQ1 = ExpressiveLangRaw1,
+    Nonverbal_IQ = MullenRaw,
+    Nonverbal_IQ1 = MullenRaw1
+  )
+```
+
+```{r}
+# Setting up the k-folds
+
+k = 6
+folds = createFolds(unique(df$Subject), k = k)
+
+
+for fold in folds{}
+
+```
+
