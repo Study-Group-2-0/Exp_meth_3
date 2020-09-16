@@ -1,4 +1,4 @@
-SUBJ,VISIT,Diagnosis,Ethnicity,Gender,Age,ADOS,MullenRaw,ExpressiveLangRaw,Socialization,MOT_MLU,CHI_MLU,types_MOT,types_CHI,tokens_MOT,tokens_CHI,ADOS1,MullenRaw1,ExpressiveLangRaw1,Socialization1
+Subject,Visit,Diagnosis,Ethnicity,Gender,Age,ADOS,Nonverbal_IQ,Verbal_IQ,Socialization,MOT_MLU,CHI_MLU,types_MOT,types_CHI,tokens_MOT,tokens_CHI,ADOS1,Nonverbal_IQ1,Verbal_IQ1,Socialization1
 1,1,TD,White,M,19.8,0,28,14,108,3.621993127,1.252252252,378,14,1835,139,0,28,14,108
 1,2,TD,White,M,23.93,NA,NA,NA,110,3.857366771,1.013605442,403,18,2160,148,0,28,14,108
 1,3,TD,White,M,27.7,NA,NA,NA,109,4.321880651,1.556886228,455,97,2149,255,0,28,14,108

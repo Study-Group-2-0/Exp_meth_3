@@ -1,0 +1,388 @@
+---
+title: "Assignment 2 - Language Development in ASD - Part 1 - Explaining development"
+author: "Sigrid Snapfield, Anders Wheelman, Gustav Helmet"
+date: "15/09/2020"
+output: html_document:
+  keep_md: true
+---
+    
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(include = FALSE)
+```
+
+# Assignment 2
+
+In this assignment you will have to discuss a few important questions (given the data you have). More details below. The assignment submitted to the teachers consists of:
+- a report answering and discussing the questions (so we can assess your conceptual understanding and ability to explain and critically reflect)
+- a link to a git repository with all the code (so we can assess your code)
+
+Part 1 - Basic description of language development
+- Describe your sample (n, age, gender, clinical and cognitive features of the two groups) and critically assess whether the groups (ASD and TD) are balanced
+- Describe linguistic development (in terms of MLU over time) in TD and ASD children (as a function of group). 
+- Describe how parental use of language (in terms of MLU) changes over time. What do you think is going on?
+- Include individual differences in your model of language development (in children). Identify the best model.
+
+Part 2 - Model comparison
+- Discuss the differences in performance of your model in training and testing data
+- Which individual differences should be included in a model that maximizes your ability to explain/predict new data?
+- Predict a new kid's performance (Bernie) and discuss it against expected performance of the two groups
+
+Part 3 - Simulations to plan a new study
+- Report and discuss a power analyses identifying how many new kids you would need to replicate the results
+
+The following involves only Part 1.
+
+## Learning objectives
+
+- Summarize and report data and models
+- Critically apply mixed effects (or multilevel) models
+- Explore the issues involved in feature selection
+
+
+# Quick recap
+Autism Spectrum Disorder is often related to language impairment. However, this phenomenon has not been empirically traced in detail:
+i) relying on actual naturalistic language production,  ii) over extended periods of time.
+
+We therefore videotaped circa 30 kids with ASD and circa 30 comparison kids (matched by linguistic performance at visit 1) for ca. 30 minutes of naturalistic interactions with a parent. We repeated the data collection 6 times per kid, with 4 months between each visit. We transcribed the data and counted: 
+i) the amount of words that each kid uses in each video. Same for the parent.
+ii) the amount of unique words that each kid uses in each video. Same for the parent.
+iii) the amount of morphemes per utterance (Mean Length of Utterance) displayed by each child in each video. Same for the parent. 
+
+This data is in the file you prepared in the previous class. 
+
+NB. A few children have been excluded from your datasets. We will be using them next week to evaluate how good your models are in assessing the linguistic development in new participants.
+
+This RMarkdown file includes 
+1) questions (see above). Questions have to be answered/discussed in a separate document that you have to directly submit on Blackboard.
+2) A break down of the questions into a guided template full of hints for writing the code to solve the exercises. Fill in the code and the paragraphs as required. Then report your results in the doc for the teachers.
+
+REMEMBER that you will have to have a github repository for the code and submit the answers to Blackboard without code (but a link to your github/gitlab repository). This way we can check your code, but you are also forced to figure out how to report your analyses :-)
+
+Before we get going, here is a reminder of the issues you will have to discuss in your report:
+
+1- Describe your sample (n, age, gender, clinical and cognitive features of the two groups) and critically assess whether the groups (ASD and TD) are balanced
+2- Describe linguistic development (in terms of MLU over time) in TD and ASD children (as a function of group). 
+3- Describe how parental use of language (in terms of MLU) changes over time. What do you think is going on?
+4- Include individual differences in your model of language development (in children). Identify the best model.
+
+# Let's go
+
+### Loading the relevant libraries
+
+Load necessary libraries : what will you need?
+- e.g. something to deal with the data
+- e.g. mixed effects models
+- e.g. something to plot with
+
+```{r Load Libraries, include = FALSE}
+#NAME OF AUTHOR: SIGRID
+
+#Loading packages
+pacman::p_load("tidyverse","lme4","purrr", "lmerTest","MuMIn")
+```
+
+### Define your working directory and load the data
+If you created a project for this class and opened this Rmd file from within that project, your working directory is your project directory.
+
+If you opened this Rmd file outside of a project, you will need some code to find the data:
+- Create a new variable called locpath (localpath)
+- Set it to be equal to your working directory
+- Move to that directory (setwd(locpath))
+- Load the data you saved last time (use read_csv(fileName))
+
+```{r Load Data, include = FALSE}
+#NAME OF AUTHOR: ANDERS
+
+#Loading the data
+df <- read_csv("ASD_Children.csv")
+
+#Changing variables to right format and renaming
+df <- df %>% 
+  mutate(
+    SUBJ = as.factor(SUBJ),
+    VISIT = as.factor(VISIT),
+    Diagnosis = as.factor(Diagnosis),
+    Ethnicity = as.factor(Ethnicity),
+    Gender = as.factor(Gender)
+  ) %>% 
+  rename(
+    Subject = SUBJ,
+    Visit = VISIT,
+    Verbal_IQ = ExpressiveLangRaw,
+    Verbal_IQ1 = ExpressiveLangRaw1,
+    Nonverbal_IQ = MullenRaw,
+    Nonverbal_IQ1 = MullenRaw1
+  )
+
+write_csv(df,path="ASD_Children.csv")
+```
+
+### Characterize the participants (Exercise 1)
+
+Identify relevant variables: participants demographic characteristics, diagnosis, ADOS, Verbal IQ, Non Verbal IQ, Socialization, Visit, Number of words used, Number of unique words used, mean length of utterance in both child and parents.
+
+Make sure the variables are in the right format.
+
+Describe the characteristics of the two groups of participants and whether the two groups are well matched.
+
+```{r descriptive stats, include = False}
+#NAME OF AUTHOR: GUSTAV
+
+#Doing descriptive statistics.
+df %>% 
+  split(df$Diagnosis) %>%  # Making two new df. One for each level of the factor
+  map(summary) # doing the summary function on each collumn of the two df
+
+#Accessing data only for visit 1
+df %>% 
+  filter(Visit == 1) %>% 
+  split(df$Diagnosis) %>% 
+  map(summary)
+```
+
+The sample included mostly young (<20) white males ...
+
+[REPORT THE RESULTS] - SEE GOOGLE DOCS
+
+## Let's test hypothesis 1: Children with ASD display a language impairment  (Exercise 2)
+
+### Hypothesis: The child's MLU changes: i) over time, ii) according to diagnosis
+
+Let's start with a simple mixed effects linear model
+
+Remember to plot the data first and then to run a statistical test.
+- Which variable(s) should be included as fixed factors?
+- Which variable(s) should be included as random factors?
+
+```{r ex2, include = FALSE}
+#NAME OF AUTHOR: SIGRID
+
+#Visualizing the data with random intercepts for participants and random slopes for age 
+#The plot indicates that there might be an interaction effect between age and diagnosis. 
+df %>% 
+  ggplot()+
+  aes(x= Age, y= CHI_MLU, colour = Subject)+
+  geom_point()+
+  geom_smooth(method = lm, alpha = 0, size = 0.5)+
+  geom_smooth(method = lm, aes(colour = Diagnosis), alpha = 0, size = 2)+
+  facet_wrap(~Diagnosis)
+
+#Accessing the participants age across diagnosis
+df %>% 
+  ggplot()+
+  aes(x = Diagnosis, y = Age)+
+  geom_boxplot()
+
+#Age for visit 1 only
+df %>% 
+  filter(Visit == 1) %>% 
+  ggplot()+
+  aes(x = Diagnosis, y = Age)+
+  geom_boxplot()
+```
+
+
+```{r}
+#NAME OF AUTHOR: ANDERS
+###################### DOING a little p-hacking ###########################
+
+#Model without interaction and random slopes
+m1 <- lmer(CHI_MLU ~ Diagnosis + Age + (1|Subject), df)
+summary(m1)
+
+#Model without interaction but with random slopes
+m2 <- lmer(CHI_MLU ~ Diagnosis + Age + (Age|Subject), df)
+summary(m2)
+
+#Model with interaction but without random slopes
+m3 <- lmer(CHI_MLU ~ Diagnosis * Age + (1|Subject), df)
+summary(m3)
+
+#Model with interaction and random slopes
+m4 <- lmer(CHI_MLU ~ Diagnosis * Age + (Age|Subject), df)
+summary(m4)
+```
+
+
+How would you evaluate whether the model is a good model?
+
+```{r ex2 evaluate, include = FALSE}
+#NAME OF AUTHOR: GUSTAV
+
+############################ ASSESING MODEL FITNESS ##############################
+#Using a function to find r^2
+r2 <- function(model){
+  r.squaredGLMM(model)
+}
+
+#Using the function on the different models
+r2(m1)
+r2(m2)
+r2(m3)
+r2(m4)
+
+#Doing anova
+anova(m1,m2,m3,m4)
+
+#From the anovas and R^2 we see that interaction and age as random intercept is making the model better.
+```
+
+Not too good, right? Let's check whether a growth curve model is better.
+Remember: a growth curve model assesses whether changes in time can be described by linear, or quadratic, or cubic (or... etc.) components.
+First build the different models, then compare them to see which one is better.
+
+```{r ex2 growth curve, include = FALSE}
+#NAME OF AUTHOR: SIGRID
+
+#Making a model with different curve model:
+m5 <- lmer(CHI_MLU ~ Diagnosis * Age + (Age|Subject)+I(Age^2), df)
+summary(m5)
+r.squaredGLMM(m5)
+
+#Anova
+anova(m4,m5)
+
+#The growth curve model is significantly better than m4. 
+```
+
+Exciting right? Let's check whether the model is doing an alright job at fitting the data. Plot the actual CHI_MLU data against the predictions of the model fitted(model). 
+
+```{r}
+#NAME OF AUTHOR: ANDERS
+
+#Plotting the fitted values together with the actual CHI_MLU data
+df %>% 
+  filter(is.na(CHI_MLU) == F, is.na(Age) == F) %>% 
+  mutate(FITTED = fitted(m5)) %>% 
+  ggplot()+
+    aes(x= Age, y = CHI_MLU)+
+    geom_point(colour = "blue")+
+    geom_point(aes(x = Age, y = FITTED), colour = "red")+
+    geom_smooth(method = lm, formula = y ~ x + I(x^2))+
+    geom_smooth(method = lm, aes(x = Age, y = FITTED), formula = y ~ x + I(x^2), colour = "red")+
+  facet_wrap(~Diagnosis)
+
+
+```
+
+Now it's time to report our results.
+Remember to report:
+- the estimates for each predictor (beta estimate, standard error, p-value)
+- A plain word description of the results
+- A plot of your model's predictions (and some comments on whether the predictions are sensible)
+
+[REPORT THE RESULTS]
+Linguistic development of children MLU is affected by ... [COMPLETE] - SEE REPORT
+
+## Let's test hypothesis 2: Parents speak equally to children with ASD and TD  (Exercise 3)
+
+### Hypothesis: Parental MLU changes: i) over time, ii) according to diagnosis
+
+```{r ex3, include = FALSE}
+#NAME OF AUTHOR: GUSTAV
+
+#Visualizing the data
+df %>% 
+  ggplot()+
+  aes(x= Age, y= MOT_MLU, colour = Subject)+
+  geom_point()+
+  geom_smooth(method = lm, alpha = 0, size = 0.5)+
+  geom_smooth(method = lm, aes(colour = Diagnosis), alpha = 0, size = 2)+
+  facet_wrap(~Diagnosis)
+
+#By eyeballing the data it does not look like there is an interaction effect between age and diagnosis with MOT_MLU
+```
+
+
+```{r}
+#NAME OF AUTHOR: ANDERS
+###################### MAKING MODELS ###########################
+
+#Model without interaction and random slopes
+mo1 <- lmer(MOT_MLU ~ Diagnosis + Age + (1|Subject), df)
+summary(mo1)
+
+#Model without interaction but with random slopes
+mo2 <- lmer(MOT_MLU ~ Diagnosis + Age + (Age|Subject), df)
+summary(mo2)
+
+#Model with interaction - the interaction is as predicted not significant
+mo3 <- lmer(MOT_MLU ~ Diagnosis * Age + (1|Subject), df)
+summary(mo3)
+
+#Visualizing the data
+df %>% 
+  ggplot()+
+  aes(x= Age, y= MOT_MLU, colour = Diagnosis)+
+  geom_point()+
+  geom_smooth(method = lm, alpha = 0, size = 1) + labs(x = 'Age (months)', y = 'Mother MLU', title = 'Mother MLU according to the age and the diagnosis of the child')
+
+
+```
+
+
+```{r}
+#NAME OF AUTHOR: SIGRID
+
+#Acessing R-squared values
+r.squaredGLMM(mo1)
+r.squaredGLMM(mo2)
+r.squaredGLMM(mo3)
+
+#Comparing models
+anova(mo1,mo2,mo3)
+
+#As predicted does the interaction effect not improve the model. The best model is model m2 which includes random slopes. 
+```
+
+
+Parent MLU is affected by ... but probably not ...
+[REPORT THE RESULTS] - SEE REPORT
+
+### Adding new variables (Exercise 4)
+
+Your task now is to figure out how to best describe the children linguistic trajectory. The dataset contains a bunch of additional demographic, cognitive and clinical variables (e.g.verbal and non-verbal IQ). Try them out and identify the statistical models that best describes your data (that is, the children's MLU). Describe how you selected the best model and send the code to run the model to Victor and Byurakn.
+
+
+```{r ex4, include = FALSE}
+#NAME OF AUTHOR: Gustav
+
+#################### DOING Exploratory analysis of predictors (p-hacking)##############
+
+#Non significant predictors
+#Ethnicity
+n1 <- lmer(CHI_MLU ~ Ethnicity + (1|Subject), df)
+summary(n1)
+
+# Gender
+n2 <- lmer(CHI_MLU ~ Gender + (1|Subject), df)
+summary(n2)
+
+
+#Significant predictors
+#non_verbal_iq significant
+n3 <- lmer(CHI_MLU ~ Nonverbal_IQ1 + (1|Subject), df)
+summary(n3)
+
+# verbal iq significait
+n4 <- lmer(CHI_MLU ~ Verbal_IQ1 + (1|Subject), df)
+summary(n4)
+
+#Socialization
+n5 <- lmer(CHI_MLU ~ Socialization1 + (1|Subject), df)
+summary(n5)
+```
+
+```{r}
+#NAME OF AUTHOR: Anders
+
+#PLotting a final model including all significant predictors
+FINAL_MODEL <- lmer(CHI_MLU ~ Diagnosis*Age+Nonverbal_IQ1+Verbal_IQ1+Socialization1+(Age|Subject)+I(Age^2),df)
+summary(FINAL_MODEL)
+```
+
+In addition to ..., the MLU of the children is also correlated with ...
+Using AIC / nested F-tests as a criterium, we compared models of increasing complexity and found that ...
+
+[REPORT THE RESULTS] _ SEE REPORT
