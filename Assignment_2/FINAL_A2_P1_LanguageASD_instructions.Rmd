@@ -125,7 +125,7 @@ Make sure the variables are in the right format.
 
 Describe the characteristics of the two groups of participants and whether the two groups are well matched.
 
-```{r descriptive stats, include = TRUE}
+```{r descriptive stats, include = False}
 #NAME OF AUTHOR: GUSTAV
 
 #Doing descriptive statistics.
