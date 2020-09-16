@@ -47,10 +47,12 @@ How did your models from last time perform? In this exercise you have to compare
 
 
 ```{r, include = FALSE}
-
 pacman::p_load(readr,dplyr,stringr,lmerTest,Metrics,caret)
+```
 
-## Clean up function, included to inspire you
+
+```{r, include = FALSE}
+## Clean up function, included to inspire you, tidyverse magic
 
 CleanUpData <- function(Demo,LU,Word){
   
@@ -98,26 +100,52 @@ CleanUpData <- function(Demo,LU,Word){
 
   return(Data)
 }
+```
 
+
+```{r, include = FALSE}
 # Load training Data
-
+df_train <- read_csv("data_clean.csv")
 
 #- recreate the models you chose last time (just write the code again and apply it to Train Data)
-
+m1 <- lmer(CHI_MLU ~ Diagnosis * Age + (Age|Child.ID)+I(Age^2), df_train)
+summary(m1)
 
 #- calculate performance of the model on the training data: root mean square error is a good measure. (Tip: google the function rmse())
+df_train_fit <- df_train %>% 
+  filter(is.na(CHI_MLU) == F, is.na(Age) == F) %>% 
+  mutate(FITTED = fitted(m1)) 
 
+rmse(df_train_fit$CHI_MLU, df_train_fit$FITTED)
+# We get an rmse of 0,34
 
 
 #- create the test dataset (apply the code from assignment 1 or my function to clean up the 3 test datasets)
 # Test data
+DEMO <- read_csv("demo_test.csv")
+LU <- read_csv("LU_test.csv")
+WORD <- read_csv("token_test.csv")
+
+#using the nice function
+df_test <- CleanUpData(DEMO, LU, WORD)
+
 
 #- test the performance of the models on the test data (Tips: google the functions "predict()")
+df_test$predicted <- predict(m1, df_test, allow.new.levels = T)
 
+#removing the na
+df_test_exclude_na <- df_test %>% 
+  filter(is.na(CHI_MLU) == F)
+
+rmse(df_test_exclude_na$CHI_MLU, df_test_exclude_na$predicted)
+#we get an rmse of 1.35
 
 #- optional: predictions are never certain, can you identify the uncertainty of the predictions? (e.g. google predictinterval())
-
+predict(m1, newdata = df_test, allow.new.levels = T, interval = "confidence")
 ```
+
+
+
 
 [HERE GOES YOUR ANSWER]
 
@@ -139,14 +167,102 @@ In this exercise you have to use cross-validation to calculate the predictive er
 
 ```{r}
 #- Create the basic model of ChildMLU as a function of Time and Diagnosis (don't forget the random effects!).
+m2 <- lmer(CHI_MLU ~ Age + Diagnosis + (Age|Child.ID), df_train)
+summary(m2)
+```
 
+
+```{r}
+########################## CROSS VALIDATION ON SIMPLE MODEL ############################################
 #- Make a cross-validated version of the model. (Tips: google the function "createFolds";  loop through each fold, train a model on the other folds and test it on the fold)
 
+k = 6
+folds <- createFolds(unique(df_train_fit$Child.ID, k = k, list = TRUE, returnTrain = FALSE))
+
+trainRMSE_s <- rep(NA, k)
+testRMSE_s <- rep(NA, k)
+
+i = 0
+for (fold in folds){
+  train <- subset(df_train_fit, !(Child.ID %in% fold))
+  test <- subset(df_train_fit, (Child.ID %in% fold))
+  model <- lmer(CHI_MLU ~ Age + Diagnosis + (Age|Child.ID), train)
+  train$prediction <- fitted(model)
+  test$prediction <- predict(m2, test, allow.new.levels = TRUE)
+  trainRMSE_s[i] <- rmse(df_train_fit$CHI_MLU, train$prediction)
+  testRMSE_s[i] <- rmse(df_train_fit$CHI_MLU, test$prediction)
+  i = i + 1
+}
+
+trainRMSE_s
+testRMSE_s
+
+diff_1 <- trainRMSE_s - testRMSE_s
+diff_1
+
 #- Report the results and comment on them. 
+# it seems like the rmse is quite similar, no big difference between them, small residuals/variance
+```
 
+
+```{r}
 #- Now try to find the best possible predictive model of ChildMLU, that is, the one that produces the best cross-validated results.
+######################################### CROSS VALIDATION ON OUR OWN MODEL ###############################
+k = 6
+folds <- createFolds(unique(df_train_fit$Child.ID, k = k, list = TRUE, returnTrain = FALSE))
 
+trainRMSE <- rep(NA, k)
+testRMSE <- rep(NA, k)
+
+i = 0
+for (fold in folds){
+  train <- subset(df_train_fit, !(Child.ID %in% fold))
+  test <- subset(df_train_fit, (Child.ID %in% fold))
+  model <- lmer(CHI_MLU ~ Diagnosis * Age + (Age|Child.ID)+I(Age^2), train)
+  train$prediction <- fitted(model)
+  test$prediction <- predict(m2, test, allow.new.levels = TRUE)
+  trainRMSE[i] <- rmse(df_train_fit$CHI_MLU, train$prediction)
+  testRMSE[i] <- rmse(df_train_fit$CHI_MLU, test$prediction)
+  i = i + 1
+}
+
+trainRMSE
+testRMSE
+
+diff <- trainRMSE - testRMSE
+diff
+
+
+```
+```{r}
+################################ COMPARING CROSS VALIDATION OF SIMPLE AND COMPLEX MODEL #######################################
+mean(trainRMSE_s)
+mean(trainRMSE)
+
+mean(testRMSE_s)
+mean(testRMSE)
+
+mean(diff_1)
+mean(diff)
+
+######### seems like the complex model is actually better 
+
+```
+
+
+
+
+```{r}
 # Bonus Question 1: What is the effect of changing the number of folds? Can you plot RMSE as a function of number of folds?
+#make more rmse for complex model with differenct folds
+#combine them into a df
+
+ggplot()
+
+```
+
+
+```{r}
 # Bonus Question 2: compare the cross-validated predictive error against the actual predictive error on the test data
 ```
 

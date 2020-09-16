@@ -46,10 +46,9 @@ How did your models from last time perform? In this exercise you have to compare
 
 
 ```{r, include = FALSE}
-
 pacman::p_load(readr,dplyr,stringr,lmerTest,Metrics,caret)
 
-## Clean up function, included to inspire you
+## Clean up function, included to inspire you,
 
 CleanUpData <- function(Demo,LU,Word){
   
@@ -97,7 +96,10 @@ CleanUpData <- function(Demo,LU,Word){
 
   return(Data)
 }
+```
 
+
+```{r, include = FALSE}
 # Load training Data
 
 
