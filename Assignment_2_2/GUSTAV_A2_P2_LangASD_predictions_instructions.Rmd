@@ -96,6 +96,9 @@ CleanUpData <- function(Demo,LU,Word){
     ) %>% 
     rename(
       Subject = Child.ID
+    ) %>% 
+    filter(
+      is.na(Age) == F | is.na(CHI_MLU) == F 
     )
 
   return(Data)
@@ -116,11 +119,11 @@ m1 <- lmer(CHI_MLU ~ Diagnosis*Age+(Age|Subject)+I(Age^2),data)
 
 #- calculate performance of the model on the training data: root mean square error is a good measure. (Tip: google the function rmse())
 #Filtering out NAs and creating a collumn for predicted values
-t <- data %>% 
+data <- data %>% 
   filter(is.na(CHI_MLU) == F, is.na(Age) == F) 
 
 #Doing the function
-rmse(t$CHI_MLU,fitted(m1))
+rmse(data$CHI_MLU,fitted(m1))
 
 
 ```
