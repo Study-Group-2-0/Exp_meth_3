@@ -169,7 +169,7 @@ m0 <- lmer(CHI_MLU ~ Diagnosis + Age +(1|Subject), data_clean)
 
 # cross-validation of simpel model
 k <- 6
-folds <- createFolds(unique(data_clean$Subject, k = k, list = T, returnTrain = F))
+folds <- createFolds(unique(data_clean$Subject), k = k, list = T, returnTrain = F)
 
 trainRMSE_null <- rep(NA,k)
 testRMSE_null <- rep(NA,k)
