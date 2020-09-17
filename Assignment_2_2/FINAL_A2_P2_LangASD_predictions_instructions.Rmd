@@ -1,4 +1,11 @@
 ---
+title: "FINAL_A2_P2_LangASD_predictions_instructions"
+author: "Anders Hjulmand"
+date: "9/17/2020"
+output: html_document
+---
+
+---
 title: "Assignment 2 - Language Development in ASD - Making predictions"
 author: "Riccardo Fusaroli"
 date: "August 9, 2019"
