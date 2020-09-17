@@ -44,40 +44,49 @@ How did your models from last time perform? In this exercise you have to compare
 - test the performance of the models on the test data (Tips: google the functions "predict()")
 - optional: predictions are never certain, can you identify the uncertainty of the predictions? (e.g. google predictinterval())
 
+```{r data and packages}
+pacman::p_load(readr,dplyr,stringr,lmerTest,Metrics,caret, lme4)
+
+demo <- read_csv('demo_test.csv')
+LU <- read_csv('LU_test.csv')
+token <- read_csv('token_test.csv')
+
+```
+
 
 ```{r, include = FALSE}
 
-pacman::p_load(readr,dplyr,stringr,lmerTest,Metrics,caret)
-
 ## Clean up function, included to inspire you
 
-CleanUpData <- function(Demo,LU,Word){
+CleanUpData <- function(demo,LU,token){
   
-  Speech <- merge(LU, Word) %>% 
+  Speech <- merge(LU, token) %>% 
     rename(
-      Child.ID = SUBJ, 
-      Visit=VISIT) %>%
+      Subject = SUBJ, 
+      Visit = VISIT) %>%
     mutate(
       Visit = as.numeric(str_extract(Visit, "\\d")),
-      Child.ID = gsub("\\.","", Child.ID)
+      Subject = gsub("\\.","", Subject)
       ) %>%
     dplyr::select(
-      Child.ID, Visit, MOT_MLU, CHI_MLU, types_MOT, types_CHI, tokens_MOT, tokens_CHI
+      Subject, Visit, MOT_MLU, CHI_MLU, types_MOT, types_CHI, tokens_MOT, tokens_CHI
     )
   
-  Demo <- Demo %>%
+  demo <- demo %>%
+    rename(
+      Subject = Child.ID) %>% 
     dplyr::select(
-      Child.ID, Visit, Ethnicity, Diagnosis, Gender, Age, ADOS, MullenRaw, ExpressiveLangRaw, Socialization
+      Subject, Visit, Ethnicity, Diagnosis, Gender, Age, ADOS, MullenRaw, ExpressiveLangRaw, Socialization
     ) %>%
     mutate(
-      Child.ID = gsub("\\.","", Child.ID)
+      Subject = gsub("\\.","", Subject)
     )
     
-  Data=merge(Demo,Speech,all=T)
+  Data=merge(demo,Speech,all=T)
   
   Data1= Data %>% 
      subset(Visit=="1") %>% 
-     dplyr::select(Child.ID, ADOS, ExpressiveLangRaw, MullenRaw, Socialization) %>%
+     dplyr::select(Subject, ADOS, ExpressiveLangRaw, MullenRaw, Socialization) %>%
      rename(Ados1 = ADOS, 
             verbalIQ1 = ExpressiveLangRaw, 
             nonVerbalIQ1 = MullenRaw,
@@ -85,7 +94,7 @@ CleanUpData <- function(Demo,LU,Word){
   
   Data=merge(Data, Data1, all=T) %>%
     mutate(
-      Child.ID = as.numeric(as.factor(as.character(Child.ID))),
+      Subject = as.numeric(as.factor(as.character(Subject))),
       Visit = as.numeric(as.character(Visit)),
       Gender = recode(Gender, 
          "1" = "M",
@@ -98,27 +107,43 @@ CleanUpData <- function(Demo,LU,Word){
   return(Data)
 }
 
-# Load training Data
+#rename data set
+data_test <- Data
 
+# Load training Data
+data_clean <- read_csv('data_clean.csv')
+data_clean$Child.ID <- as.character(data_clean$Child.ID)
+data_clean <- data_clean %>% rename('Subject' = 'Child.ID')
 
 #- recreate the models you chose last time (just write the code again and apply it to Train Data)
-
+m1 <- lmer(CHI_MLU ~ Diagnosis * Age + (Age|Subject) + I(Age^2), data_clean)
+summary(m1)
 
 #- calculate performance of the model on the training data: root mean square error is a good measure. (Tip: google the function rmse())
 
+data_clean <- filter(data_clean, is.na(CHI_MLU) == F, is.na(Age) == F)
 
+data_clean$prediction <- fitted(m1)
+
+data_clean_RMSE <- rmse(data_clean$CHI_MLU, data_clean$prediction)
 
 #- create the test dataset (apply the code from assignment 1 or my function to clean up the 3 test datasets)
 # Test data
+# test data = data_test
 
 #- test the performance of the models on the test data (Tips: google the functions "predict()")
+data_test <- filter(data_test, is.na(CHI_MLU) == F, is.na(Age) ==F)
 
+data_test$prediction <- predict(m1, data_test, allow.new.levels = T)
+
+data_test_RMSE <- rmse(data_test$CHI_MLU, data_test$prediction)
 
 #- optional: predictions are never certain, can you identify the uncertainty of the predictions? (e.g. google predictinterval())
 
 ```
 
 [HERE GOES YOUR ANSWER]
+*In order of investigating the value of the model created using the training data set, I have calculated the root mean square error for both the training and the test data set. For the training data set the RMSE is 0.3471 MLU more than the true (observed value) and for the test data set it is higher with a RMSE of 1.3570 MLU. Not too great?*
 
 ### Exercise 2) Model Selection via Cross-validation (N.B: ChildMLU!)
 
@@ -138,18 +163,127 @@ In this exercise you have to use cross-validation to calculate the predictive er
 
 ```{r}
 #- Create the basic model of ChildMLU as a function of Time and Diagnosis (don't forget the random effects!).
+m0 <- lmer(CHI_MLU ~ Diagnosis + Age +(1|Subject), data_clean)
 
 #- Make a cross-validated version of the model. (Tips: google the function "createFolds";  loop through each fold, train a model on the other folds and test it on the fold)
+
+# cross-validation of simpel model
+k <- 6
+folds <- createFolds(unique(data_clean$Subject, k = k, list = T, returnTrain = F))
+
+trainRMSE_null <- rep(NA,k)
+testRMSE_null <- rep(NA,k)
+
+i = 1
+for (fold in folds){
+  train = subset(data_clean, !(Subject %in% fold))
+  test = subset(data_clean, Subject %in% fold)
+  model = lmer(CHI_MLU ~ Diagnosis + Age + (1|Subject), train)
+  test$prediction <- predict(model, test, allow.new.levels = T)
+  train$prediction <- fitted(model)
+  trainRMSE_null[i] <- rmse(train$CHI_MLU, fitted(model))
+  testRMSE_null[i] <- rmse(test$CHI_MLU, test$prediction)
+  i = i+1
+}
+
+trainRMSE_null
+testRMSE_null
+
+train_mean_null <- sum(trainRMSE_null)/length(trainRMSE_null)
+test_mean_null <- sum(testRMSE_null)/length(testRMSE_null)
+
+train_mean_null
+test_mean_null
+
+# cross-validation of full model
+k <- 6
+folds <- createFolds(unique(data_clean$Subject, k = k, list = T, returnTrain = F))
+
+trainRMSE <- rep(NA,k)
+testRMSE <- rep(NA,k)
+
+i = 1
+for (fold in folds){
+  train = subset(data_clean, !(Subject %in% fold))
+  test = subset(data_clean, Subject %in% fold)
+  model = lmer(CHI_MLU ~ Diagnosis * Age + (Age|Subject), train)
+  test$prediction <- predict(model, test, allow.new.levels = T)
+  train$prediction <- fitted(model)
+  trainRMSE[i] <- rmse(train$CHI_MLU, fitted(model))
+  testRMSE[i] <- rmse(test$CHI_MLU, test$prediction)
+  i = i+1
+}
+
+trainRMSE
+testRMSE
+
+train_mean <- sum(trainRMSE)/length(trainRMSE)
+test_mean <- sum(testRMSE)/length(testRMSE)
+train_mean
+test_mean
 
 #- Report the results and comment on them. 
 
 #- Now try to find the best possible predictive model of ChildMLU, that is, the one that produces the best cross-validated results.
+data_clean <- filter(data_clean, is.na(CHI_MLU) == F, is.na(Age) == F, is.na(MullenRaw) == F, is.na(ExpressiveLangRaw) == F, is.na(Socialization) == F)
+
+k <- 4
+folds <- createFolds(unique(data_clean$Subject, k = k, list = T, returnTrain = F))
+
+trainRMSE <- rep(NA,k)
+testRMSE <- rep(NA,k)
+
+i = 1
+for (fold in folds){
+  train = subset(data_clean, !(Subject %in% fold))
+  test = subset(data_clean, Subject %in% fold)
+  model = lmer(CHI_MLU ~ Diagnosis * Age + MullenRaw + ExpressiveLangRaw + Socialization + (1|Subject), train)
+  test$prediction <- predict(model, test, allow.new.levels = T)
+  train$prediction <- fitted(model)
+  trainRMSE[i] <- rmse(train$CHI_MLU, fitted(model))
+  testRMSE[i] <- rmse(test$CHI_MLU, test$prediction)
+  i = i+1
+}
+
+trainRMSE
+testRMSE
+
+train_mean <- sum(trainRMSE)/length(trainRMSE)
+test_mean <- sum(testRMSE)/length(testRMSE)
+train_mean
+test_mean
 
 # Bonus Question 1: What is the effect of changing the number of folds? Can you plot RMSE as a function of number of folds?
 # Bonus Question 2: compare the cross-validated predictive error against the actual predictive error on the test data
 ```
 
-[HERE GOES YOUR ANSWER]
+By doing cross-validation using 4 folds and calculating the RMSE, on firstly the simpel (null) model, I have found that the training data set on average is 0.4673 MLU more than the observed value and that the test data set is 0.7746 MLU more than the observed value on average. 
+Regarding the 'full' model, the value of the RMSE by use of the training data set is on average 0.3596 MLU and by use of the test data set 0.6958. Thus, I can conlcude that the full model is better than the null model. However, the value of RMSE on the test data set is still fairly high.
+
+*Using 6 folds:*
+NULL MODEL
+train_mean_null = 0.4673
+test_mean_null = 0.7805
+
+FULL MODEL
+train_mean = 0.3570
+test_mean = 0.7128
+*Conclusion: It does not help to add more folds, though, that is probably due to the fact that the data set is rather small*
+
+### Trying out different models in the cross-validation 
+k = 4
+model = lmer(CHI_MLU ~ Diagnosis * Age + MullenRaw + (1|Subject), train)
+*train_mean = 0.3695*
+*test_mean = 0.5037*
+
+k = 6, same model
+*train_mean = 0.3687*
+*test_mean = 0.5387*
+
+k = 4, bigger model
+model = lmer(CHI_MLU ~ Diagnosis * Age + MullenRaw + ExpressiveLangRaw + Socialization + (1|Subject), train)
+*train_mean = 0.3012*
+*test_mean = 0.4531*
 
 ### Exercise 3) Assessing the single child
 
