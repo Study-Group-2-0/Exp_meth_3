@@ -131,7 +131,7 @@ rmse(data$CHI_MLU,fitted(m1))
 test_data <- CleanUpData(read_csv("Demo_test.csv"),
                          read_csv("LU_test.csv"),
                          read_csv("token_test.csv"))
-
+hep
 
 #- test the performance of the models on the test data (Tips: google the functions "predict()")
 predicted <- predict(m1, test_data, allow.new.levels = T)
@@ -167,10 +167,10 @@ In this exercise you have to use cross-validation to calculate the predictive er
 
 #Making a function with k-fold and model input
 crossvalid <- function(k,model){
-folds = createFolds(unique(data$Subject, k = k, list = T, returnTrain = F))
+folds = createFolds(unique(data$Subject), k = 50, list = T, returnTrain = F)
 
-trainRMSE = rep(NA, 10)
-testRMSE = rep(NA, 10)
+trainRMSE = rep(NA, k)
+testRMSE = rep(NA, k)
 
 i = 1
 
@@ -194,7 +194,7 @@ return(result)
 ```{r}
 #Trying cross validating different models
 model1 = CHI_MLU ~ Diagnosis+Age+(1|Subject)+I(Age^2)
-Cross_m1 <- crossvalid(6,model1)
+Cross_m1 <- crossvalid(12,model1)
 
 model2 = CHI_MLU ~ Diagnosis+Age+(Age|Subject)+I(Age^2)
 Cross_m2 <- crossvalid(6,model2)
@@ -213,7 +213,7 @@ Cross_m3 <- crossvalid(6,model3)
 
 #Defining model to do loop on and number of folds
 model = CHI_MLU ~ Diagnosis+Age+(1|Subject)+I(Age^2)
-k = 6
+k = 20
 
 #Making and empty dataframe for the output
 cross_mean <- data.frame(
@@ -255,12 +255,12 @@ mean(abs(predicted-test_data$CHI_MLU))
 
 
 ###Calculating the predictive error for the cross-validated model###
+k = 6
+folds = createFolds(unique(data$Subject), k = k, list = T, returnTrain = F)
 
-folds = createFolds(unique(data$Subject, k = 6, list = T, returnTrain = F))
-
-hep <- data.frame(trainRMSE = rep(NA, 10),
-                  testRMSE = rep(NA, 10),
-                  predictive_error = rep(NA,10)) #Adding a new collumn for mean residual
+hep <- data.frame(trainRMSE = rep(NA, k),
+                  testRMSE = rep(NA, k),
+                  predictive_error = rep(NA,k)) #Adding a new collumn for mean residual
 
 i = 1
 
