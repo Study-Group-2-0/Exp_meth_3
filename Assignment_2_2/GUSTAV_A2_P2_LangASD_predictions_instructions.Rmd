@@ -34,6 +34,7 @@ N.B. There are several datasets for this exercise, so pay attention to which one
 * Utterance Length data: https://www.dropbox.com/s/eegu8fea2entdqv/LU_test.csv?dl=0
 * Word data: https://www.dropbox.com/s/cf4p84mzn2p1bev/token_test.csv?dl=0
 
+
 ### Exercise 1) Testing model performance
 
 How did your models from last time perform? In this exercise you have to compare the results on the training data and on the test data. Report both of them. Compare them. Discuss why they are different.
@@ -46,8 +47,7 @@ How did your models from last time perform? In this exercise you have to compare
 
 
 ```{r, include = FALSE}
-
-pacman::p_load(readr,dplyr,stringr,lmerTest,Metrics,caret)
+pacman::p_load(readr,dplyr,stringr,lmerTest,Metrics,caret,reshape2)
 
 ## Clean up function, included to inspire you
 
@@ -93,25 +93,49 @@ CleanUpData <- function(Demo,LU,Word){
       Diagnosis = recode(Diagnosis,
          "A"  = "ASD",
          "B"  = "TD")
+    ) %>% 
+    rename(Subject = Child.ID) %>% 
+    filter(is.na(Age) == F , is.na(CHI_MLU) == F 
     )
 
   return(Data)
 }
 
-# Load training Data
+```
 
+
+```{r, include = FALSE}
+# Load training Data
+data <- read_csv("data_clean.csv")
+data <- data %>% 
+  rename(Subject = Child.ID)
 
 #- recreate the models you chose last time (just write the code again and apply it to Train Data)
-
+m1 <- lmer(CHI_MLU ~ Diagnosis*Age+(Age|Subject)+I(Age^2),data)
 
 #- calculate performance of the model on the training data: root mean square error is a good measure. (Tip: google the function rmse())
+#Filtering out NAs and creating a collumn for predicted values
+data <- data %>% 
+  filter(is.na(CHI_MLU) == F, is.na(Age) == F) 
+
+#Doing the function
+rmse(data$CHI_MLU,fitted(m1))
 
 
+```
 
+
+```{r, include = FALSE}
 #- create the test dataset (apply the code from assignment 1 or my function to clean up the 3 test datasets)
 # Test data
+test_data <- CleanUpData(read_csv("Demo_test.csv"),
+                         read_csv("LU_test.csv"),
+                         read_csv("token_test.csv"))
+hep
 
 #- test the performance of the models on the test data (Tips: google the functions "predict()")
+predicted <- predict(m1, test_data, allow.new.levels = T)
+rmse(test_data$CHI_MLU, predicted)
 
 
 #- optional: predictions are never certain, can you identify the uncertainty of the predictions? (e.g. google predictinterval())
@@ -141,12 +165,120 @@ In this exercise you have to use cross-validation to calculate the predictive er
 
 #- Make a cross-validated version of the model. (Tips: google the function "createFolds";  loop through each fold, train a model on the other folds and test it on the fold)
 
+#Making a function with k-fold and model input
+crossvalid <- function(k,model){
+folds = createFolds(unique(data$Subject), k = 50, list = T, returnTrain = F)
+
+trainRMSE = rep(NA, k)
+testRMSE = rep(NA, k)
+
+i = 1
+
+for (fold in folds){
+  train = subset(data, !(Subject %in% fold))
+  test = subset(data, Subject %in% fold)
+  m = lmer(model, train)
+  test$prediction = predict(m, test, allow.new.levels = T)
+  train$prediction = fitted(m)
+  trainRMSE[i] = rmse(train$CHI_MLU, fitted(m))
+  testRMSE[i] = rmse(test$CHI_MLU, test$prediction)
+  i = i+1
+}
+result = tibble(trainRMSE,testRMSE)
+
+return(result)
+}
+```
+
+
+```{r}
+#Trying cross validating different models
+model1 = CHI_MLU ~ Diagnosis+Age+(1|Subject)+I(Age^2)
+Cross_m1 <- crossvalid(12,model1)
+
+model2 = CHI_MLU ~ Diagnosis+Age+(Age|Subject)+I(Age^2)
+Cross_m2 <- crossvalid(6,model2)
+
+model3 = CHI_MLU ~ Diagnosis*Age+(Age|Subject)+I(Age^2)
+Cross_m3 <- crossvalid(6,model3)
+
 #- Report the results and comment on them. 
 
 #- Now try to find the best possible predictive model of ChildMLU, that is, the one that produces the best cross-validated results.
+```
 
+
+```{r}
 # Bonus Question 1: What is the effect of changing the number of folds? Can you plot RMSE as a function of number of folds?
+
+#Defining model to do loop on and number of folds
+model = CHI_MLU ~ Diagnosis+Age+(1|Subject)+I(Age^2)
+k = 20
+
+#Making and empty dataframe for the output
+cross_mean <- data.frame(
+  k_fold = rep(1:k),
+  TrainRMSE_mean = rep(NA,k), 
+  TestRMSE_mean = rep(NA,k)
+  )
+
+#Making a loop 
+for (i in 1:k){
+  fold = crossvalid(i,model)
+  cross_mean[i,2] = mean(fold$trainRMSE)
+  cross_mean[i,3] = mean(fold$testRMSE)
+}
+
+#Plotting the result
+cross_mean %>% 
+  melt(id.vars = "k_fold") %>% 
+  ggplot()+
+  aes(x = k_fold, y = value, colour = variable)+
+  geom_point()+
+  geom_smooth(method = lm)
+```
+
+
+```{r}
 # Bonus Question 2: compare the cross-validated predictive error against the actual predictive error on the test data
+
+###Calculating the predictive error for the test data.###
+
+#Creating the model
+m1 <- lmer(CHI_MLU ~ Diagnosis*Age+(Age|Subject)+I(Age^2),data) 
+#predicted values
+predicted <- predict(m1, newdata = test_data, allow.new.levels = T) 
+#The mean of the residuals between the predicted and actual data.
+mean(abs(predicted-test_data$CHI_MLU))
+###THE MEAN ERROR FOR THE ACTUAL TEST DATA  =  0.9893106###
+
+
+
+###Calculating the predictive error for the cross-validated model###
+k = 6
+folds = createFolds(unique(data$Subject), k = k, list = T, returnTrain = F)
+
+hep <- data.frame(trainRMSE = rep(NA, k),
+                  testRMSE = rep(NA, k),
+                  predictive_error = rep(NA,k)) #Adding a new collumn for mean residual
+
+i = 1
+
+for (fold in folds) { 
+  train = subset(data, !(Subject %in% fold))
+  test = subset(data, Subject %in% fold)
+  model = lmer(CHI_MLU ~ Diagnosis*Age+(Age|Subject)+I(Age^2), train)
+  test$prediction = predict(model, test, allow.new.levels = T)
+  train$prediction = fitted(model)
+  hep$trainRMSE[i] = rmse(train$CHI_MLU, fitted(model))
+  hep$testRMSE[i] = rmse(test$CHI_MLU, test$prediction)
+  hep$predictive_error[i] = mean(abs(test$prediction-test_data$CHI_MLU)) 
+  i = i+1
+}
+
+#Mean of means : )
+mean(hep$predictive_error)
+###THE MEAN ERROR FOR THE CROSS VALIDATED MODEL = 0.7670192###
 ```
 
 [HERE GOES YOUR ANSWER]
@@ -164,6 +296,30 @@ You want to evaluate:
 - how does the child fare compared to the model predictions at Visit 6? Is the child below or above expectations? (tip: use the predict() function on Bernie's data only and compare the prediction with the actual performance of the child)
 
 ```{r}
+#Getting the mean for each TD child pr visit
+mean_td <- data %>% 
+  filter(Diagnosis == "TD") %>% 
+  group_by(Visit) %>% 
+  summarise(mean_CHI_MLU = mean(CHI_MLU))
+
+#Extracting Bernie as subject 4:
+bernie <- test_data %>% 
+  filter(Subject == 4) %>% 
+  mutate(
+    Absolute_dif = abs(mean_td$mean_CHI_MLU-CHI_MLU))  
+
+
+#The plot - DONT KNOW IF WE NEED IT
+bernie %>% 
+  ggplot()+
+  aes(x = Visit, y = CHI_MLU, color = "blue")+
+  geom_point()+
+  geom_smooth(method = lm)+
+  geom_point(aes(x = Visit, y = TD_average_MLU, color = "red"))+
+  geom_smooth(method = lm, aes(x = Visit, y = TD_average_MLU, color = "red"))
+  
+  
+
 
 ```
 

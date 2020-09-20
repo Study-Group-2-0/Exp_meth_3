@@ -1,6 +1,6 @@
 ---
 title: "FINAL_A2_P2_LangASD_predictions_instructions"
-author: "Anders Hjulmand"
+author: "Anders Wheelman, Gustav Helmet, Sigrid Snapfield"
 date: "9/17/2020"
 output: html_document
 ---
@@ -51,39 +51,45 @@ How did your models from last time perform? In this exercise you have to compare
 - test the performance of the models on the test data (Tips: google the functions "predict()")
 - optional: predictions are never certain, can you identify the uncertainty of the predictions? (e.g. google predictinterval())
 
+```{r packages and data}
+pacman::p_load(readr,dplyr,stringr,lmerTest,Metrics,caret, lme4)
+
+```
+
 
 ```{r, include = FALSE}
-pacman::p_load(readr,dplyr,stringr,lmerTest,Metrics,caret)
 
-## Clean up function, included to inspire you,
+## Cleaning up test data
 
-CleanUpData <- function(Demo,LU,Word){
+CleanUpData <- function(demo,LU,token){
   
-  Speech <- merge(LU, Word) %>% 
+  Speech <- merge(LU, token) %>% 
     rename(
-      Child.ID = SUBJ, 
-      Visit=VISIT) %>%
+      Subject = SUBJ, 
+      Visit = VISIT) %>%
     mutate(
       Visit = as.numeric(str_extract(Visit, "\\d")),
-      Child.ID = gsub("\\.","", Child.ID)
+      Subject = gsub("\\.","", Subject)
       ) %>%
     dplyr::select(
-      Child.ID, Visit, MOT_MLU, CHI_MLU, types_MOT, types_CHI, tokens_MOT, tokens_CHI
+      Subject, Visit, MOT_MLU, CHI_MLU, types_MOT, types_CHI, tokens_MOT, tokens_CHI
     )
   
-  Demo <- Demo %>%
+  demo <- demo %>%
+    rename(
+      Subject = Child.ID) %>% 
     dplyr::select(
-      Child.ID, Visit, Ethnicity, Diagnosis, Gender, Age, ADOS, MullenRaw, ExpressiveLangRaw, Socialization
+      Subject, Visit, Ethnicity, Diagnosis, Gender, Age, ADOS, MullenRaw, ExpressiveLangRaw, Socialization
     ) %>%
     mutate(
-      Child.ID = gsub("\\.","", Child.ID)
+      Subject = gsub("\\.","", Subject)
     )
     
-  Data=merge(Demo,Speech,all=T)
+  Data=merge(demo,Speech,all=T)
   
   Data1= Data %>% 
      subset(Visit=="1") %>% 
-     dplyr::select(Child.ID, ADOS, ExpressiveLangRaw, MullenRaw, Socialization) %>%
+     dplyr::select(Subject, ADOS, ExpressiveLangRaw, MullenRaw, Socialization) %>%
      rename(Ados1 = ADOS, 
             verbalIQ1 = ExpressiveLangRaw, 
             nonVerbalIQ1 = MullenRaw,
@@ -91,7 +97,7 @@ CleanUpData <- function(Demo,LU,Word){
   
   Data=merge(Data, Data1, all=T) %>%
     mutate(
-      Child.ID = as.numeric(as.factor(as.character(Child.ID))),
+      Subject = as.numeric(as.factor(as.character(Subject))),
       Visit = as.numeric(as.character(Visit)),
       Gender = recode(Gender, 
          "1" = "M",
@@ -103,25 +109,50 @@ CleanUpData <- function(Demo,LU,Word){
 
   return(Data)
 }
+
 ```
 
 
 ```{r, include = FALSE}
+##################################### Training data #####################################
 # Load training Data
-
+data_clean <- read_csv('data_clean.csv') 
+data_clean <- data_clean %>% rename('Subject' = 'Child.ID')
+data <- filter(data_clean, is.na(CHI_MLU) == F, is.na(Age) == F)
 
 #- recreate the models you chose last time (just write the code again and apply it to Train Data)
-
+m1 <- lmer(CHI_MLU ~ Diagnosis * Age + (Age|Subject) + I(Age^2), data_clean)
+summary(m1)
 
 #- calculate performance of the model on the training data: root mean square error is a good measure. (Tip: google the function rmse())
 
+data <- data %>% 
+  mutate(Fitted = fitted(m1))
 
+rmse(data$CHI_MLU, data$Fitted)
+```
+
+
+```{r, include = FALSE}
+####################################### Test data ########################################
 
 #- create the test dataset (apply the code from assignment 1 or my function to clean up the 3 test datasets)
 # Test data
+data_test <- CleanUpData(read_csv("Demo_test.csv"),
+                         read_csv("LU_test.csv"),
+                         read_csv("token_test.csv"))
 
 #- test the performance of the models on the test data (Tips: google the functions "predict()")
 
+data_test <- data_test %>% 
+  filter(is.na(CHI_MLU) == F, is.na(Age) ==F)
+
+
+data_test <- data_test %>% 
+  mutate(
+    Predict = predict(m1, data_test, allow.new.levels = T))
+
+rmse(data_test$CHI_MLU, data_test$Predict)
 
 #- optional: predictions are never certain, can you identify the uncertainty of the predictions? (e.g. google predictinterval())
 
@@ -148,7 +179,34 @@ In this exercise you have to use cross-validation to calculate the predictive er
 ```{r}
 #- Create the basic model of ChildMLU as a function of Time and Diagnosis (don't forget the random effects!).
 
+m0 <- lmer(CHI_MLU ~ Diagnosis + Age +(Age|Subject), data)
+
 #- Make a cross-validated version of the model. (Tips: google the function "createFolds";  loop through each fold, train a model on the other folds and test it on the fold)
+
+k <- 10
+folds <- createFolds(unique(data$Subject), k = k, list = T, returnTrain = F)
+
+trainRMSE_simple <- rep(NA,k)
+testRMSE_simple <- rep(NA,k)
+
+i = 1
+for (fold in folds){
+  train = subset(data, !(Subject %in% fold))
+  test = subset(data, Subject %in% fold)
+  model = lmer(CHI_MLU ~ Diagnosis + Age + (1|Subject), train)
+  test$prediction <- predict(model, test, allow.new.levels = T)
+  train$prediction <- fitted(model)
+  trainRMSE_simple[i] <- rmse(train$CHI_MLU, fitted(model))
+  testRMSE_simple[i] <- rmse(test$CHI_MLU, test$prediction)
+  i = i+1
+}
+
+trainRMSE_simple
+testRMSE_simple
+
+mean(trainRMSE_simple)
+mean(testRMSE_simple)
+
 
 #- Report the results and comment on them. 
 
@@ -157,6 +215,35 @@ In this exercise you have to use cross-validation to calculate the predictive er
 # Bonus Question 1: What is the effect of changing the number of folds? Can you plot RMSE as a function of number of folds?
 # Bonus Question 2: compare the cross-validated predictive error against the actual predictive error on the test data
 ```
+
+```{r making a function}
+
+cross_valid <- function(data, k, mod){
+  folds <- createFolds(unique(data$Subject), k = k, list = T, returnTrain = F)
+
+trainRMSE <- rep(NA,k)
+testRMSE <- rep(NA,k)
+
+i = 1
+for (fold in folds){
+  train = subset(data, !(Subject %in% fold))
+  test = subset(data, Subject %in% fold)
+  model = lmer(mod, train)
+  test$prediction <- predict(model, test, allow.new.levels = T)
+  train$prediction <- fitted(model)
+  trainRMSE[i] <- rmse(train$CHI_MLU, fitted(model))
+  testRMSE[i] <- rmse(test$CHI_MLU, test$prediction)
+  i = i+1
+}
+result = data.frame(trainRMSE, testRMSE)
+  return (result)
+}
+
+model1 <- lmer(CHI_MLU ~ Diagnosis + Age + (Age|Subject) + I(Age^2), data)
+fedtman <- cross_valid(data, 4, model1)
+
+```
+
 
 [HERE GOES YOUR ANSWER]
 

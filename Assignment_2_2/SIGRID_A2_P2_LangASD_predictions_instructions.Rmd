@@ -46,18 +46,11 @@ How did your models from last time perform? In this exercise you have to compare
 
 ```{r data and packages}
 pacman::p_load(readr,dplyr,stringr,lmerTest,Metrics,caret, lme4)
-
-demo <- read_csv('demo_test.csv')
-LU <- read_csv('LU_test.csv')
-token <- read_csv('token_test.csv')
-
 ```
 
 
 ```{r, include = FALSE}
-
-## Clean up function, included to inspire you
-
+## Clean up function
 CleanUpData <- function(demo,LU,token){
   
   Speech <- merge(LU, token) %>% 
@@ -106,14 +99,42 @@ CleanUpData <- function(demo,LU,token){
 
   return(Data)
 }
+```
 
-#rename data set
-data_test <- Data
+```{r Cross validation function}
 
-# Load training Data
+# Cross validation function
+cross_valid <- function(data, k, mod){
+  folds <- createFolds(unique(data$Subject), k = k, list = T, returnTrain = F)
+
+trainRMSE <- rep(NA,k)
+testRMSE <- rep(NA,k)
+
+i = 1
+for (fold in folds){
+  train = subset(data, !(Subject %in% fold))
+  test = subset(data, Subject %in% fold)
+  model = lmer(mod, train)
+  test$prediction <- predict(model, test, allow.new.levels = T)
+  train$prediction <- fitted(model)
+  trainRMSE[i] <- rmse(train$CHI_MLU, fitted(model))
+  testRMSE[i] <- rmse(test$CHI_MLU, test$prediction)
+  i = i+1
+}
+result = data.frame(trainRMSE, testRMSE)
+  return (result)
+}
+# testing it
+#model1 <- lmer(CHI_MLU ~ Diagnosis + Age + (Age|Subject) + I(Age^2), data)
+#fedtman <- cross_valid(data, 4, model1)
+```
+
+
+```{r, include = FALSE}
+############################### Training data ################################
 data_clean <- read_csv('data_clean.csv')
-data_clean$Child.ID <- as.character(data_clean$Child.ID)
 data_clean <- data_clean %>% rename('Subject' = 'Child.ID')
+data <- filter(data_clean, is.na(CHI_MLU) == F, is.na(Age) == F)
 
 #- recreate the models you chose last time (just write the code again and apply it to Train Data)
 m1 <- lmer(CHI_MLU ~ Diagnosis * Age + (Age|Subject) + I(Age^2), data_clean)
@@ -121,28 +142,32 @@ summary(m1)
 
 #- calculate performance of the model on the training data: root mean square error is a good measure. (Tip: google the function rmse())
 
-data_clean <- filter(data_clean, is.na(CHI_MLU) == F, is.na(Age) == F)
+data <- data %>% 
+  mutate(Fitted = fitted(m1))
 
-data_clean$prediction <- fitted(m1)
+rmse(data$CHI_MLU, data$Fitted)
+```
 
-data_clean_RMSE <- rmse(data_clean$CHI_MLU, data_clean$prediction)
+```{r, }
+###################### Test data ################################
+data_test <- CleanUpData(read_csv("Demo_test.csv"),
+                         read_csv("LU_test.csv"),
+                         read_csv("token_test.csv"))
 
-#- create the test dataset (apply the code from assignment 1 or my function to clean up the 3 test datasets)
-# Test data
-# test data = data_test
 
 #- test the performance of the models on the test data (Tips: google the functions "predict()")
-data_test <- filter(data_test, is.na(CHI_MLU) == F, is.na(Age) ==F)
+data_test <- data_test %>% 
+  filter(is.na(CHI_MLU) == F, is.na(Age) ==F)
 
-data_test$prediction <- predict(m1, data_test, allow.new.levels = T)
+data_test <- data_test %>% 
+  mutate(
+    Predict = predict(m1, data_test, allow.new.levels = T))
 
-data_test_RMSE <- rmse(data_test$CHI_MLU, data_test$prediction)
-
+rmse(data_test$CHI_MLU, data_test$Predict)
 #- optional: predictions are never certain, can you identify the uncertainty of the predictions? (e.g. google predictinterval())
 
 ```
 
-[HERE GOES YOUR ANSWER]
 *In order of investigating the value of the model created using the training data set, I have calculated the root mean square error for both the training and the test data set. For the training data set the RMSE is 0.3471 MLU more than the true (observed value) and for the test data set it is higher with a RMSE of 1.3570 MLU. Not too great?*
 
 ### Exercise 2) Model Selection via Cross-validation (N.B: ChildMLU!)
@@ -161,99 +186,98 @@ In this exercise you have to use cross-validation to calculate the predictive er
 - Bonus Question 2: compare the cross-validated predictive error against the actual predictive error on the test data
 
 
+
 ```{r}
 #- Create the basic model of ChildMLU as a function of Time and Diagnosis (don't forget the random effects!).
-m0 <- lmer(CHI_MLU ~ Diagnosis + Age +(1|Subject), data_clean)
+m0 <- lmer(CHI_MLU ~ Diagnosis + Age +(Age|Subject), data)
 
 #- Make a cross-validated version of the model. (Tips: google the function "createFolds";  loop through each fold, train a model on the other folds and test it on the fold)
 
-# cross-validation of simpel model
-k <- 6
-folds <- createFolds(unique(data_clean$Subject, k = k, list = T, returnTrain = F))
+# cross-validation of simpel model - Byurakn's original code:
 
-trainRMSE_null <- rep(NA,k)
-testRMSE_null <- rep(NA,k)
+#k <- 6
+#folds <- createFolds(unique(data_clean$Subject), k = k, list = T, returnTrain = F)
 
-i = 1
-for (fold in folds){
-  train = subset(data_clean, !(Subject %in% fold))
-  test = subset(data_clean, Subject %in% fold)
-  model = lmer(CHI_MLU ~ Diagnosis + Age + (1|Subject), train)
-  test$prediction <- predict(model, test, allow.new.levels = T)
-  train$prediction <- fitted(model)
-  trainRMSE_null[i] <- rmse(train$CHI_MLU, fitted(model))
-  testRMSE_null[i] <- rmse(test$CHI_MLU, test$prediction)
-  i = i+1
-}
+#trainRMSE_null <- rep(NA,k)
+#testRMSE_null <- rep(NA,k)
 
-trainRMSE_null
-testRMSE_null
+#i = 1
+#for (fold in folds){
+ # train = subset(data_clean, !(Subject %in% fold))
+  #test = subset(data_clean, Subject %in% fold)
+  #model = lmer(CHI_MLU ~ Diagnosis + Age + (1|Subject), train)
+  #test$prediction <- predict(model, test, allow.new.levels = T)
+  #train$prediction <- fitted(model)
+  #trainRMSE[i] <- rmse(train$CHI_MLU, fitted(model))
+  #testRMSE[i] <- rmse(test$CHI_MLU, test$prediction)
+ # i = i+1
+#}
 
-train_mean_null <- sum(trainRMSE_null)/length(trainRMSE_null)
-test_mean_null <- sum(testRMSE_null)/length(testRMSE_null)
+#################### cross validation on simple model using function
+simple_model_cv <- cross_valid(data, 6, m0)
 
-train_mean_null
-test_mean_null
+mean(simple_model_cv$trainRMSE)
+mean(simple_model_cv$testRMSE)
 
-# cross-validation of full model
-k <- 6
-folds <- createFolds(unique(data_clean$Subject, k = k, list = T, returnTrain = F))
+#################### cross validation on full model using function
+model = lmer(CHI_MLU ~ Diagnosis * Age + (Age|Subject) + I(Age^2), data)
 
-trainRMSE <- rep(NA,k)
-testRMSE <- rep(NA,k)
+full_model_cv <- cross_valid(data, 6, model)
 
-i = 1
-for (fold in folds){
-  train = subset(data_clean, !(Subject %in% fold))
-  test = subset(data_clean, Subject %in% fold)
-  model = lmer(CHI_MLU ~ Diagnosis * Age + (Age|Subject), train)
-  test$prediction <- predict(model, test, allow.new.levels = T)
-  train$prediction <- fitted(model)
-  trainRMSE[i] <- rmse(train$CHI_MLU, fitted(model))
-  testRMSE[i] <- rmse(test$CHI_MLU, test$prediction)
-  i = i+1
-}
-
-trainRMSE
-testRMSE
-
-train_mean <- sum(trainRMSE)/length(trainRMSE)
-test_mean <- sum(testRMSE)/length(testRMSE)
-train_mean
-test_mean
+mean(full_model_cv$trainRMSE)
+mean(full_model_cv$testRMSE)
 
 #- Report the results and comment on them. 
 
 #- Now try to find the best possible predictive model of ChildMLU, that is, the one that produces the best cross-validated results.
-data_clean <- filter(data_clean, is.na(CHI_MLU) == F, is.na(Age) == F, is.na(MullenRaw) == F, is.na(ExpressiveLangRaw) == F, is.na(Socialization) == F)
+data <- filter(data_clean, is.na(CHI_MLU) == F, is.na(Age) == F, is.na(MullenRaw) == F, is.na(ExpressiveLangRaw) == F, is.na(Socialization) == F)
 
-k <- 6
-folds <- createFolds(unique(data_clean$Subject, k = k, list = T, returnTrain = F))
+model = lmer(CHI_MLU ~ Diagnosis * Age + MullenRaw + ExpressiveLangRaw + Socialization + (1|Subject) + I(Age^2), data)
 
-trainRMSE <- rep(NA,k)
-testRMSE <- rep(NA,k)
+k1 <- cross_valid(data, 1, model)
+k2 <- cross_valid(data, 2, model)
+k3 <- cross_valid(data, 3, model)
+k4 <- cross_valid(data, 4, model)
+k5 <- cross_valid(data, 5, model)
+k6 <- cross_valid(data, 6, model)
 
-i = 1
-for (fold in folds){
-  train = subset(data_clean, !(Subject %in% fold))
-  test = subset(data_clean, Subject %in% fold)
-  model = lmer(CHI_MLU ~ Diagnosis * Age + MullenRaw + ExpressiveLangRaw + Socialization + (1|Subject), train)
-  test$prediction <- predict(model, test, allow.new.levels = T)
-  train$prediction <- fitted(model)
-  trainRMSE[i] <- rmse(train$CHI_MLU, fitted(model))
-  testRMSE[i] <- rmse(test$CHI_MLU, test$prediction)
-  i = i+1
-}
 
-trainRMSE
-testRMSE
-
-train_mean <- sum(trainRMSE)/length(trainRMSE)
-test_mean <- sum(testRMSE)/length(testRMSE)
-train_mean
-test_mean
+##################### Looping the function to get mean depending on number of folds #####################
 
 # Bonus Question 1: What is the effect of changing the number of folds? Can you plot RMSE as a function of number of folds?
+
+k <- 10
+k_list <- rep(1:10)
+trainRMSE_mean <- rep(NA,k)
+testRMSE_mean <- rep(NA,k)
+RMSE_mean <- data.frame(k_list, trainRMSE_mean, testRMSE_mean)
+
+for (i in k_list){
+  df = cross_valid(data, k, model1)
+  RMSE_mean[,2] = mean(df$trainRMSE)
+  RMSE_mean[,3] = mean(df$testRMSE)
+}
+
+  
+  
+RMSE_mean <- function(df){
+i = 1
+for (column in df){
+  sum = i+ mean(column)
+}
+  return (sum)
+}
+
+hep <- RMSE_mean()
+
+
+
+```
+
+
+
+
+```{r}
 ################################ Changing only the number of folds ######################################
 ################################ 1 fold
 k <- 1
@@ -422,6 +446,9 @@ ggplot(df, aes(folds_number,RMSE_all, color= data_set)) + geom_point() + geom_sm
 
 # Bonus Question 2: compare the cross-validated predictive error against the actual predictive error on the test data
 ```
+
+
+
 
 By doing cross-validation using 4 folds and calculating the RMSE, on firstly the simpel (null) model, I have found that the training data set on average is 0.4673 MLU more than the observed value and that the test data set is 0.7746 MLU more than the observed value on average. 
 Regarding the 'full' model, the value of the RMSE by use of the training data set is on average 0.3596 MLU and by use of the test data set 0.6958. Thus, I can conlcude that the full model is better than the null model. However, the value of RMSE on the test data set is still fairly high.
