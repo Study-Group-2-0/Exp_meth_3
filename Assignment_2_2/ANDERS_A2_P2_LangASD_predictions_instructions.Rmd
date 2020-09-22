@@ -47,7 +47,7 @@ How did your models from last time perform? In this exercise you have to compare
 
 
 ```{r, include = FALSE}
-pacman::p_load(readr,dplyr,stringr,lmerTest,Metrics,caret)
+pacman::p_load(readr,dplyr,stringr,lmerTest,Metrics,caret, tidyverse)
 ```
 
 
@@ -148,7 +148,7 @@ df_test_exclude_na <- df_test %>%
   filter(is.na(CHI_MLU) == F)
 
 rmse(df_test_exclude_na$CHI_MLU, df_test_exclude_na$predicted)
-#we get an rmse of 1.35
+#we get an rmse of 1.36
 
 #- optional: predictions are never certain, can you identify the uncertainty of the predictions? (e.g. google predictinterval())
 predict(m1, newdata = df_test, allow.new.levels = T, interval = "confidence")
@@ -172,254 +172,172 @@ In this exercise you have to use cross-validation to calculate the predictive er
 - Now try to find the best possible predictive model of ChildMLU, that is, the one that produces the best cross-validated results.
 
 - Bonus Question 1: What is the effect of changing the number of folds? Can you plot RMSE as a function of number of folds?
-- Bonus Question 2: compare the cross-validated predictive error against the actual predictive error on the test data
+- Bonus Question 2: compare the cross-validated predictive error against the actual predictive error on the test dat
 
-
-```{r}
-#- Create the basic model of ChildMLU as a function of Time and Diagnosis (don't forget the random effects!).
-m2 <- lmer(CHI_MLU ~ Age + Diagnosis + (Age|Child.ID), df_train)
-summary(m2)
-```
 
 
 ```{r}
-########################## CROSS VALIDATION ON SIMPLE MODEL ############################################
+################################### FUNCTION FOR FOLDING ##############################
 
-#- Make a cross-validated version of the model. (Tips: google the function "createFolds";  loop through each fold, train a model on the other folds and test it on the fold)
-
-k = 7
-folds <- createFolds(unique(df_train_fit$Child.ID), k = k, list = TRUE, returnTrain = FALSE)
-
-trainRMSE_s <- rep(NA, k)
-testRMSE_s <- rep(NA, k)
-
-i = 0
-for (fold in folds){
-  train <- subset(df_train_fit, !(Child.ID %in% fold))
-  test <- subset(df_train_fit, (Child.ID %in% fold))
-  model <- lmer(CHI_MLU ~ Age + Diagnosis + (Age|Child.ID), train)
-  train$prediction <- fitted(model)
-  test$prediction <- predict(model, test, allow.new.levels = TRUE)
-  trainRMSE_s[i] <- rmse(df_train_fit$CHI_MLU, train$prediction)
-  testRMSE_s[i] <- rmse(df_train_fit$CHI_MLU, test$prediction)
-  i = i + 1
-}
-
-trainRMSE_s
-testRMSE_s
-
-diff_s <- trainRMSE_s - testRMSE_s
-diff_s
-
-#- Report the results and comment on them. 
-# it seems like the rmse is quite similar, no big difference between them, small residuals/variance
-```
-
-
-```{r}
-######################################### CROSS VALIDATION ON OUR OWN MODEL ###############################
-
-#- Now try to find the best possible predictive model of ChildMLU, that is, the one that produces the best cross-validated results
-
-
-k = 7
+foldingfun <- function(k, mod){
+  
 folds <- createFolds(unique(df_train_fit$Child.ID), k = k, list = TRUE, returnTrain = FALSE)
 
 trainRMSE <- rep(NA, k)
 testRMSE <- rep(NA, k)
 
-i = 0
-for (fold in folds){
-  train <- subset(df_train_fit, !(Child.ID %in% fold))
-  test <- subset(df_train_fit, (Child.ID %in% fold))
-  model <- lmer(CHI_MLU ~ Diagnosis * Age + (Age|Child.ID)+I(Age^2), train)
-  train$prediction <- fitted(model)
-  test$prediction <- predict(model, test, allow.new.levels = TRUE)
-  trainRMSE[i] <- rmse(df_train_fit$CHI_MLU, train$prediction)
-  testRMSE[i] <- rmse(df_train_fit$CHI_MLU, test$prediction)
-  i = i + 1
-}
-
-trainRMSE
-testRMSE
-
-diff <- trainRMSE - testRMSE
-diff
-
-
-```
-
-```{r}
-################################ COMPARING CROSS VALIDATION OF SIMPLE AND COMPLEX MODEL #######################################
-mean(trainRMSE_s, na.rm = TRUE)
-mean(trainRMSE, na.rm = TRUE)
-
-mean(testRMSE_s, na.rm = TRUE)
-mean(testRMSE, na.rm = TRUE)
-
-mean(diff_s, na.rm = TRUE)
-mean(diff, na.rm = TRUE)
-
-######### simple model has a lower RMSE on test fold
-
-```
-
-
-
-
-```{r}
-# Bonus Question 1: What is the effect of changing the number of folds? Can you plot RMSE as a function of number of folds?
-
-k = 12
-folds <- createFolds(unique(df_train_fit$Child.ID), k = k, list = TRUE, returnTrain = FALSE)
-
-trainRMSE_12 <- rep(NA, k)
-testRMSE_12 <- rep(NA, k)
-
-i = 0
-for (fold in folds){
-  train <- subset(df_train_fit, !(Child.ID %in% fold))
-  test <- subset(df_train_fit, (Child.ID %in% fold))
-  model <- lmer(CHI_MLU ~ Diagnosis * Age + (Age|Child.ID)+I(Age^2), train)
-  train$prediction <- fitted(model)
-  test$prediction <- predict(model, test, allow.new.levels = TRUE)
-  trainRMSE_12[i] <- rmse(df_train_fit$CHI_MLU, train$prediction)
-  testRMSE_12[i] <- rmse(df_train_fit$CHI_MLU, test$prediction)
-  i = i + 1
-}
-
-trainRMSE_12
-testRMSE_12
-
-diff_12 <- trainRMSE_12 - testRMSE_12
-diff_12
-```
-
-
-```{r}
-k = 18
-folds <- createFolds(unique(df_train_fit$Child.ID), k = k, list = TRUE, returnTrain = FALSE)
-
-trainRMSE_18 <- rep(NA, k)
-testRMSE_18 <- rep(NA, k)
-
-i = 0
-for (fold in folds){
-  train <- subset(df_train_fit, !(Child.ID %in% fold))
-  test <- subset(df_train_fit, (Child.ID %in% fold))
-  model <- lmer(CHI_MLU ~ Diagnosis * Age + (Age|Child.ID)+I(Age^2), train)
-  train$prediction <- fitted(model)
-  test$prediction <- predict(model, test, allow.new.levels = TRUE)
-  trainRMSE_18[i] <- rmse(df_train_fit$CHI_MLU, train$prediction)
-  testRMSE_18[i] <- rmse(df_train_fit$CHI_MLU, test$prediction)
-  i = i + 1
-}
-
-trainRMSE_18
-testRMSE_18
-
-diff_18 <- trainRMSE_18 - testRMSE_18
-diff_18
-```
-
-
-```{r}
-k = 24
-folds <- createFolds(unique(df_train_fit$Child.ID), k = k, list = TRUE, returnTrain = FALSE)
-
-trainRMSE_24 <- rep(NA, k)
-testRMSE_24 <- rep(NA, k)
-
-i = 0
-for (fold in folds){
-  train <- subset(df_train_fit, !(Child.ID %in% fold))
-  test <- subset(df_train_fit, (Child.ID %in% fold))
-  model <- lmer(CHI_MLU ~ Diagnosis * Age + (Age|Child.ID)+I(Age^2), train)
-  train$prediction <- fitted(model)
-  test$prediction <- predict(model, test, allow.new.levels = TRUE)
-  trainRMSE_24[i] <- rmse(df_train_fit$CHI_MLU, train$prediction)
-  testRMSE_24[i] <- rmse(df_train_fit$CHI_MLU, test$prediction)
-  i = i + 1
-}
-
-trainRMSE_24
-testRMSE_24
-
-diff_24 <- trainRMSE_24 - testRMSE_24
-diff_24
-
-
-
-```
-
-
-
-```{r}
-################################### GET HELP ON THIS FUNCTION ##############################
-#empty df
-
-foldingfun <- function(k){
-  
-folds <- createFolds(unique(df_train_fit$Child.ID), k = k, list = TRUE, returnTrain = FALSE)
-
-trainRMSE_k <- rep(NA, k)
-testRMSE_k <- rep(NA, k)
-
 i = 1
 for (fold in folds){
   train <- subset(df_train_fit, !(Child.ID %in% fold))
   test <- subset(df_train_fit, (Child.ID %in% fold))
-  model <- lmer(CHI_MLU ~ Diagnosis * Age + (Age|Child.ID)+I(Age^2), train)
+  model <- lmer(mod, train)
   train$prediction <- fitted(model)
   test$prediction <- predict(model, test, allow.new.levels = TRUE)
-  trainRMSE_k[i] <- rmse(df_train_fit$CHI_MLU, train$prediction)
-  testRMSE_k[i] <- rmse(df_train_fit$CHI_MLU, test$prediction)
+  trainRMSE[i] <- rmse(train$CHI_MLU, train$prediction)
+  testRMSE[i] <- rmse(test$CHI_MLU, test$prediction)
   i = i + 1
 }
 
-#add these to the empty df
-return (trainRMSE_k)
-testRMSE_k
 
-diff_k <- trainRMSE_k - testRMSE_k
-diff_k
+results <- tibble(trainRMSE, testRMSE)
 
+return(results)
 }
-
-foldingfun(5)
-
-
 ```
 
 
 ```{r}
-############################ PLOTTING RMSE AS FOLDS INCREASE #########################
-# Bonus Question 1: What is the effect of changing the number of folds? Can you plot RMSE as a function of number of folds?
-#make more rmse for complex model with differenct folds
-#combine them into a df
+################################### FUNCTION FOR REPEATING FOLDING #################################
 
-#making all means into vector
-rmse_values <- c(mean(trainRMSE, na.rm = TRUE), mean(trainRMSE_12, na.rm = TRUE), mean(trainRMSE_18, na.rm = TRUE), 
-                  mean(trainRMSE_24, na.rm = TRUE), mean(testRMSE, na.rm = TRUE), mean(testRMSE_12, na.rm = TRUE),
-                 mean(testRMSE_18, na.rm = TRUE), mean(testRMSE_24, na.rm = TRUE))
+more_foldings <- function(k){
 
-rmse_vector_tr_or_ta <- c(0,0,0,0,1,1,1,1)
+#make folds from 1 to k
+k_list <- rep(1:k)
 
-number_of_folds <- c(6,12,18,24,6,12,18,24)
+#making empty lists of NA with length k
+train_rmse_value <- rep(NA, k)
+test_rmse_value <- rep(NA, k)
 
-df_rmse_test <- tibble(
-  rmse_values,
-  rmse_vector_tr_or_ta,
-  number_of_folds
-)
+#model used           
+model1 <- CHI_MLU ~ Diagnosis * Age + (Age|Child.ID)+I(Age^2)  
 
-ggplot(df_rmse_test, aes(x = number_of_folds, y = rmse_values)) + 
-  geom_point() + 
-  geom_smooth(method = "lm") + 
-  facet_wrap(rmse_vector_tr_or_ta)
+#we want to start at index 1
+i = 1 
+
+for (value in k_list){
+  #Sum all the training/test rmse-values for this particular fold
+  train_rmse_value[i] <- sum(foldingfun(value, model1)[1])
+  test_rmse_value[i] <- sum(foldingfun(value, model1)[2])
   
+  #dividing the sum of rmse-values with the number of folds at the current value
+  train_rmse_value[i] <- train_rmse_value[i]/value
+  test_rmse_value[i] <- test_rmse_value[i]/value
+  i = i + 1
+  
+}
+
+#return a df with mean test and training rmse-values for each k-fold session
+results <- tibble(train_rmse_value, test_rmse_value)
+
+return(results)
+}
+```
+
+
+
+```{r}
+################################# FOLDS ARE RANDOM ##################################
+
+#we make several instances of the same number of folds, to show the small variation rmse-values, because the folds are not always the
+mean_rmse_for_24_folds_1 <- more_foldings(20)
+mean_rmse_for_24_folds_2 <- more_foldings(20)
+mean_rmse_for_24_folds_3 <- more_foldings(20)
+mean_rmse_for_24_folds_4 <- more_foldings(20)
+```
+
+
+```{r}
+#defining number of folds
+num_fol <- seq.int(1:20)
+
+ggplot() + 
+  geom_point(aes(y = mean_rmse_for_24_folds_1$train_rmse_value, x = num_fol)) +
+  geom_point(aes(y = mean_rmse_for_24_folds_2$train_rmse_value, x = num_fol, color = "red")) + 
+  geom_point(aes(y = mean_rmse_for_24_folds_3$train_rmse_value, x = num_fol, color = "blue")) + 
+  geom_point(aes(y = mean_rmse_for_24_folds_4$train_rmse_value, x = num_fol, color = "red4")) +
+  geom_point(aes(y = mean_rmse_for_24_folds_1$test_rmse_value, x = num_fol)) +
+  geom_point(aes(y = mean_rmse_for_24_folds_2$test_rmse_value, x = num_fol, color = "red")) + 
+  geom_point(aes(y = mean_rmse_for_24_folds_3$test_rmse_value, x = num_fol, color = "blue")) + 
+  geom_point(aes(y = mean_rmse_for_24_folds_4$test_rmse_value, x = num_fol, color = "red4")) + 
+  labs(x="Number of Folds", y = "Mean RMSE for training (lower) and test (upper)")
+
+#What seems to be important is both how many folds you do and thatyou do several k-folds (we have done 4) and find an average between those
+```
+
+
+```{r}
+###################################################### MAKING ALL MODELS ##########################################
+# Now try to find the best possible predictive model of ChildMLU, that is, the one that produces the best cross-validated results
+
+#Here we run the folding-function on different models
+
+#simple model
+model2 = CHI_MLU ~ Diagnosis + Age + (Age|Child.ID)+I(Age^2)
+rmse_simple <- foldingfun(10, model2)
+
+#fully complex model from last assignment
+model1 <- CHI_MLU ~ Diagnosis * Age + (Age|Child.ID)+I(Age^2) 
+rmse_complex_full <- foldingfun(10, model1)
+
+#fully complex model without growth curve
+model1_1 <- CHI_MLU ~ Diagnosis * Age + (Age|Child.ID)
+rmse_complex_no_growthcurve <- foldingfun(10, model1_1)
+
+#fully complex model without age as random slope
+model1_2 <- CHI_MLU ~ Diagnosis * Age + (1|Child.ID)+I(Age^2)
+rmse_complex_no_ageRslope <- foldingfun(10, model1_2)
+
+
 
 ```
+
+```{r}
+############################## COMPARING MEAN OF MODELS #####################################
+
+#defining function for getting mean of the rmse of the models
+meanfunction <- function(data){
+  
+#transposing (reversing rows and coloumns) so we can use function rowMeans()
+data <- t(data)   
+data <- as_tibble(data)  
+
+#get the mean of training and testRMSE
+data <- mutate(data, mean = rowMeans(data)) %>% 
+mutate(Type = c("Train", "Test"))
+  
+  
+}
+
+#using the function to calculate means of each dataframe  
+rmse_simple <- meanfunction(rmse_simple)
+rmse_complex_full <- meanfunction(rmse_complex_full)
+rmse_complex_no_growthcurve <- meanfunction(rmse_complex_no_growthcurve)
+rmse_complex_no_ageRslope <- meanfunction(rmse_complex_no_ageRslope)
+
+#combining all the means into one dataframe
+rmse_comparison <- tibble(
+  Type = rmse_simple[12],
+  simple_model = rmse_simple[11],
+  complex_model = rmse_complex_full[11],
+  complex_model_no_growthcurve = rmse_complex_no_growthcurve[11],
+  complex_model_no_ageRslope = rmse_complex_no_ageRslope[11]
+)
+
+rmse_comparison
+```
+
+
+
 
 
 ```{r}
@@ -428,7 +346,9 @@ ggplot(df_rmse_test, aes(x = number_of_folds, y = rmse_values)) +
 rmse(df_test_exclude_na$CHI_MLU, df_test_exclude_na$predicted)
 #we get an rmse of 1.35 for actual test data
 
-#Whereas we get smaller cross-validated prodictive errors (see plot) at arround 1.1 for 24 folds
+rmse_comparison$complex_model
+#rmse is a lot lower for test-fold in cross-validation
+
 
 ```
 
@@ -481,9 +401,11 @@ abs(df_bernie$CHI_MLU-df_bernie$average_TD)
 ```{r}
 ############################## BERNIE IS A LOT BETTER THAN HIS AUTISTIC FELLAS AT VISIT 6 #########################################
 
-df_bernie$berniepredict <- predict(m1, df_bernie, allow.new.levels = T) #same as before 
+#df_bernie$berniepredict <- predict(m1, df_bernie, allow.new.levels = T) #same as before 
 
-abs(df_bernie$CHI_MLU-df_bernie$predicted)
+mean(df_bernie$CHI_MLU-df_bernie$predicted)
+
+mean(df_bernie$CHI_MLU)
 
 
 ```
