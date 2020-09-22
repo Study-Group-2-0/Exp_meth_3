@@ -2,7 +2,9 @@
 title: "FINAL_A2_P2_LangASD_predictions_instructions"
 author: "Anders Wheelman, Gustav Helmet, Sigrid Snapfield"
 date: "9/17/2020"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ---
