@@ -52,7 +52,7 @@ How did your models from last time perform? In this exercise you have to compare
 - optional: predictions are never certain, can you identify the uncertainty of the predictions? (e.g. google predictinterval())
 
 ```{r packages and data}
-pacman::p_load(readr,dplyr,stringr,lmerTest,Metrics,caret, lme4)
+pacman::p_load(readr,dplyr,stringr,lmerTest,Metrics,caret, lme4, reshape2)
 
 ```
 
