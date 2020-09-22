@@ -92,7 +92,7 @@ If you opened this Rmd file outside of a project, you will need some code to fin
 - Load the data you saved last time (use read_csv(fileName))
 
 ```{r Load Data, include = FALSE}
-#NAME OF AUTHOR: ANDERS
+#NAME OF AUTHOR: ANDERSa
 
 #Loading the data
 df <- read_csv("ASD_Children.csv")
