@@ -131,7 +131,7 @@ rmse(data$CHI_MLU,fitted(m1))
 test_data <- CleanUpData(read_csv("Demo_test.csv"),
                          read_csv("LU_test.csv"),
                          read_csv("token_test.csv"))
-hep
+
 
 #- test the performance of the models on the test data (Tips: google the functions "predict()")
 predicted <- predict(m1, test_data, allow.new.levels = T)
@@ -167,7 +167,7 @@ In this exercise you have to use cross-validation to calculate the predictive er
 
 #Making a function with k-fold and model input
 crossvalid <- function(k,model){
-folds = createFolds(unique(data$Subject), k = 50, list = T, returnTrain = F)
+folds = createFolds(unique(data$Subject), k = k, list = T, returnTrain = F)
 
 trainRMSE = rep(NA, k)
 testRMSE = rep(NA, k)
@@ -293,8 +293,6 @@ You want to evaluate:
 
 - how does the child fare in ChildMLU compared to the average TD child at each visit? Define the distance in terms of absolute difference between this Child and the average TD.
 
-- how does the child fare compared to the model predictions at Visit 6? Is the child below or above expectations? (tip: use the predict() function on Bernie's data only and compare the prediction with the actual performance of the child)
-
 ```{r}
 #Getting the mean for each TD child pr visit
 mean_td <- data %>% 
@@ -312,14 +310,14 @@ bernie <- test_data %>%
 #The plot - DONT KNOW IF WE NEED IT
 bernie %>% 
   ggplot()+
-  aes(x = Visit, y = CHI_MLU, color = "blue")+
+  aes(x = Visit, y = Absolute_dif)+
   geom_point()+
-  geom_smooth(method = lm)+
-  geom_point(aes(x = Visit, y = TD_average_MLU, color = "red"))+
-  geom_smooth(method = lm, aes(x = Visit, y = TD_average_MLU, color = "red"))
-  
-  
+  geom_smooth(method = lm, alpha = 0.1)
 
+```
+
+- how does the child fare compared to the model predictions at Visit 6? Is the child below or above expectations? (tip: use the predict() function on Bernie's data only and compare the prediction with the actual performance of the child)
+```{r}
 
 ```
 
