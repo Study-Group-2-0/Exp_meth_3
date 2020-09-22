@@ -434,22 +434,21 @@ bernie <- data_test %>%
     mean_td = (mean_td$mean_CHI_MLU),
     mean_asd = (mean_asd$mean_CHI_MLU)) %>% 
   select(
-    Subject, Diagnosis, Visit, CHI_MLU, mean_td, mean_asd, Age) 
+    Subject, Diagnosis, Visit, CHI_MLU, mean_td, mean_asd, Age, Absolute_dif) 
+
+bernie
   
 #Plotting
 bernie %>% 
+  select(
+    Subject, Diagnosis, Visit, CHI_MLU, mean_td, mean_asd, Age) %>%  
   melt(id.vars = c("Subject","Visit","Age","Diagnosis")) %>% 
   ggplot()+
   aes(x = Visit, y = value, color = variable)+
   geom_point()+
   geom_smooth(method = lm, formula = y ~ x + I(x^2))
 
-# PLOTTTING
-bernie %>% 
-  ggplot()+
-  aes(x = Visit, y = Absolute_dif)+
-  geom_point()+
-  geom_smooth(method = lm, alpha = 0.1)
+
 
 
 ```
