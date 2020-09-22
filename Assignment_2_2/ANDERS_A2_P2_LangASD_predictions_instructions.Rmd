@@ -305,6 +305,7 @@ rmse_complex_no_ageRslope <- foldingfun(10, model1_2)
 ############################## COMPARING MEAN OF MODELS #####################################
 
 #defining function for getting mean of the rmse of the models
+
 meanfunction <- function(data){
   
 #transposing (reversing rows and coloumns) so we can use function rowMeans()
@@ -325,7 +326,7 @@ rmse_complex_no_growthcurve <- meanfunction(rmse_complex_no_growthcurve)
 rmse_complex_no_ageRslope <- meanfunction(rmse_complex_no_ageRslope)
 
 #combining all the means into one dataframe
-rmse_comparison <- tibble(
+rmse_comparison <- data.frame(
   Type = rmse_simple[12],
   simple_model = rmse_simple[11],
   complex_model = rmse_complex_full[11],
