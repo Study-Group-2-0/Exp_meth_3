@@ -167,10 +167,10 @@ In this exercise you have to use cross-validation to calculate the predictive er
 
 #Making a function with k-fold and model input
 crossvalid <- function(k,model){
-folds = createFolds(unique(data$Subject, k = k, list = T, returnTrain = F))
+folds = createFolds(unique(data$Subject), k = k, list = T, returnTrain = F)
 
-trainRMSE = rep(NA, 10)
-testRMSE = rep(NA, 10)
+trainRMSE = rep(NA, k)
+testRMSE = rep(NA, k)
 
 i = 1
 
@@ -194,7 +194,7 @@ return(result)
 ```{r}
 #Trying cross validating different models
 model1 = CHI_MLU ~ Diagnosis+Age+(1|Subject)+I(Age^2)
-Cross_m1 <- crossvalid(6,model1)
+Cross_m1 <- crossvalid(12,model1)
 
 model2 = CHI_MLU ~ Diagnosis+Age+(Age|Subject)+I(Age^2)
 Cross_m2 <- crossvalid(6,model2)
@@ -213,7 +213,7 @@ Cross_m3 <- crossvalid(6,model3)
 
 #Defining model to do loop on and number of folds
 model = CHI_MLU ~ Diagnosis+Age+(1|Subject)+I(Age^2)
-k = 6
+k = 20
 
 #Making and empty dataframe for the output
 cross_mean <- data.frame(
@@ -255,12 +255,12 @@ mean(abs(predicted-test_data$CHI_MLU))
 
 
 ###Calculating the predictive error for the cross-validated model###
+k = 6
+folds = createFolds(unique(data$Subject), k = k, list = T, returnTrain = F)
 
-folds = createFolds(unique(data$Subject, k = 6, list = T, returnTrain = F))
-
-hep <- data.frame(trainRMSE = rep(NA, 10),
-                  testRMSE = rep(NA, 10),
-                  predictive_error = rep(NA,10)) #Adding a new collumn for mean residual
+hep <- data.frame(trainRMSE = rep(NA, k),
+                  testRMSE = rep(NA, k),
+                  predictive_error = rep(NA,k)) #Adding a new collumn for mean residual
 
 i = 1
 
@@ -293,8 +293,6 @@ You want to evaluate:
 
 - how does the child fare in ChildMLU compared to the average TD child at each visit? Define the distance in terms of absolute difference between this Child and the average TD.
 
-- how does the child fare compared to the model predictions at Visit 6? Is the child below or above expectations? (tip: use the predict() function on Bernie's data only and compare the prediction with the actual performance of the child)
-
 ```{r}
 #Getting the mean for each TD child pr visit
 mean_td <- data %>% 
@@ -312,14 +310,14 @@ bernie <- test_data %>%
 #The plot - DONT KNOW IF WE NEED IT
 bernie %>% 
   ggplot()+
-  aes(x = Visit, y = CHI_MLU, color = "blue")+
+  aes(x = Visit, y = Absolute_dif)+
   geom_point()+
-  geom_smooth(method = lm)+
-  geom_point(aes(x = Visit, y = TD_average_MLU, color = "red"))+
-  geom_smooth(method = lm, aes(x = Visit, y = TD_average_MLU, color = "red"))
-  
-  
+  geom_smooth(method = lm, alpha = 0.1)
 
+```
+
+- how does the child fare compared to the model predictions at Visit 6? Is the child below or above expectations? (tip: use the predict() function on Bernie's data only and compare the prediction with the actual performance of the child)
+```{r}
 
 ```
 
