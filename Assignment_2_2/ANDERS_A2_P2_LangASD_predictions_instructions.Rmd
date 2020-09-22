@@ -271,7 +271,7 @@ ggplot() +
   geom_point(aes(y = mean_rmse_for_24_folds_4$test_rmse_value, x = num_fol, color = "red4")) + 
   labs(x="Number of Folds", y = "Mean RMSE for training (lower) and test (upper)")
 
-#What seems to be important is both how many folds you do and thatyou do several k-folds (we have done 4) and find an average between those
+#What seems to be important is both how many folds you do and thatyoua do several k-folds (we have done 4) and find an average between those
 ```
 
 
