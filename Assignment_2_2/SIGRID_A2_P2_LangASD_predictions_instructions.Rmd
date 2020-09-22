@@ -45,7 +45,7 @@ How did your models from last time perform? In this exercise you have to compare
 - optional: predictions are never certain, can you identify the uncertainty of the predictions? (e.g. google predictinterval())
 
 ```{r data and packages}
-pacman::p_load(readr,dplyr,stringr,lmerTest,Metrics,caret, lme4)
+pacman::p_load(readr,dplyr,stringr,lmerTest,Metrics,caret, lme4, reshape2)
 ```
 
 
@@ -240,37 +240,58 @@ k3 <- cross_valid(data, 3, model)
 k4 <- cross_valid(data, 4, model)
 k5 <- cross_valid(data, 5, model)
 k6 <- cross_valid(data, 6, model)
+```
 
 
+```{r}
 ##################### Looping the function to get mean depending on number of folds #####################
 
 # Bonus Question 1: What is the effect of changing the number of folds? Can you plot RMSE as a function of number of folds?
-
+  
+########################## FOR LOOP ##########################################
 k <- 10
-k_list <- rep(1:10)
-trainRMSE_mean <- rep(NA,k)
-testRMSE_mean <- rep(NA,k)
-RMSE_mean <- data.frame(k_list, trainRMSE_mean, testRMSE_mean)
+model = lmer(CHI_MLU ~ Diagnosis * Age + (1|Subject) + I(Age^2), data)
 
-for (i in k_list){
-  df = cross_valid(data, k, model1)
-  RMSE_mean[,2] = mean(df$trainRMSE)
-  RMSE_mean[,3] = mean(df$testRMSE)
+#data frame
+RMSE_mean <- data.frame(
+  k_list = rep(1:k), 
+  trainRMSE_mean = rep(NA,k),
+  testRMSE_mean = rep(NA,k) 
+  )
+
+for (i in 1:k){
+  df = cross_valid(data, k, model)
+  RMSE_mean[i,2] = mean(df$trainRMSE)
+  RMSE_mean[i,3] = mean(df$testRMSE)
 }
 
-  
-  
-RMSE_mean <- function(df){
-i = 1
-for (column in df){
-  sum = i+ mean(column)
+
+###################### Same as before but now as a FUNCTION ###########################
+RMSE_mean <- function(k, model){
+  RMSE_mean <- data.frame(k_list <- rep(1:k), 
+                        trainRMSE_mean <- rep(NA,k), 
+                        testRMSE_mean <- rep(NA,k) 
+                        )
+
+for (i in 1:k){
+  df = cross_valid(data, k, model)
+  RMSE_mean[i,2] = mean(df$trainRMSE)
+  RMSE_mean[i,3] = mean(df$testRMSE)
 }
-  return (sum)
+return (RMSE_mean)
 }
 
-hep <- RMSE_mean()
+hep <- RMSE_mean(10, model)
 
+######################### PLOTTING RESULTS ######################
 
+#Plotting the result - Gutav's code
+RMSE_mean %>% 
+  melt(id.vars = "k_list") %>% 
+  ggplot()+
+  aes(k_list, value, colour = variable) +
+  geom_point()+
+  geom_smooth(method = lm)
 
 ```
 
