@@ -1,0 +1,72 @@
+---
+title: "LECTURE4_power_simR"
+author: "Anders Hjulmand"
+date: "9/22/2020"
+output: html_document
+---
+
+```{r}
+#Packages and data
+pacman::p_load(simr, tidyverse,lme4)
+
+df <- read_csv("data_clean.csv")
+
+#cleaning NA
+df <- df %>% 
+  filter(is.na(df$CHI_MLU) == F)
+
+```
+
+```{r}
+# model
+m1 <- lme4::lmer(types_CHI ~ Visit + Diagnosis + (1+Visit|Child.ID), df, REML = FALSE)
+summary(m1)
+
+```
+
+```{r}
+powerV <- powerSim(m1, simr::fixed("Visit"), nsim = 50)
+
+powerV
+
+```
+
+```{r}
+#deifning effect size
+fixef(m1)["Visit"] <- 10
+summary(m1)
+```
+
+
+```{r}
+########################## PLOTTING POWER CURVE ####################################
+powerCurveV <- powerCurve(m1, simr::fixed("Visit"), along = "Child.ID", nsim = 10)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
