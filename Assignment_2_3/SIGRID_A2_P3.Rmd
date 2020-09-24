@@ -37,7 +37,117 @@ You will be using:
 - powerCurve() to estimate the needed number of participants
 - extend() to simulate more participants
 
+
+```{r loading packages}
+pacman::p_load(tidyverse, readr,dplyr,stringr,lmerTest,Metrics,caret, lme4, reshape2, simr)
+
+```
+
 ```{r}
+## Clean up function
+CleanUpData <- function(demo,LU,token){
+  
+  Speech <- merge(LU, token) %>% 
+    rename(
+      Subject = SUBJ, 
+      Visit = VISIT) %>%
+    mutate(
+      Visit = as.numeric(str_extract(Visit, "\\d")),
+      Subject = gsub("\\.","", Subject)
+      ) %>%
+    dplyr::select(
+      Subject, Visit, MOT_MLU, CHI_MLU, types_MOT, types_CHI, tokens_MOT, tokens_CHI
+    )
+  
+  demo <- demo %>%
+    rename(
+      Subject = Child.ID) %>% 
+    dplyr::select(
+      Subject, Visit, Ethnicity, Diagnosis, Gender, Age, ADOS, MullenRaw, ExpressiveLangRaw, Socialization
+    ) %>%
+    mutate(
+      Subject = gsub("\\.","", Subject)
+    )
+    
+  Data=merge(demo,Speech,all=T)
+  
+  Data1= Data %>% 
+     subset(Visit=="1") %>% 
+     dplyr::select(Subject, ADOS, ExpressiveLangRaw, MullenRaw, Socialization) %>%
+     rename(Ados1 = ADOS, 
+            verbalIQ1 = ExpressiveLangRaw, 
+            nonVerbalIQ1 = MullenRaw,
+            Socialization1 = Socialization) 
+  
+  Data=merge(Data, Data1, all=T) %>%
+    mutate(
+      Subject = as.numeric(as.factor(as.character(Subject))),
+      Visit = as.numeric(as.character(Visit)),
+      Gender = recode(Gender, 
+         "1" = "M",
+         "2" = "F"),
+      Diagnosis = recode(Diagnosis,
+         "A"  = "ASD",
+         "B"  = "TD")
+    )
+
+  return(Data)
+}
+```
+
+```{r import data}
+# loading data sets + cleaning
+data_clean <- read_csv('data_clean.csv')
+
+data <- data_clean %>% 
+  filter(
+    is.na(CHI_MLU) == F, is.na(Age) == F) %>% 
+  rename('Subject' = 'Child.ID')
+  
+
+
+data_test <- CleanUpData(read_csv("Demo_test.csv"),
+                         read_csv("LU_test.csv"),
+                         read_csv("token_test.csv"))
+```
+
+```{r}
+# fitting the best model
+m1 <- lmer(CHI_MLU ~ Diagnosis * Age + (Age|Subject), data) # Age*Diagnosis
+summary(m1)
+
+m2 <- lmer(CHI_MLU ~ Diagnosis * Visit + (Visit|Subject), data) #Visit*Diagnosis
+
+
+###### assessing power for the interaction effect (Diagnosis and Age)
+
+
+powerA <- powerSim(m1, simr::fixed('Age'), nsim = 50)
+powerA # does not work??
+powerD <- powerSim(m1, simr::fixed('Diagnosis'), nsim = 50) 
+powerD
+###### assessing power for the interaction effect (Diagnosis and Visit)
+powerV <- powerSim(m2, simr::fixed('Visit'), nsim = 50)
+powerV # does not work?? 
+powerD_m2 <- powerSim(m2, simr::fixed('Diagnosis'), nsim = 50) 
+powerD_m2
+
+# minimum effect size that we care about 
+fixef(m1)['DiagnosisTD'] <-  30
+fixef(m1)['Age'] <- 10
+fixef(m2)['DiagnosisTD'] <- 30 
+fixef(m2)['Visit'] <- 10
+# extending the data set
+m2 <- extend(m, along = 'Subject', n = 120)
+
+# creating power curves 
+powerCurveV <- powerCurve(m2, simr::fixed('Visit'), along = 'Subject', nsim = 10)
+powerCurveD <- powerCurve(m1, simr::fixed('Diagnosis'), along = 'Subject', nsim = 10)
+plot(powerCurveV)
+plot(powerCurveD)
+
+#- Report the power analysis and comment on what you can (or cannot) use its estimates for.
+#- Test how many participants you would have to have to replicate the findings (assuming the findings are correct)
 
 ```
 
