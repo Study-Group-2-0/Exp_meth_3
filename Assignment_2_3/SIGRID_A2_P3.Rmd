@@ -113,41 +113,84 @@ data_test <- CleanUpData(read_csv("Demo_test.csv"),
 
 ```{r}
 # fitting the best model
-m1 <- lmer(CHI_MLU ~ Diagnosis * Age + (Age|Subject), data) # Age*Diagnosis
+m1 <- lme4::lmer(CHI_MLU ~ Diagnosis * Age + (Age|Subject), data) # Age*Diagnosis
 summary(m1)
 
-m2 <- lmer(CHI_MLU ~ Diagnosis * Visit + (Visit|Subject), data) #Visit*Diagnosis
+m2 <- lme4::lmer(CHI_MLU ~ Diagnosis + Visit + (Visit|Subject), data) #Visit*Diagnosis
+summary(m2)
 
-
-###### assessing power for the interaction effect (Diagnosis and Age)
-
-
-powerA <- powerSim(m1, simr::fixed('Age'), nsim = 50)
-powerA # does not work??
-powerD <- powerSim(m1, simr::fixed('Diagnosis'), nsim = 50) 
+################# Report the power analysis and comment on what you can (or cannot) use its estimates for.
+###### assessing power for the fixed effects (Diagnosis and Age)
+powerA <- powerSim(m1, simr::fixed('Diagnosis:Age'), nsim = 20)
+powerA 
+powerD <- powerSim(m1, simr::fixed('Diagnosis'), nsim = 20) 
 powerD
+
 ###### assessing power for the interaction effect (Diagnosis and Visit)
-powerV <- powerSim(m2, simr::fixed('Visit'), nsim = 50)
-powerV # does not work?? 
-powerD_m2 <- powerSim(m2, simr::fixed('Diagnosis'), nsim = 50) 
+powerV <- powerSim(m2, simr::fixed('Visit'), nsim = 20)
+powerV 
+powerD_m2 <- powerSim(m2, simr::fixed('Diagnosis'), nsim = 20) 
 powerD_m2
 
-# minimum effect size that we care about 
-fixef(m1)['DiagnosisTD'] <-  30
-fixef(m1)['Age'] <- 10
-fixef(m2)['DiagnosisTD'] <- 30 
-fixef(m2)['Visit'] <- 10
-# extending the data set
-m2 <- extend(m, along = 'Subject', n = 120)
 
-# creating power curves 
+
+################################## minimum effect size that we care about 
+fixef(m1)['DiagnosisTD'] <-  0.5
+fixef(m1)['Age'] <- 0.05
+fixef(m1)['DiagnosisTD:Age'] <- 0.06
+
+fixef(m2)['Visit'] <- 0.05
+fixef(m2)['DiagnosisTD'] <- 0.8
+
+
+################################## extending the data set ###########
+m1 <- extend(m1, along = 'Subject', n = 120 )
+m2 <- extend(m2, along = 'Subject', n = 120)
+m2 <- extend(m2, along = 'Visit', n = 12)
+
+############################################################ Test how many participants you would have to have to replicate the findings (assuming the findings are correct)
+################################### creating power curves 
+# model 1
+powerCurveA <- powerCurve(m1, simr::fixed('Diagnosis:Age'), along = 'Subject', nsim = 50)
+powerCurveDA <- powerCurve(m1, simr::fixed('Diagnosis'), along = 'Subject', nsim = 10)
+plot(powerCurveA)
+powerCurveA
+plot(powerCurveDA)
+
+# model 2
 powerCurveV <- powerCurve(m2, simr::fixed('Visit'), along = 'Subject', nsim = 10)
-powerCurveD <- powerCurve(m1, simr::fixed('Diagnosis'), along = 'Subject', nsim = 10)
+powerCurveDV <- powerCurve(m2, simr::fixed('Diagnosis'), along = 'Subject', nsim = 10)
 plot(powerCurveV)
-plot(powerCurveD)
+plot(powerCurveDV)
 
-#- Report the power analysis and comment on what you can (or cannot) use its estimates for.
-#- Test how many participants you would have to have to replicate the findings (assuming the findings are correct)
+```
+Reporting the power analysis:
+An a priori power analysis was conducted using simr to simulate the number of participants needed to find specific effect sizes based on a power > 80%. 
+*model 2: visit + diagnosis*
+Results showed that a total of 55 subjects was required to achieve a power of >.80 to find the effect size of DiagnosisTD 0.5.
+Setting the effect size of Visit to 0.1, about 40 participants are needed to get a power of >.80. 
+
+These estimates thus tell us how many participants are needed to get the selected minimal effect sizes. 
+However, one could also increase the number of visits instead. 
+
+```{r}
+visit <- unique(data$Visit)
+subjects <- unique(data$Subject)
+#calculate the power of 100 samples of 40 participants and 40 items each 
+pow=list()
+for (i in 1:100) {
+  print(i)
+  selectionsubject <- sample(data$Subject,40)
+  selectionvisit <- sample(data$Visit,40) 
+  data2 <- data[which(data$Subject %in% selectionsubject & data$Visit %in% selectionvisit), ]
+  fit <- lme4::lmer(CHI_MLU ~ Diagnosis + Visit + (Visit|Subject), data2) 
+  power <- powerSim(fit,nsim=20)
+  pow[i] <- power[1]
+}
+p <- unlist(pow) 
+p = p*5 
+mean(p)
+hist(p)
 
 ```
 
@@ -162,6 +205,17 @@ How would you perform a more conservative power analysis?
 - Report the power analysis and comment on what you can (or cannot) use its estimates for.
 
 ```{r}
+#model 
+m1 <- lme4::lmer(CHI_MLU ~ Diagnosis * Age + (Age|Subject), data) # Age*Diagnosis
+summary(m1)
+
+powerA <- powerSim(m1, simr::fixed('Diagnosis:Age'), nsim = 20)
+powerA
+
+fixef(m1)['DiagnosisTD:Age'] <- 0.06
+
+powerCurveA <- powerCurve(m1, simr::fixed('Diagnosis:Age'), along = 'Subject', nsim = 50)
+powerCurveA
 
 ```
 
