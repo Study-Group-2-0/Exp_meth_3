@@ -100,7 +100,8 @@ CleanUpData <- function(demo,LU,token){
 ```{r}
 #loading training data
 data_train <- read_csv("data_clean.csv") %>% 
-  filter(is.na(CHI_MLU) == F)
+  filter(is.na(CHI_MLU) == F) %>% 
+  filter(is.na(Age) == F)
 
 #loading test data and cleaning it with function from A2_P2
 data_test <- CleanUpData(read_csv("Demo_test.csv"),
@@ -113,27 +114,36 @@ data_test <- CleanUpData(read_csv("Demo_test.csv"),
 
 ```{r}
 #In A2_P2 we concluded that the best cross-validated model was the following:
-m1 <- lme4::lmer(CHI_MLU ~ Diagnosis + Visit + (Visit|Child.ID)+I(Visit^2), data_train, REML = F) 
+m1 <- lme4::lmer(CHI_MLU ~ Diagnosis * Age + (Age|Child.ID), data_train)
 summary(m1)
+
 
 ```
 
 ```{r}
 #accessing power for interaction Diagnosis:Age
-powerV <- powerSim(m1, simr::fixed("Visit"), nsim = 50)
-
-powerV
-
-
-
+powerI <- powerSim(m1, simr::fixed("Diagnosis:Age"), nsim = 50)
+powerI
 ```
+
+
+
+
+
 ```{r}
 #Test how many participants are necessary for replicating findings
-powerCurveV <- powerCurve(m1, simr::fixed("Visit"), along = "Child.ID", nsim = 50 )
-powerCurveV
+powerCurveI <- powerCurve(m1, simr::fixed("Diagnosis:Age"), along = "Child.ID", nsim = 50)
+powerCurveI
 
-plot(powerCurveV)
+plot(powerCurveI)
 ```
+
+
+
+
+
+
+
 
 
 
@@ -144,19 +154,21 @@ How would you perform a more conservative power analysis?
 - Identify and justify a minimum effect size for each of your relevant effects
 - take the model from exercise 1 and replace the effects with the minimum effect size that you'd accept.
 ```{r}
-fixef(m1)["Visit"] <- 0.25
+fixef(m1)["DiagnosisTD:Age"] <- 0.03
 #remember this is CHI_MLU
+
 summary(m1)
 ```
 
 
 - assess the power curve by Child.ID, identifying an ideal number of participants to estimate each 
 ```{r}
-powerCurveV <- powerCurve(m1, simr::fixed("Visit"), along = "Child.ID", nsim = 50)
-powerCurveV
+powerCurveI <- powerCurve(m1, simr::fixed("Diagnosis:Age"), along = "Child.ID", nsim = 50)
+powerCurveI
 
-plot(powerCurveV)
+plot(powerCurveI)
 
+# we need more participants to find a lower interaction effect of CHI_mlu 0.03
 ```
 
 
@@ -165,8 +177,25 @@ plot(powerCurveV)
 - Report the power analysis and comment on what you can (or cannot) use its estimates for.
 
 ```{r}
+m2 <- simr::extend(m1, along = "Child.ID", n = 100)
+summary(m2)
+
+powerCurveI <- powerCurve(m2, simr::fixed("Diagnosis:Age"), along = "Child.ID", nsim = 50)
+powerCurveI
+
+plot(powerCurveI)
+
+#seems like 80 participants is enough
 
 ```
+
+
+
+
+
+
+
+
 
 
 ### Exercise 3
@@ -174,14 +203,18 @@ plot(powerCurveV)
 Assume you have only the resources to collect 30 kids (15 with ASD and 15 TDs). Identify the power for each relevant effect and discuss whether it's worth to run the study and why
 
 ```{r}
-m2 <- simr::extend(m1, along = "Child.ID", n=30)
-summary(m2)
+m3 <- simr::extend(m1, along = "Child.ID", n=30)
+summary(m3)
 
 
-powerV_30n <- powerSim(m2, simr::fixed("Visit"), nsim = 50)
+powerV_30n <- powerSim(m3, simr::fixed("Diagnosis:Age"), nsim = 50)
 powerV_30n
 
-#We get a power of 74% for n=30 for Visit
+powerCurveI <- powerCurve(m3, simr::fixed("Diagnosis:Age"), along = "Child.ID", nsim = 50)
+powerCurveI
+plot(powerCurveI)
+
+# doesnt seem like it is worth it to run the study with only 30 participants, as we only get a power of 46%.
 
 ```
 
