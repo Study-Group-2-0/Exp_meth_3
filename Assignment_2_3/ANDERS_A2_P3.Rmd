@@ -39,16 +39,128 @@ You will be using:
 - extend() to simulate more participants
 
 ```{r}
+pacman::p_load(tidyverse, simr,lme4)
 
 ```
 
 
-### Exercise 2
+```{r}
+#loading function from assignment A2_P2
+CleanUpData <- function(demo,LU,token){
+  
+  Speech <- merge(LU, token) %>% 
+    rename(
+      Subject = SUBJ, 
+      Visit = VISIT) %>%
+    mutate(
+      Visit = as.numeric(str_extract(Visit, "\\d")),
+      Subject = gsub("\\.","", Subject)
+      ) %>%
+    dplyr::select(
+      Subject, Visit, MOT_MLU, CHI_MLU, types_MOT, types_CHI, tokens_MOT, tokens_CHI
+    )
+  
+  demo <- demo %>%
+    rename(
+      Subject = Child.ID) %>% 
+    dplyr::select(
+      Subject, Visit, Ethnicity, Diagnosis, Gender, Age, ADOS, MullenRaw, ExpressiveLangRaw, Socialization
+    ) %>%
+    mutate(
+      Subject = gsub("\\.","", Subject)
+    )
+    
+  Data=merge(demo,Speech,all=T)
+  
+  Data1= Data %>% 
+     subset(Visit=="1") %>% 
+     dplyr::select(Subject, ADOS, ExpressiveLangRaw, MullenRaw, Socialization) %>%
+     rename(Ados1 = ADOS, 
+            verbalIQ1 = ExpressiveLangRaw, 
+            nonVerbalIQ1 = MullenRaw,
+            Socialization1 = Socialization) 
+  
+  Data=merge(Data, Data1, all=T) %>%
+    mutate(
+      Subject = as.numeric(as.factor(as.character(Subject))),
+      Visit = as.numeric(as.character(Visit)),
+      Gender = recode(Gender, 
+         "1" = "M",
+         "2" = "F"),
+      Diagnosis = recode(Diagnosis,
+         "A"  = "ASD",
+         "B"  = "TD")
+    )
 
+  return(Data)
+}
+```
+
+
+```{r}
+#loading training data
+data_train <- read_csv("data_clean.csv") %>% 
+  filter(is.na(CHI_MLU) == F)
+
+#loading test data and cleaning it with function from A2_P2
+data_test <- CleanUpData(read_csv("Demo_test.csv"),
+                         read_csv("LU_test.csv"),
+                         read_csv("token_test.csv"))
+
+
+```
+
+
+```{r}
+#In A2_P2 we concluded that the best cross-validated model was the following:
+m1 <- lme4::lmer(CHI_MLU ~ Diagnosis + Visit + (Visit|Child.ID)+I(Visit^2), data_train, REML = F) 
+summary(m1)
+
+```
+
+```{r}
+#accessing power for interaction Diagnosis:Age
+powerV <- powerSim(m1, simr::fixed("Visit"), nsim = 50)
+
+powerV
+
+
+
+```
+```{r}
+#Test how many participants are necessary for replicating findings
+powerCurveV <- powerCurve(m1, simr::fixed("Visit"), along = "Child.ID", nsim = 50 )
+powerCurveV
+
+plot(powerCurveV)
+```
+
+
+
+### Exercise 2
 How would you perform a more conservative power analysis?
+
+
 - Identify and justify a minimum effect size for each of your relevant effects
 - take the model from exercise 1 and replace the effects with the minimum effect size that you'd accept.
-- assess the power curve by Child.ID, identifying an ideal number of participants to estimate each effect
+```{r}
+fixef(m1)["Visit"] <- 0.25
+#remember this is CHI_MLU
+summary(m1)
+```
+
+
+- assess the power curve by Child.ID, identifying an ideal number of participants to estimate each 
+```{r}
+powerCurveV <- powerCurve(m1, simr::fixed("Visit"), along = "Child.ID", nsim = 50)
+powerCurveV
+
+plot(powerCurveV)
+
+```
+
+
+
 - if your power estimates do not reach an acceptable threshold simulate additional participants and repeat the previous analysis
 - Report the power analysis and comment on what you can (or cannot) use its estimates for.
 
@@ -62,6 +174,27 @@ How would you perform a more conservative power analysis?
 Assume you have only the resources to collect 30 kids (15 with ASD and 15 TDs). Identify the power for each relevant effect and discuss whether it's worth to run the study and why
 
 ```{r}
+m2 <- simr::extend(m1, along = "Child.ID", n=30)
+summary(m2)
+
+
+powerV_30n <- powerSim(m2, simr::fixed("Visit"), nsim = 50)
+powerV_30n
+
+#We get a power of 74% for n=30 for Visit
 
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
 
