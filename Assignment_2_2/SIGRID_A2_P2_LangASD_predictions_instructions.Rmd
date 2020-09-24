@@ -300,6 +300,7 @@ RMSE_mean %>%
 
 ```{r}
 ################################ Changing only the number of folds ######################################
+## before we had a function
 ################################ 1 fold
 k <- 1
 folds <- createFolds(unique(data_clean$Subject, k = k, list = T, returnTrain = F))
@@ -564,4 +565,34 @@ Then try to find the best possible predictive model of ChildMLU, that is, the on
 
 ### OPTIONAL: Exercise 5): Using Lasso for model selection
 Welcome to the last secret exercise. If you have already solved the previous exercises, and still there's not enough for you, you can expand your expertise by learning about penalizations. Check out this tutorial: http://machinelearningmastery.com/penalized-regression-in-r/ and make sure to google what penalization is, with a focus on L1 and L2-norms. Then try them on your data!
+
+
+```{r}
+################################## testing simr and Byurakn's code
+pacman::p_load(simr)
+
+# getting the data
+data <- data_clean %>% 
+  filter(is.na(CHI_MLU) == F, is.na(Age) == F)
+
+#creating a model
+m <- lmer(CHI_MLU ~ Visit + Diagnosis + (Visit|Subject), data, REML = F)
+
+# estimating effect sizes
+powerV <- powerSim(m, fixed('Visit'), nsim = 50)
+powerD <- powerSim(m, fixed('Diagnosis'), nsim = 50)
+
+# minimum effect size that we care about 
+fixef(m)['Visit'] <- 10
+fixef(m)['DiagnosisTD'] <- 30 
+
+# extending the data set
+m2 <- extend(m, along = 'Subject', n = 120)
+
+# creating power curves 
+powerCurveV <- powerCurve(m2, simr::fixed('Visit'), along = 'Subject', nsim = 10)
+powerCurveD <- powerCurve(m, simr::fixed('Diagnosis'), along = 'Subject', nsim = 10)
+plot(powerCurveV)
+plot(powerCurveD)
+```
 
