@@ -1,0 +1,229 @@
+---
+title: "SIGRID_A2_P3"
+author: "Anders Hjulmand"
+date: "9/24/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Welcome to the third exciting part of the Language Development in ASD exercise
+
+In this part of the assignment, we try to figure out how a new study should be planned (i.e. how many participants?) in order to have enough power to replicate the findings (ensuring our sample size is adequate, our alpha at 0.05 and our beta at 0.8):
+1- if we trust the estimates of the current study. Report the power analysis and comment on what you can (or cannot) use its estimates for.
+2- if we are skeptical of the current study. Report the power analysis and comment on what you can (or cannot) use its estimates for.
+3- if we only have access to 30 participants. Identify the power for each relevant effect and discuss whether it's worth to run the study and why
+The list above is also what you should discuss in your code-less report.
+
+
+## Learning objectives
+
+- Learn how to calculate statistical power
+- Critically appraise how to apply frequentist statistical power
+
+### Exercise 1
+
+How much power does your study have (if your model estimates are quite right)?
+- Load your dataset (both training and testing), fit your favorite model, assess power for your effects of interest (probably your interactions).
+- Report the power analysis and comment on what you can (or cannot) use its estimates for.
+- Test how many participants you would have to have to replicate the findings (assuming the findings are correct)
+
+N.B. Remember that main effects are tricky once you have interactions in the model (same for 2-way interactions w 3-way interactions in the model). If you want to test the power of main effects, run a model excluding the interactions.
+N.B. Check this paper: https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/2041-210X.12504
+You will be using:
+- powerSim() to calculate power
+- powerCurve() to estimate the needed number of participants
+- extend() to simulate more participants
+
+
+```{r loading packages}
+pacman::p_load(tidyverse, readr,dplyr,stringr,lmerTest,Metrics,caret, lme4, reshape2, simr)
+
+```
+
+```{r}
+## Clean up function
+CleanUpData <- function(demo,LU,token){
+  
+  Speech <- merge(LU, token) %>% 
+    rename(
+      Subject = SUBJ, 
+      Visit = VISIT) %>%
+    mutate(
+      Visit = as.numeric(str_extract(Visit, "\\d")),
+      Subject = gsub("\\.","", Subject)
+      ) %>%
+    dplyr::select(
+      Subject, Visit, MOT_MLU, CHI_MLU, types_MOT, types_CHI, tokens_MOT, tokens_CHI
+    )
+  
+  demo <- demo %>%
+    rename(
+      Subject = Child.ID) %>% 
+    dplyr::select(
+      Subject, Visit, Ethnicity, Diagnosis, Gender, Age, ADOS, MullenRaw, ExpressiveLangRaw, Socialization
+    ) %>%
+    mutate(
+      Subject = gsub("\\.","", Subject)
+    )
+    
+  Data=merge(demo,Speech,all=T)
+  
+  Data1= Data %>% 
+     subset(Visit=="1") %>% 
+     dplyr::select(Subject, ADOS, ExpressiveLangRaw, MullenRaw, Socialization) %>%
+     rename(Ados1 = ADOS, 
+            verbalIQ1 = ExpressiveLangRaw, 
+            nonVerbalIQ1 = MullenRaw,
+            Socialization1 = Socialization) 
+  
+  Data=merge(Data, Data1, all=T) %>%
+    mutate(
+      Subject = as.numeric(as.factor(as.character(Subject))),
+      Visit = as.numeric(as.character(Visit)),
+      Gender = recode(Gender, 
+         "1" = "M",
+         "2" = "F"),
+      Diagnosis = recode(Diagnosis,
+         "A"  = "ASD",
+         "B"  = "TD")
+    )
+
+  return(Data)
+}
+```
+
+```{r import data}
+# loading data sets + cleaning
+data_clean <- read_csv('data_clean.csv')
+
+data <- data_clean %>% 
+  filter(
+    is.na(CHI_MLU) == F, is.na(Age) == F) %>% 
+  rename('Subject' = 'Child.ID')
+  
+
+
+data_test <- CleanUpData(read_csv("Demo_test.csv"),
+                         read_csv("LU_test.csv"),
+                         read_csv("token_test.csv"))
+```
+
+```{r}
+# fitting the best model
+m1 <- lme4::lmer(CHI_MLU ~ Diagnosis * Age + (Age|Subject), data) # Age*Diagnosis
+summary(m1)
+
+m2 <- lme4::lmer(CHI_MLU ~ Diagnosis + Visit + (Visit|Subject), data) #Visit*Diagnosis
+summary(m2)
+
+################# Report the power analysis and comment on what you can (or cannot) use its estimates for.
+###### assessing power for the fixed effects (Diagnosis and Age)
+powerA <- powerSim(m1, simr::fixed('Diagnosis:Age'), nsim = 20)
+powerA 
+powerD <- powerSim(m1, simr::fixed('Diagnosis'), nsim = 20) 
+powerD
+
+###### assessing power for the interaction effect (Diagnosis and Visit)
+powerV <- powerSim(m2, simr::fixed('Visit'), nsim = 20)
+powerV 
+powerD_m2 <- powerSim(m2, simr::fixed('Diagnosis'), nsim = 20) 
+powerD_m2
+
+
+
+################################## minimum effect size that we care about 
+fixef(m1)['DiagnosisTD'] <-  0.5
+fixef(m1)['Age'] <- 0.05
+fixef(m1)['DiagnosisTD:Age'] <- 0.06
+
+fixef(m2)['Visit'] <- 0.05
+fixef(m2)['DiagnosisTD'] <- 0.8
+
+
+################################## extending the data set ###########
+m1 <- extend(m1, along = 'Subject', n = 120 )
+m2 <- extend(m2, along = 'Subject', n = 120)
+m2 <- extend(m2, along = 'Visit', n = 12)
+
+############################################################ Test how many participants you would have to have to replicate the findings (assuming the findings are correct)
+################################### creating power curves 
+# model 1
+powerCurveA <- powerCurve(m1, simr::fixed('Diagnosis:Age'), along = 'Subject', nsim = 50)
+powerCurveDA <- powerCurve(m1, simr::fixed('Diagnosis'), along = 'Subject', nsim = 10)
+plot(powerCurveA)
+powerCurveA
+plot(powerCurveDA)
+
+# model 2
+powerCurveV <- powerCurve(m2, simr::fixed('Visit'), along = 'Subject', nsim = 10)
+powerCurveDV <- powerCurve(m2, simr::fixed('Diagnosis'), along = 'Subject', nsim = 10)
+plot(powerCurveV)
+plot(powerCurveDV)
+
+```
+Reporting the power analysis:
+An a priori power analysis was conducted using simr to simulate the number of participants needed to find specific effect sizes based on a power > 80%. 
+*model 2: visit + diagnosis*
+Results showed that a total of 55 subjects was required to achieve a power of >.80 to find the effect size of DiagnosisTD 0.5.
+Setting the effect size of Visit to 0.1, about 40 participants are needed to get a power of >.80. 
+
+These estimates thus tell us how many participants are needed to get the selected minimal effect sizes. 
+However, one could also increase the number of visits instead. 
+
+```{r}
+visit <- unique(data$Visit)
+subjects <- unique(data$Subject)
+#calculate the power of 100 samples of 40 participants and 40 items each 
+pow=list()
+for (i in 1:100) {
+  print(i)
+  selectionsubject <- sample(data$Subject,40)
+  selectionvisit <- sample(data$Visit,40) 
+  data2 <- data[which(data$Subject %in% selectionsubject & data$Visit %in% selectionvisit), ]
+  fit <- lme4::lmer(CHI_MLU ~ Diagnosis + Visit + (Visit|Subject), data2) 
+  power <- powerSim(fit,nsim=20)
+  pow[i] <- power[1]
+}
+p <- unlist(pow) 
+p = p*5 
+mean(p)
+hist(p)
+
+```
+
+
+### Exercise 2
+
+How would you perform a more conservative power analysis?
+- Identify and justify a minimum effect size for each of your relevant effects
+- take the model from exercise 1 and replace the effects with the minimum effect size that you'd accept.
+- assess the power curve by Child.ID, identifying an ideal number of participants to estimate each effect
+- if your power estimates do not reach an acceptable threshold simulate additional participants and repeat the previous analysis
+- Report the power analysis and comment on what you can (or cannot) use its estimates for.
+
+```{r}
+#model 
+m1 <- lme4::lmer(CHI_MLU ~ Diagnosis * Age + (Age|Subject), data) # Age*Diagnosis
+summary(m1)
+
+powerA <- powerSim(m1, simr::fixed('Diagnosis:Age'), nsim = 20)
+powerA
+
+fixef(m1)['DiagnosisTD:Age'] <- 0.06
+
+powerCurveA <- powerCurve(m1, simr::fixed('Diagnosis:Age'), along = 'Subject', nsim = 50)
+powerCurveA
+
+```
+
+
+### Exercise 3
+
+Assume you have only the resources to collect 30 kids (15 with ASD and 15 TDs). Identify the power for each relevant effect and discuss whether it's worth to run the study and why
+
+```{r}
+
+```
