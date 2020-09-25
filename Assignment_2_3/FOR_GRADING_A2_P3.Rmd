@@ -38,22 +38,180 @@ You will be using:
 - extend() to simulate more participants
 
 ```{r}
+#loading packages
+pacman::p_load(tidyverse, readr,dplyr,stringr,lmerTest,Metrics,caret, lme4, reshape2, simr)
 
 ```
+
+```{r}
+#loading function from assignment A2_P2
+CleanUpData <- function(demo,LU,token){
+  
+  Speech <- merge(LU, token) %>% 
+    rename(
+      Subject = SUBJ, 
+      Visit = VISIT) %>%
+    mutate(
+      Visit = as.numeric(str_extract(Visit, "\\d")),
+      Subject = gsub("\\.","", Subject)
+      ) %>%
+    dplyr::select(
+      Subject, Visit, MOT_MLU, CHI_MLU, types_MOT, types_CHI, tokens_MOT, tokens_CHI
+    )
+  
+  demo <- demo %>%
+    rename(
+      Subject = Child.ID) %>% 
+    dplyr::select(
+      Subject, Visit, Ethnicity, Diagnosis, Gender, Age, ADOS, MullenRaw, ExpressiveLangRaw, Socialization
+    ) %>%
+    mutate(
+      Subject = gsub("\\.","", Subject)
+    )
+    
+  Data=merge(demo,Speech,all=T)
+  
+  Data1= Data %>% 
+     subset(Visit=="1") %>% 
+     dplyr::select(Subject, ADOS, ExpressiveLangRaw, MullenRaw, Socialization) %>%
+     rename(Ados1 = ADOS, 
+            verbalIQ1 = ExpressiveLangRaw, 
+            nonVerbalIQ1 = MullenRaw,
+            Socialization1 = Socialization) 
+  
+  Data=merge(Data, Data1, all=T) %>%
+    mutate(
+      Subject = as.numeric(as.factor(as.character(Subject))),
+      Visit = as.numeric(as.character(Visit)),
+      Gender = recode(Gender, 
+         "1" = "M",
+         "2" = "F"),
+      Diagnosis = recode(Diagnosis,
+         "A"  = "ASD",
+         "B"  = "TD")
+    )
+
+  return(Data)
+}
+```
+
+
+
+
+```{r}
+#loading df and filtering out NA's from CHI_MLU
+data <- read_csv("data_clean.csv") %>% 
+  filter(
+    is.na(CHI_MLU) == F, is.na(Age) == F) %>% 
+  rename('Subject' = 'Child.ID')
+
+
+#loading test data and cleaning it with function from A2_P2
+data_test <- CleanUpData(read_csv("Demo_test.csv"),
+                         read_csv("LU_test.csv"),
+                         read_csv("token_test.csv"))
+```
+
+```{r}
+#Fitting our favorite model. We have removed the growth curve because simr didnt like it.
+#Also we changed "age" to "visit" because it is easier to interpret
+
+#runnig model on full training data
+m1 <- lme4::lmer(CHI_MLU ~ Diagnosis * Visit + (Visit|Subject), data) 
+summary(m1)
+
+#running model on test_data
+m1_test <- lme4::lmer(CHI_MLU ~ Diagnosis * Visit + (Visit|Subject), data_test) 
+summary(m1_test)
+
+```
+
+
+```{r}
+#Accessing power for interaction
+powerI <- powerSim(m1, simr::fixed('Diagnosis:Visit'), nsim = 50)
+powerI
+#power is 100% (93-100 confidence interval) with full dataset
+
+#power analysis for test data pretending it is a small pilot study
+powerI_test <- powerSim(m1_test, simr::fixed('Diagnosis:Visit'), nsim = 50)
+powerI_test
+#power is 30.00% (17.86, 44.61) with only 6 participants
+
+```
+
+```{r}
+#How many participants are needed for for finding an effect?
+
+#full dataset
+powerCurveI <-  powerCurve(m1, simr::fixed('Diagnosis:Visit'), along = 'Subject', nsim = 50)
+powerCurveI
+plot(powerCurveI)
+```
+
+
+```{r}
+################################## PILOT STUDY ######################################################
+
+# "pilot" dataset from test data
+powerCurveI_test <-  powerCurve(m1_test, simr::fixed('Diagnosis:Visit'), along = 'Subject', nsim = 50)
+powerCurveI_test
+plot(powerCurveI_test)
+
+# here we will see if the powercurve for the pilotstudy will approximate/resemble the power curve of the full data, when we extend the number of participants to the same amount.
+
+m1_test_extend <- extend(m1_test, along="Subject", n = length(unique(df$Subject)))
+
+powerCurveI_test_extend <-  powerCurve(m1_test_extend, simr::fixed('Diagnosis:Visit'), along = 'Subject', nsim = 50)
+powerCurveI_test_extend
+plot(powerCurveI_test_extend)
+
+# We see that this powerplot is very similar to the powerplot for the full dataset for model m1. Thus extending the number of participants from a pilot study succesfully appriximate the power of the real data.
+```
+
 
 
 ### Exercise 2
 
 How would you perform a more conservative power analysis?
+By lowering the effect size/ estimate, we need more participants to get the sufficient amount of power of 80%. 
+
 - Identify and justify a minimum effect size for each of your relevant effects
 - take the model from exercise 1 and replace the effects with the minimum effect size that you'd accept.
-- assess the power curve by Child.ID, identifying an ideal number of participants to estimate each effect
-- if your power estimates do not reach an acceptable threshold simulate additional participants and repeat the previous analysis
-- Report the power analysis and comment on what you can (or cannot) use its estimates for.
-
 ```{r}
+#We only have our interaction effect, which is Diagnosis:Visit. With the current model for the full dataset, the estimate for Diagnosis:Visit is 0.25. This entails that the average TD child has a MLU of 1.5 syllables per utterance higher than the average ASD at the 6th visit. 
+
+#We think a difference at Visit 6 of 1 syllbles per utterance would be a sufficient effect size. Thus we set the effect size of Diagnosis:Visit to 1/(number_of_visits) = 0.167. 
+
+
+fixef(m1)["DiagnosisTD:Visit"] <- 1/(length(unique(df$Visit))) 
+summary(m1)
+
 
 ```
+
+- assess the power curve by Child.ID, identifying an ideal number of participants to estimate each effect
+
+```{r}
+powerCurveI_cons <-  powerCurve(m1, simr::fixed('Diagnosis:Visit'), along = 'Subject', nsim = 50)
+powerCurveI_cons
+plot(powerCurveI_cons)
+
+#with a more conservative estimate we need 50 participants to get a certain power of 80%. 
+```
+
+
+- if your power estimates do not reach an acceptable threshold simulate additional participants and repeat the previous analysis
+no need to do dis.
+
+
+- Report the power analysis and comment on what you can (or cannot) use its estimates for. 
+see report.
+
+
+
+
+
 
 
 ### Exercise 3
@@ -61,5 +219,48 @@ How would you perform a more conservative power analysis?
 Assume you have only the resources to collect 30 kids (15 with ASD and 15 TDs). Identify the power for each relevant effect and discuss whether it's worth to run the study and why
 
 ```{r}
+# First we extend to 30 partipants. Remember that our m1 has an estimate of 0.167 for Diagnosis:Visit, as we have changed it. 
+
+m1_30 <- extend(m1, along="Subject", n = 30)
+zzz <- getData(m1_30)
+
+#extending the power
+powerI_30 <- powerSim(m1_30, simr::fixed("Diagnosis:Visit"), nsim = 50)
+powerI_30
+
+#plotting the power along subject
+powerCurveI_30 <-  powerCurve(m1, simr::fixed('Diagnosis:Visit'), along = 'Subject', nsim = 50)
+powerCurveI_30
+plot(powerCurveI_30)
+
+#we conclude that 30 participants is not enough to find an estimate of 0.176 for Diagnosis:Visit with a power of 80%.
+```
+
+
+```{r}
+############################# Solution: extending visit ################################
+
+#we dont have enough money for more participants. But we have enough money for extending visits.
+#Now we invetsegate how many visits needed to get sufficient power with n=30. 
+
+m1_10visit <- extend(m1_30, along="Visit", n = 10)
+
+
+powerCurveI_10visit <-  powerCurve(m1_10visit, simr::fixed('Diagnosis:Visit'), along = 'Visit', nsim = 50)
+powerCurveI_10visit
+plot(powerCurveI_10visit)
+
+
+#  We know from the previous parts of the assignment that the effect of MLU is a best described by a growth curve model (rather than a linear model). This means that the effect will stagnate. Our model uses the linear method, why extending visit will give an inaccurate estimate of power.
+
+
+
+# extending visit is maybe less cost-efficient than extending participants. Maybe it is better to spend money on more participants than more visits, because visit stagnate. 
 
 ```
+
+
+
+
+
+
