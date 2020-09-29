@@ -100,7 +100,7 @@ CleanUpData <- function(demo,LU,token){
 
 
 
-```{r}
+```{r, warning = F, error = F, message = F, results = "hide"}
 #SIGRID
 #loading df and filtering out NA's from CHI_MLU
 data <- read_csv("data_clean.csv") %>% 
@@ -131,45 +131,57 @@ summary(m1_test)
 ```
 
 
-```{r}
+```{r, warning = F, error = F, message = F, results = "hide"}
 #GUSTAV
 #Accessing power for interaction
 powerI <- powerSim(m1, simr::fixed('Diagnosis:Visit'), nsim = 50)
+```
+```{r}
 powerI
 #power is 100% (93-100 confidence interval) with full dataset
-
-#power analysis for test data pretending it is a small pilot study
-powerI_test <- powerSim(m1_test, simr::fixed('Diagnosis:Visit'), nsim = 50)
-powerI_test
-#power is 30.00% (17.86, 44.61) with only 6 participants
-
 ```
 
+```{r, warning = F, error = F, message = F, results = "hide"}
+#power analysis for test data pretending it is a small pilot study
+powerI_test <- powerSim(m1_test, simr::fixed('Diagnosis:Visit'), nsim = 50)
+```
 ```{r}
+powerI_test
+#power is 30.00% (17.86, 44.61) with only 6 participants
+```
+
+```{r, warning = F, error = F, message = F, results = "hide"}
 #SIGRID
 #How many participants are needed for for finding an effect?
 
 #full dataset
 powerCurveI <-  powerCurve(m1, simr::fixed('Diagnosis:Visit'), along = 'Subject', nsim = 50)
+```
+```{r}
 powerCurveI
 plot(powerCurveI)
 ```
 
 
-```{r}
+```{r, warning = F, error = F, message = F, results = "hide"}
 #ANDERS
-################################## PILOT STUDY ######################################################
+################################## PILOT STUDY ##########################################
 
 # "pilot" dataset from test data
 powerCurveI_test <-  powerCurve(m1_test, simr::fixed('Diagnosis:Visit'), along = 'Subject', nsim = 50)
+```
+```{r}
 powerCurveI_test
 plot(powerCurveI_test)
 
 # here we will see if the powercurve for the pilotstudy will approximate/resemble the power curve of the full data, when we extend the number of participants to the same amount.
 
 m1_test_extend <- extend(m1_test, along="Subject", n = length(unique(data$Subject)))
-
+```
+```{r, warning = F, error = F, message = F, results = "hide"}
 powerCurveI_test_extend <-  powerCurve(m1_test_extend, simr::fixed('Diagnosis:Visit'), along = 'Subject', nsim = 50)
+```
+```{r}
 powerCurveI_test_extend
 plot(powerCurveI_test_extend)
 
@@ -191,18 +203,17 @@ By lowering the effect size/ estimate, we need more participants to get the suff
 
 #We think a difference at Visit 6 of 1 syllbles per utterance would be a sufficient effect size. Thus we set the effect size of Diagnosis:Visit to 1/(number_of_visits) = 0.167. 
 
-
 fixef(m1)["DiagnosisTD:Visit"] <- 1/(length(unique(data$Visit))) 
 summary(m1)
-
-
 ```
 
 - assess the power curve by Child.ID, identifying an ideal number of participants to estimate each effect
 
-```{r}
+```{r, warning = F, error = F, message = F, results = "hide"}
 #SIGRID
 powerCurveI_cons <-  powerCurve(m1, simr::fixed('Diagnosis:Visit'), along = 'Subject', nsim = 50)
+```
+```{r}
 powerCurveI_cons
 plot(powerCurveI_cons)
 
@@ -233,13 +244,19 @@ Assume you have only the resources to collect 30 kids (15 with ASD and 15 TDs). 
 
 m1_30 <- extend(m1, along="Subject", n = 30)
 zzz <- getData(m1_30)
-
+```
+```{r, warning = F, error = F, message = F, results = "hide"}
 #extending the power
 powerI_30 <- powerSim(m1_30, simr::fixed("Diagnosis:Visit"), nsim = 50)
+```
+```{r}
 powerI_30
-
+```
+```{r, warning = F, error = F, message = F, results = "hide"}
 #plotting the power along subject
 powerCurveI_30 <-  powerCurve(m1, simr::fixed('Diagnosis:Visit'), along = 'Subject', nsim = 50)
+```
+```{r}
 powerCurveI_30
 plot(powerCurveI_30)
 
@@ -255,9 +272,11 @@ plot(powerCurveI_30)
 #Now we invetsegate how many visits needed to get sufficient power with n=30. 
 
 m1_10visit <- extend(m1_30, along="Visit", n = 10)
-
-
+```
+```{r, warning = F, error = F, message = F, results = "hide"}
 powerCurveI_10visit <-  powerCurve(m1_10visit, simr::fixed('Diagnosis:Visit'), along = 'Visit', nsim = 50)
+```
+```{r}
 powerCurveI_10visit
 plot(powerCurveI_10visit)
 
