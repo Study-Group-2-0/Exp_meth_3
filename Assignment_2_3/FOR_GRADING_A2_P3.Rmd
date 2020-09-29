@@ -140,16 +140,6 @@ powerI <- powerSim(m1, simr::fixed('Diagnosis:Visit'), nsim = 50)
 powerI
 #power is 100% (93-100 confidence interval) with full dataset
 ```
-
-```{r, warning = F, error = F, message = F, results = "hide"}
-#power analysis for test data pretending it is a small pilot study
-powerI_test <- powerSim(m1_test, simr::fixed('Diagnosis:Visit'), nsim = 50)
-```
-```{r}
-powerI_test
-#power is 30.00% (17.86, 44.61) with only 6 participants
-```
-
 ```{r, warning = F, error = F, message = F, results = "hide"}
 #SIGRID
 #How many participants are needed for for finding an effect?
@@ -161,34 +151,6 @@ powerCurveI <-  powerCurve(m1, simr::fixed('Diagnosis:Visit'), along = 'Subject'
 powerCurveI
 plot(powerCurveI)
 ```
-
-
-```{r, warning = F, error = F, message = F, results = "hide"}
-#ANDERS
-################################## PILOT STUDY ##########################################
-
-# "pilot" dataset from test data
-powerCurveI_test <-  powerCurve(m1_test, simr::fixed('Diagnosis:Visit'), along = 'Subject', nsim = 50)
-```
-```{r}
-powerCurveI_test
-plot(powerCurveI_test)
-
-# here we will see if the powercurve for the pilotstudy will approximate/resemble the power curve of the full data, when we extend the number of participants to the same amount.
-
-m1_test_extend <- extend(m1_test, along="Subject", n = length(unique(data$Subject)))
-```
-```{r, warning = F, error = F, message = F, results = "hide"}
-powerCurveI_test_extend <-  powerCurve(m1_test_extend, simr::fixed('Diagnosis:Visit'), along = 'Subject', nsim = 50)
-```
-```{r}
-powerCurveI_test_extend
-plot(powerCurveI_test_extend)
-
-# We see that this powerplot is very similar to the powerplot for the full dataset for model m1. Thus extending the number of participants from a pilot study succesfully appriximate the power of the real data.
-```
-
-
 
 ### Exercise 2
 
@@ -228,7 +190,35 @@ no need to do dis.
 - Report the power analysis and comment on what you can (or cannot) use its estimates for. 
 see report.
 
+```{r}
+#ANDERS
+################################## PILOT STUDY ##########################################
+#First we change the effect size to the earlier justified size of 0.167, which is an total increase of 1 syllable over 6 visits. 
+fixef(m1_test)["DiagnosisTD:Visit"] <- 1/(length(unique(data$Visit))) 
+summary(m1_test)
+```
+```{r, warning = F, error = F, message = F, results = "hide"}
+#power analysis for test data pretending it is a small pilot study. 
+powerI_test <- powerSim(m1_test, simr::fixed('Diagnosis:Visit'), nsim = 50)
+```
+```{r}
+powerI_test
+#power is 10.00% (3.33, 21.81) with only 6 participants
+```
+```{r}
+# Here we will see if the powercurve for the pilotstudy will approximate/resemble the power curve of the full data, when we extend the number of participants to the same amount as the full dataset.
 
+m1_test_extend <- extend(m1_test, along="Subject", n = length(unique(data$Subject)))
+```
+```{r, warning = F, error = F, message = F, results = "hide"}
+powerCurveI_test_extend <-  powerCurve(m1_test_extend, simr::fixed('Diagnosis:Visit'), along = 'Subject', nsim = 50)
+```
+```{r}
+powerCurveI_test_extend
+plot(powerCurveI_test_extend)
+
+# We see that this powerplot is very similar to the powerplot for the full dataset for model m1. It shows that 48 participant would generate sufficient power with an effect size of 0.167 on CHI_MLU. Thus extending the number of participants from a pilot study succesfully appriximate the power of the real data.
+```
 
 
 
