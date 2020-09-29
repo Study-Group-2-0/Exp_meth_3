@@ -38,12 +38,14 @@ You will be using:
 - extend() to simulate more participants
 
 ```{r}
+#ANDERS
 #loading packages
 pacman::p_load(tidyverse, readr,dplyr,stringr,lmerTest,Metrics,caret, lme4, reshape2, simr)
 
 ```
 
 ```{r}
+#GUSTAV
 #loading function from assignment A2_P2
 CleanUpData <- function(demo,LU,token){
   
@@ -99,6 +101,7 @@ CleanUpData <- function(demo,LU,token){
 
 
 ```{r}
+#SIGRID
 #loading df and filtering out NA's from CHI_MLU
 data <- read_csv("data_clean.csv") %>% 
   filter(
@@ -113,6 +116,7 @@ data_test <- CleanUpData(read_csv("Demo_test.csv"),
 ```
 
 ```{r}
+#ANDERS
 #Fitting our favorite model. We have removed the growth curve because simr didnt like it.
 #Also we changed "age" to "visit" because it is easier to interpret
 
@@ -128,6 +132,7 @@ summary(m1_test)
 
 
 ```{r}
+#GUSTAV
 #Accessing power for interaction
 powerI <- powerSim(m1, simr::fixed('Diagnosis:Visit'), nsim = 50)
 powerI
@@ -141,6 +146,7 @@ powerI_test
 ```
 
 ```{r}
+#SIGRID
 #How many participants are needed for for finding an effect?
 
 #full dataset
@@ -151,6 +157,7 @@ plot(powerCurveI)
 
 
 ```{r}
+#ANDERS
 ################################## PILOT STUDY ######################################################
 
 # "pilot" dataset from test data
@@ -179,6 +186,7 @@ By lowering the effect size/ estimate, we need more participants to get the suff
 - Identify and justify a minimum effect size for each of your relevant effects
 - take the model from exercise 1 and replace the effects with the minimum effect size that you'd accept.
 ```{r}
+#GUSTAV
 #We only have our interaction effect, which is Diagnosis:Visit. With the current model for the full dataset, the estimate for Diagnosis:Visit is 0.25. This entails that the average TD child has a MLU of 1.5 syllables per utterance higher than the average ASD at the 6th visit. 
 
 #We think a difference at Visit 6 of 1 syllbles per utterance would be a sufficient effect size. Thus we set the effect size of Diagnosis:Visit to 1/(number_of_visits) = 0.167. 
@@ -193,6 +201,7 @@ summary(m1)
 - assess the power curve by Child.ID, identifying an ideal number of participants to estimate each effect
 
 ```{r}
+#SIGRID
 powerCurveI_cons <-  powerCurve(m1, simr::fixed('Diagnosis:Visit'), along = 'Subject', nsim = 50)
 powerCurveI_cons
 plot(powerCurveI_cons)
@@ -219,6 +228,7 @@ see report.
 Assume you have only the resources to collect 30 kids (15 with ASD and 15 TDs). Identify the power for each relevant effect and discuss whether it's worth to run the study and why
 
 ```{r}
+#ANDERS
 # First we extend to 30 partipants. Remember that our m1 has an estimate of 0.167 for Diagnosis:Visit, as we have changed it. 
 
 m1_30 <- extend(m1, along="Subject", n = 30)
@@ -238,6 +248,7 @@ plot(powerCurveI_30)
 
 
 ```{r}
+#GUSTAV
 ############################# Solution: extending visit ################################
 
 #we dont have enough money for more participants. But we have enough money for extending visits.
