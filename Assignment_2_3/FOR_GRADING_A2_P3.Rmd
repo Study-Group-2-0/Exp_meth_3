@@ -192,7 +192,7 @@ By lowering the effect size/ estimate, we need more participants to get the suff
 #We think a difference at Visit 6 of 1 syllbles per utterance would be a sufficient effect size. Thus we set the effect size of Diagnosis:Visit to 1/(number_of_visits) = 0.167. 
 
 
-fixef(m1)["DiagnosisTD:Visit"] <- 1/(length(unique(df$Visit))) 
+fixef(m1)["DiagnosisTD:Visit"] <- 1/(length(unique(data$Visit))) 
 summary(m1)
 
 
