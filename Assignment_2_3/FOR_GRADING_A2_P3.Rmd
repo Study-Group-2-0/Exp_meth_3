@@ -244,7 +244,7 @@ powerI_30
 ```
 ```{r, warning = F, error = F, message = F, results = "hide"}
 #plotting the power along subject
-powerCurveI_30 <-  powerCurve(m1, simr::fixed('Diagnosis:Visit'), along = 'Subject', nsim = 50)
+powerCurveI_30 <-  powerCurve(m1_30, simr::fixed('Diagnosis:Visit'), along = 'Subject', nsim = 50)
 ```
 ```{r}
 powerCurveI_30
