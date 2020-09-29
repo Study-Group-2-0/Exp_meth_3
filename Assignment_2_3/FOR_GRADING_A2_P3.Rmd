@@ -167,7 +167,7 @@ plot(powerCurveI_test)
 
 # here we will see if the powercurve for the pilotstudy will approximate/resemble the power curve of the full data, when we extend the number of participants to the same amount.
 
-m1_test_extend <- extend(m1_test, along="Subject", n = length(unique(df$Subject)))
+m1_test_extend <- extend(m1_test, along="Subject", n = length(unique(data$Subject)))
 
 powerCurveI_test_extend <-  powerCurve(m1_test_extend, simr::fixed('Diagnosis:Visit'), along = 'Subject', nsim = 50)
 powerCurveI_test_extend
