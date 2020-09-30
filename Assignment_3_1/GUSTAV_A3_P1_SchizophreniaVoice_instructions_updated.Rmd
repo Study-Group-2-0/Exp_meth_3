@@ -109,11 +109,34 @@ See placeholder code here for help.
 ```{r}
 library(tidyverse)
 
+#Making a function that reads the pitch
 read_pitch <- function(filename) {
     # load data
-    
+    path_name <- str_c("Pitch/",filename)
+    data <- read_tsv(path_name)
     # parse filename to extract study, diagnosis, subject and trial
-    
+    data <- data %>% 
+        mutate(
+            Study = str_extract(filename, "Study\\d"),
+            Study = str_extract(Study, "\\d"),
+            Diagnosis = str_extract(filename, "D\\d"),
+            Diagnosis = recode(Diagnosis, 
+                "D0" = "Control",
+                "D1" = "Schizophrenia"),
+            Participant =  str_extract(filename, "S\\d{3}"),
+            Participant = str_extract(Participant, "\\d{3}"),
+            Trial = str_extract(filename, "T\\d{1,2}"),
+            Trial = str_extract(Trial, "\\d{1,2}"),
+            mean = mean(f0),
+            standard_deviation = sd(f0),
+            range_low = range(f0)[1],
+            range_high = range(f0)[2],
+            median = median(f0),
+            IQR = IQR(f0),
+            ) %>% 
+        select(Study:IQR) %>% 
+        slice(1)  
+
     # extract pitch descriptors (mean, sd, iqr, etc)
     
     # combine all this data in one dataset
@@ -121,13 +144,23 @@ read_pitch <- function(filename) {
 }
 
 # test it on just one file while writing the function
-test_data = read_pitch("Pitch/a_file_to_test.txt")
+test_data = read_pitch("Study6D1S044T22.txt")
 
 # when you've created a function that works, you can
-pitch_data = list.files(path = "Assignment3/data/Pitch/",pattern = ".txt") %>% ## NB replace with your path to the files
+pitch_data = list.files(path = "Pitch/",pattern = ".txt") %>% ## NB replace with your path to the files
     purrr::map_df(read_pitch)
 
-write_csv(pitch_data, ...)
+pitch_data <- pitch_data %>% 
+    mutate(
+        Diagnosis = recode(Diagnosis, 
+            "0" = "Control",
+            "1" = "Schizophrenia"),
+        Participant = Subject_ID
+    ) %>% 
+    select(!(Subject_ID))
+
+#Exporting the data to a new csv
+#write_csv(pitch_data, "pitch_data.csv")
 
 ```
 
@@ -136,12 +169,30 @@ write_csv(pitch_data, ...)
 
 ```{r}
 # Let's start with the demographic and clinical data
+demo <- read.csv("DemographicData.csv", sep=";") 
+
+df <- merge(demo, pitch_data, by = c("Participant","Study","Diagnosis"), all = T)
 
 # then duration data
+dur <- read.csv("Articulation.txt", sep=",")
+#Cleaning data
+dur <- dur %>% 
+    mutate(
+            Study = str_extract(soundname, "Study\\d"),
+            Study = str_extract(Study, "\\d"),
+            Diagnosis = str_extract(soundname, "D\\d"),
+            Diagnosis = recode(Diagnosis, 
+                "D0" = "Control",
+                "D1" = "Schizophrenia"),
+            Participant =  str_extract(soundname, "S\\d{3}"),
+            Participant = str_extract(Participant, "\\d{3}"),
+            Trial = str_extract(soundname, "T\\d{1,2}"),
+            Trial = str_extract(Trial, "\\d{1,2}")
+    )
 
-# Finally the pitch data
 
 # Now we merge them
+df1 <- merge(df,dur, by=c("Participant","Study","Diagnosis", "Trial"), all = T)
 
 # Now we save them
 
