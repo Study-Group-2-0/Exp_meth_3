@@ -107,51 +107,49 @@ Only then (when everything works) turn the code into a function and use map_df()
 See placeholder code here for help.
 
 ```{r}
-library(tidyverse, fs)
+pacman::p_load(tidyverse, fs, readr, EnvStats, DescTools)
 
+# Function to extract study, diagnosis, subject and trial from the file name + adding columns 
 read_pitch <- function(filename) {
-    files = path_file(path = '/Pitch') %>%
-              for (i in files)
-                    Study = substr(files, 1,6) 
-                    Diagnosis = substr(files, 7,8)
-                    Subject = substr(files, 9, 12)
-                    Trial = substr(files, 13,15) %>% 
-                data1 = data.frame(c(
-                    Study, Diagnosis, Subject, Trial)) %>% 
-                data2 = read_delim(filename) %>% 
-                data = cbind(data1, data2, by = row)
-    # load data
+    # getting filenames and subsetting them
+    files = path_file(path = filename) 
     
-    # parse filename to extract study, diagnosis, subject and trial
+    for (file in filename){
+    Study = substr(files, 1,6)
+    Diagnosis = substr(files, 7,8)
+    Subject = substr(files, 9, 12)
+    Trial = substr(files, 13,15)
+    
+    # creating dataframes, loading data and and merging the df's
+    df = data_frame(Study, Diagnosis, Subject, Trial)
+    df1 = read.delim(filename)
+    data = merge(df, df1)
     
     # extract pitch descriptors (mean, sd, iqr, etc)
-    
+    data$pitch_mean = mean(data$f0)
+    data$pitch_df = sd(data$f0)
+    range = range(data$f0)
+    data$pitch_range_low = range[1]
+    data$pitch_range_high = range[2]
+    data$pitch_median = median(data$f0)
+    data$pitch_IQR = IQR(data$f0)
+    data$pitch_meanAD = MeanAD(data$f0)
+    data$picth_cv = cv(data$f0)
+    }
     # combine all this data in one dataset
     return(data)
 }
 
+
 # test it on just one file while writing the function
-test_data = read_pitch("Study1D0S101T1_f0.txt")
+test_data = read_pitch("Pitch/Study1D0S101T1_f0.txt")
 
 # when you've created a function that works, you can
-pitch_data = list.files(path = "Pitch/",pattern = ".txt") %>% ## NB replace with your path to the files
+pitch_data <- list.files(path = 'Pitch/', pattern = '.txt', all.files = T, full.names = T) %>% 
     purrr::map_df(read_pitch)
 
-write_csv(pitch_data, ...)
-
-############ TRYING SOMETHING OUT
-
-test = path_file(path = "Pitch/Study1D0S101T1_f0.txt")
-
-test_split = strsplit(test, split = "")
-
-Study = substr(test, 1,6)
-Diagnosis = substr(test, 7,8)
-Subject = substr(test, 9, 12)
-Trial = substr(test, 13,15)
-
-df <- data_frame(Study, Diagnosis, Subject, Trial)
-
+# save the new dataset as a csv file
+write_csv(pitch_data, 'pitch_data_clean')
 
 ```
 
