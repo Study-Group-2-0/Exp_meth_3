@@ -171,5 +171,8 @@ How would you perform a more conservative power analysis?
 Assume you have only the resources to collect 30 kids (15 with ASD and 15 TDs). Identify the power for each relevant effect and discuss whether it's worth to run the study and why
 
 ```{r}
+pacman::p_load(simr)
+citation(package = 'simr')
 
+citation(package = 'lme4')
 ```
