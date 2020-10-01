@@ -135,7 +135,15 @@ read_pitch <- function(filename) {
     data$pitch_IQR = IQR(data$f0)
     data$pitch_meanAD = MeanAD(data$f0)
     data$picth_cv = cv(data$f0)
+    data = slice(data,(1))
     }
+    data = data %>% mutate(
+        Trial = str_replace_all(data$Trial, '[[:punct:]]', ''),
+        Subject = as.factor(Subject),
+        Study = as.numeric(Study),
+        Diagnosis = as.factor(Diagnosis),
+        )
+
     # combine all this data in one dataset
     return(data)
 }
@@ -158,30 +166,68 @@ write_csv(pitch_data, 'pitch_data_clean')
 ```{r}
 # Let's start with the demographic and clinical data
 demo <- read_csv2('DemographicData.csv')
-demo$Study <- as.factor(demo$Study)
 demo <- demo %>%  
-    rename(Subject = Participant)
+    rename(Subject = Participant) %>% 
+    filter(is.na(Diagnosis) == F) %>% 
+    mutate(
+        Subject = as.numeric(Subject),
+        Study = as.numeric(Study),
+        Diagnosis = as.factor(Diagnosis)
+    )
 
 # then duration data
 duration <- read.delim2('Articulation.txt', sep=",")
 
-# making a common column called study with only numerics
-duration$soundname <- as.character(duration$soundname)
-duration$Study <- substr(duration$soundname, 6,6)
-duration$Study <- as.factor(duration$Study)
+#cleaning up duration more nicely
 
-duration$Subject <- substr(duration$soundname, 10,12)
+duration <- duration %>% mutate(
+    Study = substr(duration$soundname, 6,6),
+    Study = as.numeric(Study),
+    Diagnosis = substr(duration$soundname, 8,8),
+    Subject = substr(duration$soundname, 10,12),
+    Subject = as.numeric(Subject),
+    Trial = substr(duration$soundname, 14,15),
+    #Trial = str_replace_all(duration$Trial, '[[:punct:]]', ''),
+    #Trial = as.factor(Trial),
+    Diagnosis = recode(Diagnosis, 
+               '0' = 'Control',
+               '1' = 'Schizophrenia'),
+    Diagnosis = as.factor(Diagnosis)
+)
 
 # Finally the pitch data
-# common column of study number
-#pitch_data$Study <- as.factor(pitch_data$Study)
-#pitch_data$Subject <- str_extract(pitch_data$Subject, '\\d')
-pitch_data$Trial <- str_replace_all(pitch_data$Trial, '[[:punct:]]', '')
+pitch_data = pitch_data %>% mutate(
+    Diagnosis = recode(Diagnosis, 
+               '0' = 'Control',
+               '1' = 'Schizophrenia'))
+
+
+pitch_data$Subject <- as.numeric(pitch_data$Subject)
+pitch_data$Study <- as.numeric(pitch_data$Study)
+
+# adding 1000 to study 5, 6 & 7 to avoid a mess
+pitch_data$Subject <- ifelse(pitch_data$Study > 4, pitch_data$Subject + 1000, pitch_data$Subject)
+duration$Subject <- ifelse(duration$Study > 4, duration$Subject + 1000, duration$Subject)
+demo$Subject <- ifelse(demo$Study > 4, demo$Subject + 1000, demo$Subject)
+
+demo$Study <- as.factor(demo$Study)
+demo$Subject <- as.factor(demo$Subject)
+duration$Study <- as.factor(duration$Study)
+duration$Subject <- as.factor(duration$Subject)
+pitch_data$Study <- as.factor(pitch_data$Study)
+pitch_data$Subject <- as.character(pitch_data$Subject)
+pitch_data$Diagnosis <- as.character(pitch_data$Diagnosis)
+
+# creating new IDs
+pitch_data$new_ID <- paste0(pitch_data$Diagnosis, pitch_data$Subject)
+demo$new_ID <- paste0(demo$Diagnosis, demo$Subject)
+duration$new_ID <- paste0(duration$Diagnosis, demo$Subject)
+
 
 # Now we merge them
 
-#data <- merge(demo, duration, by = 'Subject', all = T)
-#data <- merge(data, pitch_data, by = 'Subject', all = T)
+df <- merge(demo, pitch_data, by = c('new_ID', 'Study', 'Diagnosis'), all = T)
+df1 <- merge(df, duration, by = c('new_ID','Study', 'Diagnosis', 'Trial'), all = T)
 
 # Now we save them
 
