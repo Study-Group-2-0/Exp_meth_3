@@ -135,8 +135,8 @@ read_pitch <- function(filename) {
             IQR = IQR(f0),
             mean_abs = MeanAD(f0),
             coef_var = cv(f0),
-            New_id = paste0(Participant, Diagnosis),
-            Participant = ifelse(Study == "5" | Study == "6", str_c(Participant,"100"),Participant)) %>% 
+            New_id = paste0(Participant, Diagnosis)
+            )%>% 
         select(Study:coef_var) %>% 
         slice(1) 
 
@@ -204,7 +204,7 @@ dur <- dur %>%
 df1 <- merge(df,dur, all = T)
 
 # Now we save them
-
+write_csv(df1, "FINAL_DATA.csv")
 ```
 
 ## Now we need to describe our sample
