@@ -21,13 +21,59 @@ N.B. For the fun of it, I threw in data from 3 different languages: 1) Danish (s
 
 In this assignment (A3), you will have to discuss a few important questions (given the data you have). More details below.
 
+```{r}
+pacman::p_load("tidyverse")
+
+```
+
+
+```{r}
+demo<- read_delim("DemographicData.csv", 
+    ";", escape_double = FALSE, trim_ws = TRUE)
+
+df <- read.table("articulation.txt", header = T, fill = T)
+
+
+
+list_of_files <- list.files(path = ".", recursive = TRUE,
+                            pattern = "\\.txt$", 
+                            full.names = TRUE)
+
+
+df_pitch<- list_of_files %>%
+  set_names(.) %>%
+  map_df(read_table2, .id = "FileName")
+```
+
 *Part 1 - Can we find a difference in acoustic features in schizophrenia?*
 1) Describe your sample 
 number of studies, number of participants, age, gender, clinical and cognitive features of the two groups. Furthemore, critically assess whether the groups (schizophrenia and controls) are balanced. N.B. you need to take studies into account.
 
+```{r}
+#making coloumns into factors
+demo <- demo %>% 
+    mutate(
+        Diagnosis = as.factor(Diagnosis),
+        Participant = as.factor(Participant),
+        Gender = as.factor(Gender),
+        Diagnosis = as.factor(Diagnosis)
+        
+    )
+
+
+demo %>% 
+    split(demo$Diagnosis) %>% 
+    map(summary)
+```
+
+
+
+
 
 2) Describe the acoustic profile of a schizophrenic voice: which features are different?
 E.g. People with schizophrenia tend to have high-pitched voice, and present bigger swings in their prosody than controls. N.B. look also at effect sizes. How do these findings relate to the meta-analytic findings?
+
+
 
 3) Discuss the analysis necessary to replicate the meta-analytic findings
 Look at the results reported in the paper (see meta-analysis in the readings) and see whether they are similar to those you get.
@@ -38,6 +84,13 @@ which fixed and random effects should be included, given your dataset? E.g. what
 
 
 Your report should look like a methods paragraph followed by a result paragraph in a typical article (think the Communication and Cognition paper)
+
+
+
+
+
+
+
 
 *Part 2 - Can we diagnose schizophrenia from voice only?*
 1) Discuss whether you should you run the analysis on all studies and both languages at the same time
