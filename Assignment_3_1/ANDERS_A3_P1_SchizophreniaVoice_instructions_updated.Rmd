@@ -162,6 +162,26 @@ pitch_data = list.files(path = "Pitch/",pattern = ".txt") %>% ## NB replace with
 #write_csv(pitch_data, ...)
 
 
+
+#adding 100 to participants in study 5+6 in pitch_test
+pitch_data <- pitch_data %>% 
+  mutate(
+    Participant = ifelse(Study == "5" | Study == "6", str_c(Participant,"100"), Participant),
+    Participant = as.factor(Participant),
+    Study = as.factor(Study),
+    Diagnosis = as.factor(Diagnosis)
+    )
+
+
+#removing NA's
+pitch_data <- pitch_data %>% 
+  filter(complete.cases(pitch_data)) 
+  
+
+  
+  
+  
+  
 ```
 
 
@@ -171,13 +191,28 @@ pitch_data = list.files(path = "Pitch/",pattern = ".txt") %>% ## NB replace with
 # Let's start with the demographic and clinical data
 demo <- read.csv("DemographicData.csv", sep = ";") %>% 
     mutate(
-        Participant = as.factor(Participant)
-    )
+        Participant = as.factor(Participant),
+        Participant = ifelse(Study == "5" | Study == "6", str_c(Participant,"100"), Participant),
+        Participant = as.character(Participant),
+        Study = as.character(Study),
+        Diagnosis = as.character(Diagnosis)
+        )
 
-df <- merge(demo, pitch_data, by = c("Participant", "Study", "Diagnosis"), all = T)
+#removing rows with NA's
+demo <- demo %>% 
+  filter(complete.cases(demo))
+    
+
+
+
+df <- merge(demo, pitch_data, all = T)
+
+
 
 # then duration data
-dur <- read.csv("articulation.txt", sep = ",") %>% 
+dur <- read.csv("articulation.txt", sep = ",")
+
+dur <- dur %>% 
        mutate(
             Study = str_extract(soundname, "Study\\d"),
             Study = str_extract(Study, "\\d"),
@@ -188,16 +223,30 @@ dur <- read.csv("articulation.txt", sep = ",") %>%
             Participant =  str_extract(soundname, "S\\d{3}"),
             Participant = str_extract(Participant, "\\d{3}"),
             Trial = str_extract(soundname, "T\\d{1,2}"),
-            Trial = str_extract(Trial, "\\d{1,2}")
-       )
+            Trial = str_extract(Trial, "\\d{1,2}"),
+            Participant = ifelse(Study == "5" | Study == "6", str_c(Participant,"100"), Participant))
 
-# Finally the pitch data
+
+dur <- dur %>% 
+  mutate(
+    Participant = as.factor(Participant),
+    Study = as.factor(Study),
+    Diagnosis = as.factor(Diagnosis)
+  )
+
+dur <- dur %>% 
+  filter(complete.cases(dur))
+    
+
+
+#this merge is quite fine
+df2 <- merge(pitch_data, dur, by = c("Participant", "Study", "Diagnosis", "Trial"), all = T)
+
+
+
 
 # Now we merge them
-df1 <- merge(df, dur, by = c("Participant", "Study", "Diagnosis", "Trial"), all = T)
-
-
-# Now we save them
+df1 <- merge(df2, demo, by = c("Participant", "Study", "Diagnosis"), all = T)
 
 ```
 
@@ -205,9 +254,9 @@ df1 <- merge(df, dur, by = c("Participant", "Study", "Diagnosis", "Trial"), all 
 
 First look at the missing data: we should exclude all recordings for which we do not have complete data.
 ```{r}
+# we have already removed the missing data
 df1 <- df1 %>% 
   filter(complete.cases(df1))
-  
   
 ```
 
@@ -225,7 +274,6 @@ df1 <- df1 %>%
     ) %>% 
   filter(!Diagnosis == "")
 
-df1 <- droplevels(df1$Diagnosis)
 
 df1 %>% 
     split(df1$Diagnosis) %>% 
