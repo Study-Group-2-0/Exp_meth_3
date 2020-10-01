@@ -135,8 +135,8 @@ read_pitch <- function(filename) {
             IQR = IQR(f0),
             mean_abs = MeanAD(f0),
             coef_var = cv(f0),
-            New_id = paste0(Participant, Diagnosis)
-            ) %>% 
+            New_id = paste0(Participant, Diagnosis),
+            Participant = ifelse(Study == "5" | Study == "6", str_c(Participant,"100"),Participant)) %>% 
         select(Study:coef_var) %>% 
         slice(1) 
 
