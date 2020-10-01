@@ -180,8 +180,8 @@ pitch_data$Trial <- str_replace_all(pitch_data$Trial, '[[:punct:]]', '')
 
 # Now we merge them
 
-data <- merge(demo, duration, by = 'Subject', all = T)
-data <- merge(data, pitch_data, by = 'Subject', all = T)
+#data <- merge(demo, duration, by = 'Subject', all = T)
+#data <- merge(data, pitch_data, by = 'Subject', all = T)
 
 # Now we save them
 
