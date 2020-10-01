@@ -1,7 +1,7 @@
 ---
-title: "Assignment 3 - Part 1 - Voice In Schizophrenia"
-author: "Riccardo Fusaroli"
-date: "August 09, 2019"
+title: "Anders"
+author: "Anders Hjulmand"
+date: "10/1/2020"
 output: html_document
 ---
 
@@ -21,59 +21,13 @@ N.B. For the fun of it, I threw in data from 3 different languages: 1) Danish (s
 
 In this assignment (A3), you will have to discuss a few important questions (given the data you have). More details below.
 
-```{r}
-pacman::p_load("tidyverse")
-
-```
-
-
-```{r}
-demo<- read_delim("DemographicData.csv", 
-    ";", escape_double = FALSE, trim_ws = TRUE)
-
-df <- read.table("articulation.txt", header = T, fill = T)
-
-
-
-list_of_files <- list.files(path = ".", recursive = TRUE,
-                            pattern = "\\.txt$", 
-                            full.names = TRUE)
-
-
-df_pitch<- list_of_files %>%
-  set_names(.) %>%
-  map_df(read_table2, .id = "FileName")
-```
-
 *Part 1 - Can we find a difference in acoustic features in schizophrenia?*
 1) Describe your sample 
 number of studies, number of participants, age, gender, clinical and cognitive features of the two groups. Furthemore, critically assess whether the groups (schizophrenia and controls) are balanced. N.B. you need to take studies into account.
 
-```{r}
-#making coloumns into factors
-demo <- demo %>% 
-    mutate(
-        Diagnosis = as.factor(Diagnosis),
-        Participant = as.factor(Participant),
-        Gender = as.factor(Gender),
-        Diagnosis = as.factor(Diagnosis)
-        
-    )
-
-
-demo %>% 
-    split(demo$Diagnosis) %>% 
-    map(summary)
-```
-
-
-
-
 
 2) Describe the acoustic profile of a schizophrenic voice: which features are different?
 E.g. People with schizophrenia tend to have high-pitched voice, and present bigger swings in their prosody than controls. N.B. look also at effect sizes. How do these findings relate to the meta-analytic findings?
-
-
 
 3) Discuss the analysis necessary to replicate the meta-analytic findings
 Look at the results reported in the paper (see meta-analysis in the readings) and see whether they are similar to those you get.
@@ -84,13 +38,6 @@ which fixed and random effects should be included, given your dataset? E.g. what
 
 
 Your report should look like a methods paragraph followed by a result paragraph in a typical article (think the Communication and Cognition paper)
-
-
-
-
-
-
-
 
 *Part 2 - Can we diagnose schizophrenia from voice only?*
 1) Discuss whether you should you run the analysis on all studies and both languages at the same time
@@ -161,26 +108,59 @@ See placeholder code here for help.
 
 ```{r}
 library(tidyverse)
+```
 
+
+```{r}
 read_pitch <- function(filename) {
     # load data
-    
+    path_name <- str_c("Pitch/", filename)
+    data <- read_tsv(path_name)
     # parse filename to extract study, diagnosis, subject and trial
+    data <- data %>% 
+      mutate(
+        Filename = filename,
+        Study = str_extract(filename, "Study\\d"),
+        Study = str_extract(Study, "\\d"),
+        Diagnosis = str_extract(filename, "D\\d"),
+        Diagnosis = recode(Diagnosis,
+          "D0" = "Control",
+          "D1" = "Schizophrenia"),
+        Participant =  str_extract(filename, "S\\d{3}"),
+        Participant = str_extract(Participant, "\\d{3}"),
+        
+        # extract pitch descriptors (mean, sd, iqr, etc)
+        Trial = str_extract(filename, "T\\d{1,2}"),
+        Trial = str_extract(Trial, "\\d{1,2}"),
+        Mean = mean(f0),
+        SD = sd(f0),
+        IQR = IQR(f0)
+      ) %>% 
+      select(Study:IQR) %>% 
+    slice(1)
     
-    # extract pitch descriptors (mean, sd, iqr, etc)
-    
+        
+      
     # combine all this data in one dataset
     return(data)
 }
 
+
+```
+
+
+```{r}
 # test it on just one file while writing the function
-test_data = read_pitch("Pitch/a_file_to_test.txt")
+test_data = read_pitch("Study1D0S101T1_f0.txt")
 
 # when you've created a function that works, you can
-pitch_data = list.files(path = "Assignment3/data/Pitch/",pattern = ".txt") %>% ## NB replace with your path to the files
+pitch_data = list.files(path = "Pitch/",pattern = ".txt") %>% ## NB replace with your path to the files
     purrr::map_df(read_pitch)
 
-write_csv(pitch_data, ...)
+
+
+#write_csv(pitch_data, ...)
+
 
 ```
 
@@ -189,12 +169,33 @@ write_csv(pitch_data, ...)
 
 ```{r}
 # Let's start with the demographic and clinical data
+demo <- read.csv("DemographicData.csv", sep = ";") %>% 
+    mutate(
+        Participant = as.factor(Participant)
+    )
+
+df <- merge(demo, pitch_data, by = c("Participant", "Study", "Diagnosis"), all = T)
 
 # then duration data
+dur <- read.csv("articulation.txt", sep = ",") %>% 
+       mutate(
+            Study = str_extract(soundname, "Study\\d"),
+            Study = str_extract(Study, "\\d"),
+            Diagnosis = str_extract(soundname, "D\\d"),
+            Diagnosis = recode(Diagnosis, 
+                "D0" = "Control",
+                "D1" = "Schizophrenia"),
+            Participant =  str_extract(soundname, "S\\d{3}"),
+            Participant = str_extract(Participant, "\\d{3}"),
+            Trial = str_extract(soundname, "T\\d{1,2}"),
+            Trial = str_extract(Trial, "\\d{1,2}")
+       )
 
 # Finally the pitch data
 
 # Now we merge them
+df1 <- merge(df, dur, by = c("Participant", "Study", "Diagnosis", "Trial"), all = T)
+
 
 # Now we save them
 
@@ -203,8 +204,45 @@ write_csv(pitch_data, ...)
 ## Now we need to describe our sample
 
 First look at the missing data: we should exclude all recordings for which we do not have complete data.
+```{r}
+df1 <- df1 %>% 
+  filter(complete.cases(df1))
+  
+  
+```
+
+
 Then count the participants and recordinsgs by diagnosis, report their gender, age and symptom severity (SANS, SAPS and Social)
+```{r}
+df1 <- df1 %>% 
+    mutate(
+        Diagnosis = as.factor(Diagnosis),
+        Participant = as.factor(Participant),
+        Gender = as.factor(Gender),
+        Study = as.factor(Study),
+        Trial = as.factor(Trial),
+        Language = as.factor(Language) 
+    ) %>% 
+  filter(!Diagnosis == "")
+
+df1 <- droplevels(df1$Diagnosis)
+
+df1 %>% 
+    split(df1$Diagnosis) %>% 
+    map(summary)
+```
+
+
+
 Finally, do the same by diagnosis and study, to assess systematic differences in studies.
+```{r}
+df1 %>% 
+    split(df1$Study) %>% 
+    map(summary)
+```
+
+
+
 I like to use group_by() %>% summarize() for quick summaries
 
 ```{r}
