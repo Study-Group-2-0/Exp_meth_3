@@ -215,12 +215,19 @@ demo$Subject <- as.factor(demo$Subject)
 duration$Study <- as.factor(duration$Study)
 duration$Subject <- as.factor(duration$Subject)
 pitch_data$Study <- as.factor(pitch_data$Study)
-pitch_data$Subject <- as.factor(pitch_data$Subject)
+pitch_data$Subject <- as.character(pitch_data$Subject)
+pitch_data$Diagnosis <- as.character(pitch_data$Diagnosis)
+
+# creating new IDs
+pitch_data$new_ID <- paste0(pitch_data$Diagnosis, pitch_data$Subject)
+demo$new_ID <- paste0(demo$Diagnosis, demo$Subject)
+duration$new_ID <- paste0(duration$Diagnosis, demo$Subject)
+
 
 # Now we merge them
 
-df <- merge(demo, pitch_data, by = c('Subject', 'Study', 'Diagnosis'), all = T)
-df1 <- merge(df, duration, by = c('Subject','Study', 'Diagnosis', 'Trial'), all = T)
+df <- merge(demo, pitch_data, by = c('new_ID', 'Study', 'Diagnosis'), all = T)
+df1 <- merge(df, duration, by = c('new_ID','Study', 'Diagnosis', 'Trial'), all = T)
 
 # Now we save them
 
