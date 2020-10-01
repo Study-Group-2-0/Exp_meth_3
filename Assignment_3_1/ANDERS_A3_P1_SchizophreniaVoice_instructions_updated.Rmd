@@ -107,7 +107,7 @@ Only then (when everything works) turn the code into a function and use map_df()
 See placeholder code here for help.
 
 ```{r}
-library(tidyverse)
+library(tidyverse, lme4)
 ```
 
 
@@ -254,16 +254,23 @@ df1 <- merge(df2, demo, by = c("Participant", "Study", "Diagnosis"), all = T)
 
 First look at the missing data: we should exclude all recordings for which we do not have complete data.
 ```{r}
-# we have already removed the missing data
-df1 <- df1 %>% 
-  filter(complete.cases(df1))
-  
+#loading the final data_frame
+df <- read.csv("FINAL_DATA.csv")
+
+#filtering rows with missing values
+df <- df %>% 
+  filter(complete.cases(df))
+
+#fixing issue with participant ID in Study 5 and 6  
+#df <- df %>% 
+  #mutate(Participant = ifelse(Study == "5" | Study == "6", str_c(Participant,"100"), Participant)
+   #      )
 ```
 
 
 Then count the participants and recordinsgs by diagnosis, report their gender, age and symptom severity (SANS, SAPS and Social)
 ```{r}
-df1 <- df1 %>% 
+df <- df %>% 
     mutate(
         Diagnosis = as.factor(Diagnosis),
         Participant = as.factor(Participant),
@@ -271,12 +278,11 @@ df1 <- df1 %>%
         Study = as.factor(Study),
         Trial = as.factor(Trial),
         Language = as.factor(Language) 
-    ) %>% 
-  filter(!Diagnosis == "")
+    )
 
 
-df1 %>% 
-    split(df1$Diagnosis) %>% 
+df %>% 
+    split(df$Diagnosis) %>% 
     map(summary)
 ```
 
@@ -284,8 +290,8 @@ df1 %>%
 
 Finally, do the same by diagnosis and study, to assess systematic differences in studies.
 ```{r}
-df1 %>% 
-    split(df1$Study) %>% 
+df %>% 
+    split(df$Study) %>% 
     map(summary)
 ```
 
@@ -300,9 +306,33 @@ I like to use group_by() %>% summarize() for quick summaries
 ## Now we can analyze the data
 If you were to examine the meta analysis you would find that the differences (measured as Hedges' g, very close to Cohen's d, that is, in standard deviations) to be the following
 - pitch variability (lower, Hedges' g: -0.55, 95% CIs: -1.06, 0.09)
+```{r}
+m1 <- lme4::glmer(Diagnosis ~ mean + (1|New_id), data = df, family = "binomial")
+summary(m1)
+
+```
+
+
 - proportion of spoken time (lower, Hedges' g: -1.26, 95% CIs: -2.26, 0.25)
+```{r}
+m2 <- lme4::glmer(Diagnosis ~ dur..s. + (1|New_id), data = df, family = "binomial")
+summary(m2)
+```
+
+
 - speech rate (slower, Hedges' g: -0.75, 95% CIs: -1.51, 0.04)
+```{r}
+m3 <- lme4::glmer(Diagnosis ~ speechrate..nsyll.dur. + (1|New_id), data = df, family = "binomial")
+summary(m3)
+```
+
 - pause duration (longer, Hedges' g: 1.89, 95% CIs: 0.72, 3.21). (Duration - Spoken Duration) / PauseN
+```{r}
+m3 <- lme4::glmer(Diagnosis ~ speechrate..nsyll.dur. + (1|New_id), data = df, family = "binomial")
+summary(m3)
+```
+
+
 
 We need therefore to set up 4 models to see how well our results compare to the meta-analytic findings (Feel free of course to test more features)
 Describe the acoustic profile of a schizophrenic voice
