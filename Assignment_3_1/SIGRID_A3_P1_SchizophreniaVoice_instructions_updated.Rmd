@@ -115,10 +115,10 @@ read_pitch <- function(filename) {
     files = path_file(path = filename) 
     
     for (file in filename){
-    Study = substr(files, 1,6)
-    Diagnosis = substr(files, 7,8)
-    Subject = substr(files, 9, 12)
-    Trial = substr(files, 13,15)
+    Study = substr(files, 6,6)
+    Diagnosis = substr(files, 8,8)
+    Subject = substr(files, 10, 12)
+    Trial = substr(files, 14,15)
     
     # creating dataframes, loading data and and merging the df's
     df = data_frame(Study, Diagnosis, Subject, Trial)
@@ -153,17 +153,35 @@ write_csv(pitch_data, 'pitch_data_clean')
 
 ```
 
-
 ### Now you need to merge demographic/clinical, duration and pitch data
 
 ```{r}
 # Let's start with the demographic and clinical data
+demo <- read_csv2('DemographicData.csv')
+demo$Study <- as.factor(demo$Study)
+demo <- demo %>%  
+    rename(Subject = Participant)
 
 # then duration data
+duration <- read.delim2('Articulation.txt', sep=",")
+
+# making a common column called study with only numerics
+duration$soundname <- as.character(duration$soundname)
+duration$Study <- substr(duration$soundname, 6,6)
+duration$Study <- as.factor(duration$Study)
+
+duration$Subject <- substr(duration$soundname, 10,12)
 
 # Finally the pitch data
+# common column of study number
+#pitch_data$Study <- as.factor(pitch_data$Study)
+#pitch_data$Subject <- str_extract(pitch_data$Subject, '\\d')
+pitch_data$Trial <- str_replace_all(pitch_data$Trial, '[[:punct:]]', '')
 
 # Now we merge them
+
+data <- merge(demo, duration, by = 'Subject', all = T)
+data <- merge(data, pitch_data, by = 'Subject', all = T)
 
 # Now we save them
 
