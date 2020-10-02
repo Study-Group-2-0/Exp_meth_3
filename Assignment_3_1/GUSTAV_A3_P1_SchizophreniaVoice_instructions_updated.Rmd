@@ -124,7 +124,9 @@ read_pitch <- function(filename) {
                 "D0" = "Control",
                 "D1" = "Schizophrenia"),
             Participant =  str_extract(filename, "S\\d{3}"),
-            Participant = str_extract(Participant, "\\d{3}"),
+            Participant = as.integer(str_extract(Participant, "\\d{3}")),
+            Participant = ifelse(Study == "5" | Study == "6", Participant+1000, Participant),
+            Participant = as.character(Participant),
             Trial = str_extract(filename, "T\\d{1,2}"),
             Trial = str_extract(Trial, "\\d{1,2}"),
             mean = mean(f0),
@@ -135,9 +137,9 @@ read_pitch <- function(filename) {
             IQR = IQR(f0),
             mean_abs = MeanAD(f0),
             coef_var = cv(f0),
-            New_id = paste0(Participant, Diagnosis)
+            New_id = as.factor(paste0(Participant, Diagnosis))
             )%>% 
-        select(Study:coef_var) %>% 
+        select(Study:New_id) %>% 
         slice(1) 
 
     # extract pitch descriptors (mean, sd, iqr, etc)
@@ -152,7 +154,11 @@ test_data = read_pitch("Study6D1S044T22.txt")
 # when you've created a function that works, you can
 pitch_data = list.files(path = "Pitch/",pattern = ".txt") %>% ## NB replace with your path to the files
     purrr::map_df(read_pitch)
-    
+
+#Filtering incomplete cases out. 
+pitch_data <- pitch_data %>% 
+    filter(complete.cases(pitch_data)) 
+
 #Exporting the data to a new csv
 write_csv(pitch_data, "pitch_data.csv")
 ```
@@ -164,23 +170,10 @@ write_csv(pitch_data, "pitch_data.csv")
 #Reading pitch data
 pitch_data <- read_csv("pitch_data.csv") 
 
-pitch_data <- pitch_data %>% 
-    filter(complete.cases(pitch_data))
-
-# Let's start with the demographic and clinical data
-demo <- read.csv("DemographicData.csv", sep=";") %>% 
-    mutate(
-        Participant = as.character(Participant),
-        Diagnosis = as.character(Diagnosis),
-        New_id = paste0(Participant, Diagnosis)
-    )
-
-#Merging dur and pitch
-df <- merge(demo, pitch_data, all = T)
-
-# then duration data
+# Loading the duration data
 dur <- read.csv("Articulation.txt", sep=",")
-#Cleaning data
+
+#Cleaning the duration data
 dur <- dur %>% 
     mutate(
             Study = str_extract(soundname, "Study\\d"),
@@ -190,24 +183,56 @@ dur <- dur %>%
                 "D0" = "Control",
                 "D1" = "Schizophrenia"),
             Participant =  str_extract(soundname, "S\\d{3}"),
-            Participant = str_extract(Participant, "\\d{3}"),
+            Participant = as.integer(str_extract(Participant, "\\d{3}")),
+            Participant = ifelse(Study == "5" | Study == "6", Participant+1000, Participant),
+            Participant = as.character(Participant),
             Trial = str_extract(soundname, "T\\d{1,2}"),
             Trial = str_extract(Trial, "\\d{1,2}"),
-            New_id = paste0(Participant, Diagnosis)
+            New_id = as.factor(paste0(Participant, Diagnosis))
     ) %>% 
-        filter(
-            complete.cases(dur)
+    filter(
+        complete.cases(dur)
         )
 
+#Merging pitch data and duration data
+df <- merge(pitch_data, dur, all = T)
 
-# Now we merge them
-df1 <- merge(df,dur, all = T)
+# Loading the demographic data
+demo <- read.csv("DemographicData.csv", sep=";") %>% 
+    mutate(
+        Participant = as.integer(Participant),
+        Participant = ifelse(Study == 5 | Study == 6, Participant+1000, Participant),
+        Participant = as.character(Participant),
+        Diagnosis = as.character(Diagnosis),
+        New_id = as.factor(paste0(Participant, Diagnosis))
+    )
+
+#Merging demo with the rest of the data
+df1 <- merge(demo, df, all = T) %>%
+    filter(Study != 7) %>% 
+    rename(
+        dur_s = dur..s.,
+        phonationtime_s = phonationtime..s.,
+        speechrate_nsyll_dur = speechrate..nsyll.dur.,
+        articulation_rate_nsyll_phonationtime = articulation.rate..nsyll...phonationtime.,
+        ASD_speakingtime_nsyll = ASD..speakingtime.nsyll.
+    ) %>% 
+    mutate(
+        Study = as.factor(Study),
+        Diagnosis = as.factor(Diagnosis),
+    )
 
 # Now we save them
-write_csv(df1, "FINAL_DATA.csv")
+write_csv(df1, "FINAL_DATA_1.csv")
 ```
 
 ## Now we need to describe our sample
+```{r}
+#Loading the final dataset
+data <- read.csv("FINAL_DATA_1.csv") %>% 
+    mutate(Study = as.factor(Study))
+```
+
 
 First look at the missing data: we should exclude all recordings for which we do not have complete data.
 Then count the participants and recordinsgs by diagnosis, report their gender, age and symptom severity (SANS, SAPS and Social)
