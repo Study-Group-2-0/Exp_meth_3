@@ -119,7 +119,7 @@ read_pitch <- function(filename) {
     Diagnosis = substr(files, 8,8)
     Subject = substr(files, 10, 12)
     Trial = substr(files, 14,15)
-    
+    }
     # creating dataframes, loading data and and merging the df's
     df = data_frame(Study, Diagnosis, Subject, Trial)
     df1 = read.delim(filename)
@@ -136,12 +136,15 @@ read_pitch <- function(filename) {
     data$pitch_meanAD = MeanAD(data$f0)
     data$picth_cv = cv(data$f0)
     data = slice(data,(1))
-    }
+    
     data = data %>% mutate(
         Trial = str_replace_all(data$Trial, '[[:punct:]]', ''),
-        Subject = as.factor(Subject),
+        Subject = as.numeric(Subject),
         Study = as.numeric(Study),
         Diagnosis = as.factor(Diagnosis),
+        Diagnosis = recode(Diagnosis, 
+                           '0' = 'Control',
+                           '1' = 'Schizophrenia')
         )
 
     # combine all this data in one dataset
@@ -164,6 +167,7 @@ write_csv(pitch_data, 'pitch_data_clean')
 ### Now you need to merge demographic/clinical, duration and pitch data
 
 ```{r}
+######################### DEMO
 # Let's start with the demographic and clinical data
 demo <- read_csv2('DemographicData.csv')
 demo <- demo %>%  
@@ -175,41 +179,37 @@ demo <- demo %>%
         Diagnosis = as.factor(Diagnosis)
     )
 
+######################### DURATION
 # then duration data
 duration <- read.delim2('Articulation.txt', sep=",")
 
 #cleaning up duration more nicely
-
 duration <- duration %>% mutate(
     Study = substr(duration$soundname, 6,6),
     Study = as.numeric(Study),
     Diagnosis = substr(duration$soundname, 8,8),
-    Subject = substr(duration$soundname, 10,12),
-    Subject = as.numeric(Subject),
-    Trial = substr(duration$soundname, 14,15),
-    #Trial = str_replace_all(duration$Trial, '[[:punct:]]', ''),
-    #Trial = as.factor(Trial),
     Diagnosis = recode(Diagnosis, 
                '0' = 'Control',
                '1' = 'Schizophrenia'),
-    Diagnosis = as.factor(Diagnosis)
+    Diagnosis = as.factor(Diagnosis),
+    Subject = substr(duration$soundname, 10,12),
+    Subject = as.numeric(Subject),
+    Trial = str_extract(soundname, "T\\d{1,2}"),
+    Trial = str_extract(soundname, "\\d{1,2}"),
+    Trial = as.factor(Trial),
 )
 
-# Finally the pitch data
-pitch_data = pitch_data %>% mutate(
-    Diagnosis = recode(Diagnosis, 
-               '0' = 'Control',
-               '1' = 'Schizophrenia'))
-
-
-pitch_data$Subject <- as.numeric(pitch_data$Subject)
-pitch_data$Study <- as.numeric(pitch_data$Study)
-
-# adding 1000 to study 5, 6 & 7 to avoid a mess
+# adding 1000 to study 5, 6 & 7 to avoid a mess (subject)
+## important: subject and study must be numeric at this point
 pitch_data$Subject <- ifelse(pitch_data$Study > 4, pitch_data$Subject + 1000, pitch_data$Subject)
 duration$Subject <- ifelse(duration$Study > 4, duration$Subject + 1000, duration$Subject)
 demo$Subject <- ifelse(demo$Study > 4, demo$Subject + 1000, demo$Subject)
 
+#trying to remove study 7 from demo because it contains very few useful values
+# it made no difference
+demo <- filter(demo, demo$Study < 7)
+
+# changing study and subject to character to use paste to create new IDs
 demo$Study <- as.factor(demo$Study)
 demo$Subject <- as.factor(demo$Subject)
 duration$Study <- as.factor(duration$Study)
@@ -221,7 +221,7 @@ pitch_data$Diagnosis <- as.character(pitch_data$Diagnosis)
 # creating new IDs
 pitch_data$new_ID <- paste0(pitch_data$Diagnosis, pitch_data$Subject)
 demo$new_ID <- paste0(demo$Diagnosis, demo$Subject)
-duration$new_ID <- paste0(duration$Diagnosis, demo$Subject)
+duration$new_ID <- paste0(duration$Diagnosis, duration$Subject)
 
 
 # Now we merge them
@@ -233,23 +233,307 @@ df1 <- merge(df, duration, by = c('new_ID','Study', 'Diagnosis', 'Trial'), all =
 
 ```
 
+
+```{r}
+############################# removing NA's
+# there are no NA's in subject, diagnosis and stiudy for DEMO
+demo_no_na <- demo %>% filter(
+    is.na(Subject) == F,
+    is.na(Diagnosis) == F,
+    is.na(Study) == F
+)
+
+# Duration - loses 500 observations
+duration_no_na <- duration %>% filter(
+    is.na(Subject) == F,
+    is.na(Diagnosis) == F,
+    is.na(Study) == F
+)
+
+# pitch_data - loses 500 observations
+pitch_no_na <- pitch_data %>% filter(
+    is.na(Subject) == F,
+    is.na(Diagnosis) == F,
+    is.na(Study) == F
+)
+
+# changing study and subject to character to use paste to create new IDs
+demo_no_na$Study <- as.factor(demo_no_na$Study)
+demo_no_na$Subject <- as.factor(demo_no_na$Subject)
+duration_no_na$Study <- as.factor(duration_no_na$Study)
+duration_no_na$Subject <- as.factor(duration_no_na$Subject)
+pitch_no_na$Study <- as.factor(pitch_no_na$Study)
+pitch_no_na$Subject <- as.character(pitch_no_na$Subject)
+pitch_no_na$Diagnosis <- as.character(pitch_no_na$Diagnosis)
+
+# creating new IDs
+pitch_no_na$new_ID <- paste0(pitch_no_na$Diagnosis, pitch_no_na$Subject)
+demo_no_na$new_ID <- paste0(demo_no_na$Diagnosis, demo_no_na$Subject)
+duration_no_na$new_ID <- paste0(duration_no_na$Diagnosis, duration_no_na$Subject)
+
+# trying to merge the no na's dataframes
+
+df_no_na <- merge(demo_no_na, pitch_no_na, by = c('new_ID', 'Study', 'Diagnosis'), all = T)
+
+df_no_na_1 <- merge(df_no_na, duration_no_na, by = c('new_ID', 'Study', 'Diagnosis', 'Trial'), all = T)
+
+```
+
+
+```{r loading final data}
+
+data_DK <- read_csv('FINAL_DATA.csv') %>% filter(
+    Study < 5
+)
+
+```
+
 ## Now we need to describe our sample
 
 First look at the missing data: we should exclude all recordings for which we do not have complete data.
 Then count the participants and recordinsgs by diagnosis, report their gender, age and symptom severity (SANS, SAPS and Social)
+
+```{r}
+
+#data <- data_DK %>% 
+    #filter(is.na())
+# we might not want to take away data
+
+data_DK <- data_DK %>% mutate(
+    Diagnosis = as.factor(Diagnosis),
+    New_id = as.factor(New_id),
+    Study = as.factor(Study),
+    Trial = as.factor(Trial),
+    Gender = as.factor(Gender),
+    Language = as.factor(Language)
+)
+
+data_DK %>% 
+    split(data_DK$Diagnosis) %>% 
+    map(summary)
+
+```
+
 Finally, do the same by diagnosis and study, to assess systematic differences in studies.
 I like to use group_by() %>% summarize() for quick summaries
 
 ```{r}
-
+data_DK %>% 
+    split(data_DK$Study) %>% 
+    map(summary)
 ```
 
 ## Now we can analyze the data
 If you were to examine the meta analysis you would find that the differences (measured as Hedges' g, very close to Cohen's d, that is, in standard deviations) to be the following
 - pitch variability (lower, Hedges' g: -0.55, 95% CIs: -1.06, 0.09)
+
+```{r}
+pacman::p_load(tidyverse, lme4, lmerTest, effsize)
+
+logit2prob <- function(logit){
+    odds = exp(logit)
+    prob = odds/(1+odds)
+    return(prob)
+}
+
+```
+
+
+```{r}
+#scaling the mean
+data_DK$scaled_mean <- scale(data_DK$mean)
+data_DK_test$scaled_mean <- scale(data_DK_test$mean)
+
+#making model NS
+m1 <- glmer(Diagnosis ~ scaled_mean + (1|New_id) + (1|Study), data_DK, family = 'binomial')
+summary(m1) 
+
+#plotting the data
+ggplot(data_DK, aes(scaled_mean, Diagnosis, color = Diagnosis)) + geom_point() + theme_classic()
+
+
+#trying the function
+# getting the intercept
+fixef(m1)[1]
+m1_prob <- logit2prob(fixef(m1)[1])
+
+slope4 <- fixef(m1)[1]+fixef(m1)[2]*4
+m1_prob2 <- logit2prob(slope4)
+
+# removing NA's to calculate Hedge's G
+data_DK_test <- data_DK %>% 
+    filter(
+        is.na(Diagnosis) == F,
+        is.na(scaled_mean) ==F
+    )
+
+# investigating Hedge's G
+effsize::cohen.d(data_DK_test$scaled_mean, data_DK_test$Diagnosis, hedges.correction = T)
+
+# though it doesn't make sense to compare with the meta analysis, because the model isn't significant. Thus, the estimates are without much meaning...
+
+```
+
+
 - proportion of spoken time (lower, Hedges' g: -1.26, 95% CIs: -2.26, 0.25)
+
+```{r}
+################################## Is spoken time phonation? prob not #####################
+#scaling phonation time
+data_DK$scaled_phonation <- scale(data_DK$phonationtime..s.)
+data_DK_test$scaled_phonation <- scale(data_DK_test$phonationtime..s.)
+
+#making model - significant!
+m2 <- glmer(Diagnosis ~ scaled_phonation + (1|New_id) + (1|Study), data_DK, family = 'binomial')
+summary(m2)
+
+#plotting the data
+ggplot(data_DK, aes(scaled_phonation, Diagnosis, color = Diagnosis)) + geom_point() + theme_classic()
+
+# getting the intercept
+m2_prob <- logit2prob(fixef(m2)[1])
+m2_prob
+
+
+slope_m2_4 <- fixef(m2)[1]+fixef(m2)[2]*4
+m2_prob2 <- logit2prob(slope_m2_4)
+m2_prob2
+
+
+data_DK_test <- data_DK %>% 
+    filter(
+        is.na(Diagnosis) == F,
+        is.na(scaled_phonation) ==F
+    )
+
+# investigating Hedge's G
+effsize::cohen.d(data_DK_test$scaled_phonation, data_DK_test$Diagnosis, hedges.correction = T)
+```
+
+
+```{r}
+############################ PROPORTION OF SPOKEN TIME = PHONATION / DURATION #####################
+
+#new variable
+data_DK$prop_spokentime <- data_DK$phonationtime..s./data_DK$dur..s.
+data_DK_test$prop_spokentime <- data_DK_test$phonationtime..s./data_DK_test$dur..s.
+
+
+#scaling phonation time
+data_DK$scaled_prop_spokentime <- scale(data_DK$prop_spokentime)
+data_DK_test$scaled_prop_spokentime <- scale(data_DK_test$prop_spokentime)
+
+#making model NS
+m3 <- glmer(Diagnosis ~ scaled_prop_spokentime + (1|New_id) + (1|Study), data_DK, family = 'binomial')
+summary(m3)
+
+#plotting the data
+ggplot(data_DK, aes(scaled_prop_spokentime, Diagnosis, color = Diagnosis)) + geom_point() + theme_classic()
+
+# getting the intercept
+m3_prob <- logit2prob(fixef(m3)[1])
+m3_prob
+
+
+slope_m3_4 <- fixef(m3)[1]+fixef(m3)[2]*4
+m3_prob2 <- logit2prob(slope_m3_4)
+m3_prob2
+
+
+data_DK_test <- data_DK %>% 
+    filter(
+        is.na(Diagnosis) == F,
+        is.na(scaled_prop_spokentime) ==F
+    )
+
+# investigating Hedge's G
+effsize::cohen.d(data_DK_test$scaled_prop_spokentime, data_DK_test$Diagnosis, hedges.correction = T)
+
+
+```
+
+
+
 - speech rate (slower, Hedges' g: -0.75, 95% CIs: -1.51, 0.04)
+```{r}
+############## speech rate ##################
+#scaling the mean
+data_DK$scaled_speech <- scale(data_DK$speechrate..nsyll.dur.)
+data_DK_test$scaled_speech <- scale(data_DK_test$speechrate..nsyll.dur.)
+
+#making model NS
+m4 <- glmer(Diagnosis ~ scaled_speech + (1|New_id) + (1|Study), data_DK, family = 'binomial')
+summary(m4)
+
+#plotting the data
+ggplot(data_DK, aes(scaled_speech, Diagnosis, color = Diagnosis)) + geom_point() + theme_classic()
+
+#trying the function
+# getting the intercept
+fixef(m4)[1]
+m4_prob <- logit2prob(fixef(m4)[1])
+m4_prob
+
+slope4 <- fixef(m4)[1]+fixef(m4)[2]*4
+m4_prob2 <- logit2prob(slope4)
+m4_prob2
+
+# removing NA's to calculate Hedge's G
+data_DK_test <- data_DK %>% 
+    filter(
+        is.na(Diagnosis) == F,
+        is.na(scaled_speech) ==F
+    )
+
+# investigating Hedge's G
+effsize::cohen.d(data_DK_test$scaled_speech, data_DK_test$Diagnosis, hedges.correction = T)
+
+# though it doesn't make sense to compare with the meta analysis, because the model isn't significant. Thus, the estimates are without much meaning...
+
+```
+
 - pause duration (longer, Hedges' g: 1.89, 95% CIs: 0.72, 3.21). (Duration - Spoken Duration) / PauseN
+
+```{r pause duration}
+############################ PAUSE DURATION #####################
+
+#filtering out NA's + cannot divide by 0 so changing 0 to 1
+data_DK_test <- data_DK %>% 
+    filter(
+        is.na(Diagnosis) == F,
+      is.na(data_DK$dur..s.) ==F,
+      is.na(data_DK$phonationtime..s.) == F, 
+      is.na(data_DK$npause) == F
+    ) %>% mutate(
+        npause_1 = ifelse(data_DK_test$npause == 0, 1, data_DK_test$npause)
+    )
+
+#new variable
+data_DK_test$pause_duration <- (data_DK_test$dur..s. - data_DK_test$phonationtime..s.)/data_DK_test$npause_1
+
+#scaling pause_duration
+data_DK_test$scaled_pause_duration <- scale(data_DK_test$pause_duration)
+
+#making model - NS
+m5 <- glmer(Diagnosis ~ scaled_pause_duration + (1|New_id) + (1|Study), data_DK_test, family = 'binomial')
+summary(m5)
+
+#plotting the data
+ggplot(data_DK_test, aes(scaled_pause_duration, Diagnosis, color = Diagnosis)) + geom_point() + theme_classic()
+
+# getting the intercept
+m5_prob <- logit2prob(fixef(m5)[1])
+m5_prob
+
+slope_m5_4 <- fixef(m5)[1]+fixef(m5)[2]*4
+m5_prob2 <- logit2prob(slope_m5_4)
+m5_prob2
+
+
+# investigating Hedge's G
+effsize::cohen.d(data_DK_test$scaled_pause_duration, data_DK_test$Diagnosis, hedges.correction = T)
+```
+
 
 We need therefore to set up 4 models to see how well our results compare to the meta-analytic findings (Feel free of course to test more features)
 Describe the acoustic profile of a schizophrenic voice
