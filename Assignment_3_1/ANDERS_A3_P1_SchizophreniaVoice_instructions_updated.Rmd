@@ -258,8 +258,8 @@ First look at the missing data: we should exclude all recordings for which we do
 df <- read.csv("FINAL_DATA.csv")
 
 #filtering rows with missing values
-df <- df %>% 
-  filter(complete.cases(df))
+#df <- df %>% 
+  #filter(complete.cases(df))
 
 #fixing issue with participant ID in Study 5 and 6  
 #df <- df %>% 
