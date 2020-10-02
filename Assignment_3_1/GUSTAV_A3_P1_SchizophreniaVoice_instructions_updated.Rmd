@@ -114,9 +114,11 @@ read_pitch <- function(filename) {
     # load data
     path_name <- str_c("Pitch/",filename)
     data <- read_tsv(path_name)
-    # parse filename to extract study, diagnosis, subject and trial
+   
+    #CLeaning the data and comprimising it
     data <- data %>% 
         mutate(
+             # parse filename to extract study, diagnosis, subject and trial
             Study = str_extract(filename, "Study\\d"),
             Study = str_extract(Study, "\\d"),
             Diagnosis = str_extract(filename, "D\\d"),
@@ -125,10 +127,12 @@ read_pitch <- function(filename) {
                 "D1" = "Schizophrenia"),
             Participant =  str_extract(filename, "S\\d{3}"),
             Participant = as.integer(str_extract(Participant, "\\d{3}")),
-            Participant = ifelse(Study == "5" | Study == "6", Participant+1000, Participant),
+            Participant = ifelse(Study == "5" | Study == "6", Participant + 1000, Participant),
             Participant = as.character(Participant),
             Trial = str_extract(filename, "T\\d{1,2}"),
             Trial = str_extract(Trial, "\\d{1,2}"),
+            
+            # extract pitch descriptors (mean, sd, iqr, etc)
             mean = mean(f0),
             standard_deviation = sd(f0),
             range_low = range(f0)[1],
@@ -138,11 +142,9 @@ read_pitch <- function(filename) {
             mean_abs = MeanAD(f0),
             coef_var = cv(f0),
             New_id = as.factor(paste0(Participant, Diagnosis))
-            )%>% 
+            ) %>% 
         select(Study:New_id) %>% 
         slice(1) 
-
-    # extract pitch descriptors (mean, sd, iqr, etc)
     
     # combine all this data in one dataset
     return(data)
@@ -171,7 +173,7 @@ write_csv(pitch_data, "pitch_data.csv")
 pitch_data <- read_csv("pitch_data.csv") 
 
 # Loading the duration data
-dur <- read.csv("Articulation.txt", sep=",")
+dur <- read.csv("Articulation.txt", sep = ",")
 
 #Cleaning the duration data
 dur <- dur %>% 
@@ -184,7 +186,7 @@ dur <- dur %>%
                 "D1" = "Schizophrenia"),
             Participant =  str_extract(soundname, "S\\d{3}"),
             Participant = as.integer(str_extract(Participant, "\\d{3}")),
-            Participant = ifelse(Study == "5" | Study == "6", Participant+1000, Participant),
+            Participant = ifelse(Study == "5" | Study == "6", Participant + 1000, Participant),
             Participant = as.character(Participant),
             Trial = str_extract(soundname, "T\\d{1,2}"),
             Trial = str_extract(Trial, "\\d{1,2}"),
@@ -198,10 +200,10 @@ dur <- dur %>%
 df <- merge(pitch_data, dur, all = T)
 
 # Loading the demographic data
-demo <- read.csv("DemographicData.csv", sep=";") %>% 
+demo <- read.csv("DemographicData.csv", sep = ";") %>% 
     mutate(
         Participant = as.integer(Participant),
-        Participant = ifelse(Study == 5 | Study == 6, Participant+1000, Participant),
+        Participant = ifelse(Study == 5 | Study == 6, Participant + 1000, Participant),
         Participant = as.character(Participant),
         Diagnosis = as.character(Diagnosis),
         New_id = as.factor(paste0(Participant, Diagnosis))
@@ -229,18 +231,27 @@ write_csv(df1, "FINAL_DATA_1.csv")
 ## Now we need to describe our sample
 ```{r}
 #Loading the final dataset
-data <- read.csv("FINAL_DATA_1.csv") %>% 
+df <- read.csv("FINAL_DATA_1.csv") %>% 
     mutate(Study = as.factor(Study))
+
 ```
 
 
 First look at the missing data: we should exclude all recordings for which we do not have complete data.
 Then count the participants and recordinsgs by diagnosis, report their gender, age and symptom severity (SANS, SAPS and Social)
+```{r}
+df %>% 
+    split(df$Diagnosis) %>% 
+    map(summary)
+```
+
 Finally, do the same by diagnosis and study, to assess systematic differences in studies.
 I like to use group_by() %>% summarize() for quick summaries
 
 ```{r}
-
+df %>% 
+    split(df$Study) %>% 
+    map(summary)
 ```
 
 ## Now we can analyze the data
@@ -257,6 +268,28 @@ Describe the acoustic profile of a schizophrenic voice
 N.B. the meta-analytic findings are on scaled measures. If you want to compare your results with them, you need to scale your measures as well: subtract the mean, and divide by the standard deviation.
 N.N.B. We want to think carefully about fixed and random effects in our model. In particular: how should study be included? Does it make sense to have all studies put together? Does it make sense to analyze both languages together? Relatedly: does it make sense to scale all data from all studies together?
 N.N.N.B. If you want to estimate the studies separately, you can try this syntax:  Feature ~ 0 + Study + Study:Diagnosis + [your randomEffects]. Now you'll have an intercept per each study (the estimates for the controls) and an effect of diagnosis per each study
+
+```{r}
+#Filtering out NAs
+df <- df %>% 
+    filter(
+        is.na(Diagnosis) == F,
+        is.na(df$dur_s) ==F,
+        is.na(df$phonationtime_s) == F, 
+        is.na(df$npause) == F
+        ) %>% 
+    mutate(
+        npause_1 = ifelse(npause == 0, 1, npause)
+        )
+
+#new variables
+df <- df %>%
+    mutate(
+        pause_duration = (dur_s - phonationtime_s)/npause_1,
+        scaled_pause_duration = scale(pause_duration)
+        )
+
+```
 
 - Bonus points: cross-validate the models and report the betas and standard errors from all rounds to get an idea of how robust the estimates are. 
 
