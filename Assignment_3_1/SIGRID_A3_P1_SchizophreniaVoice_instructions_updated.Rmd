@@ -172,12 +172,20 @@ write_csv(pitch_data, 'pitch_data_clean')
 demo <- read_csv2('DemographicData.csv')
 demo <- demo %>%  
     rename(Subject = Participant) %>% 
-    filter(is.na(Diagnosis) == F) %>% 
+    filter(is.na(Diagnosis) == F, Study != 7) %>% 
     mutate(
         Subject = as.numeric(Subject),
         Study = as.numeric(Study),
         Diagnosis = as.factor(Diagnosis)
-    )
+        ) %>% 
+          mutate(
+            Subject = ifelse(Study > 4, Subject + 1000, Subject),
+            new_ID = paste0(Diagnosis, Subject)
+            )
+
+#making all variables factor
+colnames = names(demo)
+demo[,colnames] = lapply(demo[,colnames], factor)
 
 ######################### DURATION
 # then duration data
@@ -196,32 +204,38 @@ duration <- duration %>% mutate(
     Subject = as.numeric(Subject),
     Trial = str_extract(soundname, "T\\d{1,2}"),
     Trial = str_extract(soundname, "\\d{1,2}"),
-    Trial = as.factor(Trial),
-)
+    Trial = as.factor(Trial)) %>%
+  filter(
+    Study != 7) %>% 
+  rename(
+      dur_s = dur..s.,
+      phonationtime_s = phonationtime..s.,
+      speechrate_nsyll_dur = speechrate..nsyll.dur.,
+      articulation_rate_nsyll_phonationtime = articulation.rate..nsyll...phonationtime.,
+      ASD_speakingtime_nsyll = ASD..speakingtime.nsyll.
+      ) %>% 
+  mutate(
+    Subject = ifelse(Study > 4, Subject + 1000, Subject),
+    new_ID = paste0(Diagnosis, Subject)
+  )
 
+#making all variables factor
+colnames = names(duration)
+duration[,colnames] = lapply(duration[,colnames], factor)
+
+################################## PITCH DATA FINAL TOUCHES
 # adding 1000 to study 5, 6 & 7 to avoid a mess (subject)
 ## important: subject and study must be numeric at this point
 pitch_data$Subject <- ifelse(pitch_data$Study > 4, pitch_data$Subject + 1000, pitch_data$Subject)
-duration$Subject <- ifelse(duration$Study > 4, duration$Subject + 1000, duration$Subject)
-demo$Subject <- ifelse(demo$Study > 4, demo$Subject + 1000, demo$Subject)
-
-#trying to remove study 7 from demo because it contains very few useful values
-# it made no difference
-demo <- filter(demo, demo$Study < 7)
-
-# changing study and subject to character to use paste to create new IDs
-demo$Study <- as.factor(demo$Study)
-demo$Subject <- as.factor(demo$Subject)
-duration$Study <- as.factor(duration$Study)
-duration$Subject <- as.factor(duration$Subject)
-pitch_data$Study <- as.factor(pitch_data$Study)
-pitch_data$Subject <- as.character(pitch_data$Subject)
-pitch_data$Diagnosis <- as.character(pitch_data$Diagnosis)
 
 # creating new IDs
+pitch_data$Subject <- as.character(pitch_data$Subject)
+pitch_data$Diagnosis <- as.character(pitch_data$Diagnosis)
 pitch_data$new_ID <- paste0(pitch_data$Diagnosis, pitch_data$Subject)
-demo$new_ID <- paste0(demo$Diagnosis, demo$Subject)
-duration$new_ID <- paste0(duration$Diagnosis, duration$Subject)
+
+#making all variables factor
+colnames = names(pitch_data)
+pitch_data[,colnames] = lapply(pitch_data[,colnames], factor)
 
 
 # Now we merge them
