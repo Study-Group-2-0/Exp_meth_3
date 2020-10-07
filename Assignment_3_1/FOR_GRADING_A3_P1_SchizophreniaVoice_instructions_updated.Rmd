@@ -238,6 +238,15 @@ df1 <- merge(demo, df, all = T) %>%
         Diagnosis = as.factor(Diagnosis),
     )
 
+#Filtering out NAs
+df1 <- df1 %>% 
+    filter(
+        is.na(Diagnosis) == F,
+        is.na(df$dur_s) ==F,
+        is.na(df$phonationtime_s) == F, 
+        is.na(df$npause) == F
+        )
+
 # Now we save them
 write_csv(df1, "FINAL_DATA.csv")
 ```
@@ -249,7 +258,6 @@ write_csv(df1, "FINAL_DATA.csv")
 #Loading the final dataset
 df <- read.csv("FINAL_DATA.csv") %>% 
     mutate(Study = as.factor(Study))
-
 ```
 
 ## Now we need to describe our sample
@@ -301,16 +309,6 @@ logit2prob <- function(logit){
 
 ```{r}
 #ANDERS 
-
-#Filtering out NAs
-df <- df %>% 
-    filter(
-        is.na(Diagnosis) == F,
-        is.na(df$dur_s) ==F,
-        is.na(df$phonationtime_s) == F, 
-        is.na(df$npause) == F
-        )
-
 #Making the new variables to investigate
 df <- df %>%
     mutate(

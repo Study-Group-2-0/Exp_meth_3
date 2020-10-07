@@ -557,6 +557,15 @@ df1 &lt;- merge(demo, df, all = T) %&gt;%
         Diagnosis = as.factor(Diagnosis),
     )
 
+#Filtering out NAs
+df1 &lt;- df1 %&gt;% 
+    filter(
+        is.na(Diagnosis) == F,
+        is.na(df$dur_s) ==F,
+        is.na(df$phonationtime_s) == F, 
+        is.na(df$npause) == F
+        )
+
 # Now we save them
 write_csv(df1, &quot;FINAL_DATA.csv&quot;)</code></pre>
 </div>
@@ -579,30 +588,30 @@ df %&gt;%
     split(df$Diagnosis) %&gt;% 
     map(summary)</code></pre>
 <pre><code>## $Control
-##  Study           Diagnosis     Participant             New_id    
-##  1:348   Control      :1816   Min.   : 101.0   1203Control:  55  
-##  2:184   Schizophrenia:   0   1st Qu.: 214.0   1201Control:  43  
-##  3:250                        Median : 416.0   1204Control:  32  
-##  4:233                        Mean   : 613.9   1202Control:  29  
-##  5:201                        3rd Qu.:1027.0   1033Control:  28  
-##  6:600                        Max.   :1206.0   1016Control:  26  
-##                                                (Other)    :1603  
-##     Language     Gender          Age          Education    
-##  Chinese: 801   F   : 747   Min.   :18.00   Min.   : 8.00  
-##  Danish :1007   M   :1061   1st Qu.:22.00   1st Qu.:13.00  
-##  NA&#39;s   :   8   NA&#39;s:   8   Median :26.00   Median :15.00  
-##                             Mean   :28.33   Mean   :14.59  
-##                             3rd Qu.:31.00   3rd Qu.:16.00  
-##                             Max.   :62.00   Max.   :23.00  
-##                             NA&#39;s   :24      NA&#39;s   :8      
+##  Study           Diagnosis     Participant           New_id    
+##  1:348   Control      :1801   Min.   : 101   1203Control:  55  
+##  2:184   Schizophrenia:   0   1st Qu.: 213   1201Control:  43  
+##  3:236                        Median : 417   1204Control:  32  
+##  4:233                        Mean   : 616   1202Control:  29  
+##  5:201                        3rd Qu.:1027   1033Control:  28  
+##  6:599                        Max.   :1206   1016Control:  26  
+##                                              (Other)    :1588  
+##     Language    Gender          Age          Education    
+##  Chinese:800   F   : 738   Min.   :18.00   Min.   : 8.00  
+##  Danish :993   M   :1055   1st Qu.:22.00   1st Qu.:13.00  
+##  NA&#39;s   :  8   NA&#39;s:   8   Median :26.00   Median :15.00  
+##                            Mean   :28.34   Mean   :14.59  
+##                            3rd Qu.:31.00   3rd Qu.:16.00  
+##                            Max.   :62.00   Max.   :23.00  
+##                            NA&#39;s   :24      NA&#39;s   :8      
 ##       SANS             SAPS           VerbalIQ       NonVerbalIQ   
 ##  Min.   :0.0000   Min.   :0.0000   Min.   : 61.00   Min.   : 60.0  
 ##  1st Qu.:0.0000   1st Qu.:0.0000   1st Qu.: 90.00   1st Qu.: 93.0  
 ##  Median :0.0000   Median :0.0000   Median :100.00   Median :105.0  
-##  Mean   :0.3922   Mean   :0.0771   Mean   : 99.98   Mean   :105.6  
+##  Mean   :0.3922   Mean   :0.0771   Mean   : 99.96   Mean   :105.6  
 ##  3rd Qu.:0.0000   3rd Qu.:0.0000   3rd Qu.:110.00   3rd Qu.:119.0  
 ##  Max.   :7.0000   Max.   :3.0000   Max.   :135.00   Max.   :143.0  
-##  NA&#39;s   :1051     NA&#39;s   :1051     NA&#39;s   :684      NA&#39;s   :684    
+##  NA&#39;s   :1036     NA&#39;s   :1036     NA&#39;s   :670      NA&#39;s   :670    
 ##     TotalIQ          Trial             mean       standard_deviation
 ##  Min.   : 61.0   Min.   : 1.000   Min.   : 53.1   Min.   :  1.944   
 ##  1st Qu.: 93.0   1st Qu.: 3.000   1st Qu.:114.0   1st Qu.: 13.399   
@@ -610,7 +619,7 @@ df %&gt;%
 ##  Mean   :102.9   Mean   : 8.061   Mean   :156.8   Mean   : 29.730   
 ##  3rd Qu.:116.0   3rd Qu.: 9.000   3rd Qu.:198.2   3rd Qu.: 28.726   
 ##  Max.   :135.0   Max.   :55.000   Max.   :780.1   Max.   :375.416   
-##  NA&#39;s   :684     NA&#39;s   :15       NA&#39;s   :15      NA&#39;s   :15        
+##  NA&#39;s   :670                                                        
 ##    range_low        range_high          median            IQR         
 ##  Min.   : 42.43   Min.   :  56.51   Min.   : 48.98   Min.   :  1.475  
 ##  1st Qu.: 79.55   1st Qu.: 179.25   1st Qu.:109.46   1st Qu.: 14.400  
@@ -618,15 +627,15 @@ df %&gt;%
 ##  Mean   :108.74   Mean   : 258.73   Mean   :149.83   Mean   : 38.582  
 ##  3rd Qu.:137.83   3rd Qu.: 300.92   3rd Qu.:190.92   3rd Qu.: 31.905  
 ##  Max.   :484.79   Max.   :1100.82   Max.   :890.48   Max.   :808.500  
-##  NA&#39;s   :15       NA&#39;s   :15        NA&#39;s   :15       NA&#39;s   :15       
+##                                                                       
 ##     mean_abs          coef_var                  soundname   
 ##  Min.   :  1.272   Min.   :0.01328   Study3D0S342T1  :   2  
 ##  1st Qu.: 10.023   1st Qu.:0.09739   Study3D0S342T1T2:   2  
 ##  Median : 14.383   Median :0.13066   Study3D0S342T3  :   2  
 ##  Mean   : 23.598   Mean   :0.17543   Study3D0S342T3T2:   2  
 ##  3rd Qu.: 21.563   3rd Qu.:0.18260   Study1D0S101T1  :   1  
-##  Max.   :354.551   Max.   :1.10867   (Other)         :1792  
-##  NA&#39;s   :15        NA&#39;s   :15        NA&#39;s            :  15  
+##  Max.   :354.551   Max.   :1.10867   Study1D0S101T10 :   1  
+##                                      (Other)         :1791  
 ##      nsyll            npause           dur_s       phonationtime_s 
 ##  Min.   :  0.00   Min.   : 0.000   Min.   : 0.50   Min.   : 0.190  
 ##  1st Qu.: 13.00   1st Qu.: 1.000   1st Qu.: 4.00   1st Qu.: 2.800  
@@ -634,7 +643,7 @@ df %&gt;%
 ##  Mean   : 45.25   Mean   : 5.671   Mean   :13.74   Mean   : 9.116  
 ##  3rd Qu.: 63.00   3rd Qu.: 8.000   3rd Qu.:19.26   3rd Qu.:12.190  
 ##  Max.   :401.00   Max.   :51.000   Max.   :97.96   Max.   :81.080  
-##  NA&#39;s   :15       NA&#39;s   :15       NA&#39;s   :15      NA&#39;s   :15      
+##                                                                    
 ##  speechrate_nsyll_dur articulation_rate_nsyll_phonationtime
 ##  Min.   :0.000        Min.   :0.000                        
 ##  1st Qu.:2.620        1st Qu.:4.390                        
@@ -642,41 +651,41 @@ df %&gt;%
 ##  Mean   :3.265        Mean   :4.819                        
 ##  3rd Qu.:3.900        3rd Qu.:5.400                        
 ##  Max.   :6.300        Max.   :8.930                        
-##  NA&#39;s   :15           NA&#39;s   :15                           
+##                                                            
 ##  ASD_speakingtime_nsyll
 ##   0.194 :  32          
 ##   0.197 :  32          
 ##   0.199 :  31          
 ##   0.181 :  30          
 ##   0.189 :  30          
-##  (Other):1646          
-##  NA&#39;s   :  15          
+##   0.200 :  30          
+##  (Other):1616          
 ## 
 ## $Schizophrenia
 ##  Study           Diagnosis     Participant                   New_id    
-##  1:337   Control      :   0   Min.   : 101.0   1037Schizophrenia:  58  
-##  2:179   Schizophrenia:1585   1st Qu.: 208.0   1022Schizophrenia:  43  
-##  3:176                        Median : 414.0   1026Schizophrenia:  42  
-##  4:240                        Mean   : 570.2   1008Schizophrenia:  32  
-##  5: 23                        3rd Qu.:1018.0   1006Schizophrenia:  28  
-##  6:630                        Max.   :1044.0   1018Schizophrenia:  28  
-##                                                (Other)          :1354  
+##  1:335   Control      :   0   Min.   : 103.0   1037Schizophrenia:  58  
+##  2:179   Schizophrenia:1529   1st Qu.: 206.0   1022Schizophrenia:  42  
+##  3:151                        Median : 414.0   1026Schizophrenia:  41  
+##  4:238                        Mean   : 567.2   1008Schizophrenia:  31  
+##  5:  0                        3rd Qu.:1018.0   1006Schizophrenia:  27  
+##  6:626                        Max.   :1044.0   1018Schizophrenia:  27  
+##                                                (Other)          :1303  
 ##     Language   Gender       Age          Education          SANS       
-##  Chinese:653   F:736   Min.   :18.00   Min.   : 8.00   Min.   : 0.000  
-##  Danish :932   M:849   1st Qu.:22.00   1st Qu.:11.00   1st Qu.: 4.000  
+##  Chinese:626   F:714   Min.   :18.00   Min.   : 8.00   Min.   : 0.000  
+##  Danish :903   M:815   1st Qu.:22.00   1st Qu.:11.00   1st Qu.: 4.000  
 ##                        Median :24.00   Median :12.00   Median : 8.000  
-##                        Mean   :27.09   Mean   :12.76   Mean   : 7.696  
+##                        Mean   :27.07   Mean   :12.78   Mean   : 7.706  
 ##                        3rd Qu.:30.00   3rd Qu.:15.00   3rd Qu.:11.000  
-##                        Max.   :67.00   Max.   :19.00   Max.   :20.000  
-##                                        NA&#39;s   :1       NA&#39;s   :176     
+##                        Max.   :61.00   Max.   :19.00   Max.   :20.000  
+##                                                        NA&#39;s   :151     
 ##       SAPS           VerbalIQ       NonVerbalIQ        TotalIQ      
-##  Min.   :-2.067   Min.   : 48.00   Min.   : 39.00   Min.   : 45.00  
+##  Min.   : 0.000   Min.   : 48.00   Min.   : 39.00   Min.   : 45.00  
 ##  1st Qu.: 7.000   1st Qu.: 83.00   1st Qu.: 75.00   1st Qu.: 80.00  
 ##  Median :10.000   Median : 93.00   Median : 93.00   Median : 94.00  
-##  Mean   : 9.959   Mean   : 92.18   Mean   : 89.51   Mean   : 90.43  
-##  3rd Qu.:13.000   3rd Qu.:103.00   3rd Qu.:106.50   3rd Qu.: 99.00  
+##  Mean   : 9.954   Mean   : 92.23   Mean   : 89.53   Mean   : 90.47  
+##  3rd Qu.:13.000   3rd Qu.:103.00   3rd Qu.:107.00   3rd Qu.: 99.00  
 ##  Max.   :20.000   Max.   :132.00   Max.   :128.00   Max.   :132.00  
-##  NA&#39;s   :176      NA&#39;s   :439      NA&#39;s   :439      NA&#39;s   :439     
+##  NA&#39;s   :151      NA&#39;s   :389      NA&#39;s   :389      NA&#39;s   :389     
 ##      Trial             mean        standard_deviation   range_low     
 ##  Min.   : 1.000   Min.   : 60.76   Min.   :  1.471    Min.   : 40.71  
 ##  1st Qu.: 3.000   1st Qu.:116.57   1st Qu.: 13.036    1st Qu.: 83.42  
@@ -684,7 +693,7 @@ df %&gt;%
 ##  Mean   : 8.386   Mean   :167.09   Mean   : 24.532    Mean   :121.95  
 ##  3rd Qu.: 9.000   3rd Qu.:215.91   3rd Qu.: 28.576    3rd Qu.:160.69  
 ##  Max.   :58.000   Max.   :536.65   Max.   :364.479    Max.   :250.53  
-##  NA&#39;s   :56       NA&#39;s   :56       NA&#39;s   :56         NA&#39;s   :56      
+##                                                                       
 ##    range_high         median            IQR              mean_abs       
 ##  Min.   : 64.49   Min.   : 57.06   Min.   :  0.6025   Min.   :  0.9038  
 ##  1st Qu.:181.34   1st Qu.:111.68   1st Qu.: 13.7650   1st Qu.:  9.5835  
@@ -692,15 +701,15 @@ df %&gt;%
 ##  Mean   :253.03   Mean   :163.26   Mean   : 30.5618   Mean   : 19.2146  
 ##  3rd Qu.:307.24   3rd Qu.:211.94   3rd Qu.: 32.7975   3rd Qu.: 21.5918  
 ##  Max.   :918.16   Max.   :814.03   Max.   :726.9000   Max.   :359.1863  
-##  NA&#39;s   :56       NA&#39;s   :56       NA&#39;s   :56         NA&#39;s   :56        
+##                                                                         
 ##     coef_var                 soundname        nsyll       
 ##  Min.   :0.01564   Study1D1S103T1 :   1   Min.   :  0.00  
 ##  1st Qu.:0.08463   Study1D1S103T10:   1   1st Qu.: 10.00  
 ##  Median :0.11691   Study1D1S103T2 :   1   Median : 22.00  
 ##  Mean   :0.14969   Study1D1S103T3 :   1   Mean   : 38.11  
 ##  3rd Qu.:0.16183   Study1D1S103T4 :   1   3rd Qu.: 54.00  
-##  Max.   :0.97617   (Other)        :1524   Max.   :464.00  
-##  NA&#39;s   :56        NA&#39;s           :  56   NA&#39;s   :56      
+##  Max.   :0.97617   Study1D1S103T5 :   1   Max.   :464.00  
+##                    (Other)        :1523                   
 ##      npause           dur_s        phonationtime_s  speechrate_nsyll_dur
 ##  Min.   : 0.000   Min.   :  0.50   Min.   : 0.210   Min.   :0.000       
 ##  1st Qu.: 0.000   1st Qu.:  3.20   1st Qu.: 2.020   1st Qu.:2.430       
@@ -708,15 +717,15 @@ df %&gt;%
 ##  Mean   : 5.289   Mean   : 12.84   Mean   : 7.794   Mean   :3.091       
 ##  3rd Qu.: 8.000   3rd Qu.: 17.81   3rd Qu.:10.880   3rd Qu.:3.810       
 ##  Max.   :97.000   Max.   :164.83   Max.   :85.570   Max.   :7.500       
-##  NA&#39;s   :56       NA&#39;s   :56       NA&#39;s   :56       NA&#39;s   :56          
+##                                                                         
 ##  articulation_rate_nsyll_phonationtime ASD_speakingtime_nsyll
 ##  Min.   :0.00                           0.200 :  27          
 ##  1st Qu.:4.26                           0.183 :  26          
 ##  Median :4.83                           0.192 :  26          
 ##  Mean   :4.71                           0.196 :  26          
 ##  3rd Qu.:5.33                           0.186 :  25          
-##  Max.   :7.98                          (Other):1399          
-##  NA&#39;s   :56                            NA&#39;s   :  56</code></pre>
+##  Max.   :7.98                           0.178 :  24          
+##                                        (Other):1375</code></pre>
 <pre class="r"><code>#ANDERS 
 
 #Summarizing by gender
@@ -724,30 +733,30 @@ df %&gt;%
     split(df$Gender) %&gt;% 
     map(summary)</code></pre>
 <pre><code>## $F
-##  Study           Diagnosis    Participant                 New_id    
-##  1:319   Control      :747   Min.   : 102   1022Schizophrenia:  42  
-##  2:103   Schizophrenia:736   1st Qu.: 211   1026Schizophrenia:  42  
-##  3:209                       Median : 421   1204Control      :  32  
-##  4:203                       Mean   : 597   1202Control      :  29  
-##  5: 67                       3rd Qu.:1021   1033Control      :  28  
-##  6:582                       Max.   :1204   1001Schizophrenia:  24  
-##                                             (Other)          :1286  
-##     Language   Gender        Age          Education          SANS       
-##  Chinese:649   F:1483   Min.   :18.00   Min.   : 9.00   Min.   : 0.000  
-##  Danish :834   M:   0   1st Qu.:21.00   1st Qu.:11.00   1st Qu.: 0.000  
-##                         Median :25.00   Median :13.50   Median : 5.000  
-##                         Mean   :27.55   Mean   :13.55   Mean   : 5.057  
-##                         3rd Qu.:30.00   3rd Qu.:16.00   3rd Qu.: 8.000  
-##                         Max.   :59.00   Max.   :21.00   Max.   :16.000  
-##                         NA&#39;s   :8                       NA&#39;s   :524     
-##       SAPS           VerbalIQ       NonVerbalIQ        TotalIQ      
-##  Min.   : 0.000   Min.   : 60.00   Min.   : 39.00   Min.   : 48.00  
-##  1st Qu.: 0.000   1st Qu.: 83.00   1st Qu.: 79.00   1st Qu.: 84.00  
-##  Median : 7.000   Median : 95.00   Median : 93.50   Median : 95.00  
-##  Mean   : 6.315   Mean   : 95.83   Mean   : 92.24   Mean   : 94.57  
-##  3rd Qu.:11.000   3rd Qu.:106.00   3rd Qu.:111.00   3rd Qu.:106.00  
-##  Max.   :18.000   Max.   :132.00   Max.   :133.00   Max.   :132.00  
-##  NA&#39;s   :524      NA&#39;s   :479      NA&#39;s   :479      NA&#39;s   :479     
+##  Study           Diagnosis    Participant                   New_id    
+##  1:318   Control      :738   Min.   : 102.0   1022Schizophrenia:  42  
+##  2:103   Schizophrenia:714   1st Qu.: 209.0   1026Schizophrenia:  41  
+##  3:188                       Median : 423.0   1204Control      :  32  
+##  4:202                       Mean   : 599.2   1202Control      :  29  
+##  5: 61                       3rd Qu.:1022.0   1033Control      :  28  
+##  6:580                       Max.   :1204.0   1001Schizophrenia:  23  
+##                                               (Other)          :1257  
+##     Language   Gender        Age         Education          SANS       
+##  Chinese:641   F:1452   Min.   :18.0   Min.   : 9.00   Min.   : 0.000  
+##  Danish :811   M:   0   1st Qu.:21.0   1st Qu.:11.00   1st Qu.: 0.000  
+##                         Median :25.0   Median :13.50   Median : 5.000  
+##                         Mean   :27.6   Mean   :13.57   Mean   : 5.045  
+##                         3rd Qu.:30.0   3rd Qu.:16.00   3rd Qu.: 8.000  
+##                         Max.   :59.0   Max.   :21.00   Max.   :16.000  
+##                         NA&#39;s   :8                      NA&#39;s   :503     
+##       SAPS           VerbalIQ      NonVerbalIQ        TotalIQ      
+##  Min.   : 0.000   Min.   : 60.0   Min.   : 39.00   Min.   : 48.00  
+##  1st Qu.: 0.000   1st Qu.: 83.0   1st Qu.: 79.00   1st Qu.: 84.00  
+##  Median : 7.000   Median : 95.0   Median : 94.00   Median : 95.00  
+##  Mean   : 6.276   Mean   : 95.9   Mean   : 92.26   Mean   : 94.63  
+##  3rd Qu.:11.000   3rd Qu.:106.0   3rd Qu.:111.00   3rd Qu.:106.00  
+##  Max.   :18.000   Max.   :132.0   Max.   :133.00   Max.   :132.00  
+##  NA&#39;s   :503      NA&#39;s   :451     NA&#39;s   :451      NA&#39;s   :451     
 ##      Trial             mean        standard_deviation   range_low     
 ##  Min.   : 1.000   Min.   : 67.88   Min.   :  4.823    Min.   : 45.65  
 ##  1st Qu.: 3.000   1st Qu.:186.36   1st Qu.: 17.980    1st Qu.:133.20  
@@ -755,7 +764,7 @@ df %&gt;%
 ##  Mean   : 7.663   Mean   :204.91   Mean   : 27.214    Mean   :149.11  
 ##  3rd Qu.: 9.000   3rd Qu.:225.33   3rd Qu.: 31.294    3rd Qu.:171.36  
 ##  Max.   :42.000   Max.   :351.80   Max.   :237.978    Max.   :250.53  
-##  NA&#39;s   :31       NA&#39;s   :31       NA&#39;s   :31         NA&#39;s   :31      
+##                                                                       
 ##    range_high        median            IQR            mean_abs      
 ##  Min.   :107.5   Min.   : 48.98   Min.   :  1.77   Min.   :  3.332  
 ##  1st Qu.:260.8   1st Qu.:184.89   1st Qu.: 19.95   1st Qu.: 13.599  
@@ -763,15 +772,15 @@ df %&gt;%
 ##  Mean   :306.6   Mean   :201.99   Mean   : 34.60   Mean   : 21.084  
 ##  3rd Qu.:349.8   3rd Qu.:221.84   3rd Qu.: 37.15   3rd Qu.: 23.803  
 ##  Max.   :882.0   Max.   :330.75   Max.   :465.93   Max.   :229.527  
-##  NA&#39;s   :31      NA&#39;s   :31       NA&#39;s   :31       NA&#39;s   :31       
+##                                                                     
 ##     coef_var                 soundname        nsyll           npause      
 ##  Min.   :0.02540   Study1D0S102T1 :   1   Min.   :  0.0   Min.   : 0.000  
 ##  1st Qu.:0.08908   Study1D0S102T10:   1   1st Qu.: 12.0   1st Qu.: 1.000  
 ##  Median :0.11506   Study1D0S102T2 :   1   Median : 29.0   Median : 3.000  
 ##  Mean   :0.13539   Study1D0S102T3 :   1   Mean   : 41.3   Mean   : 4.822  
 ##  3rd Qu.:0.15099   Study1D0S102T4 :   1   3rd Qu.: 59.0   3rd Qu.: 7.000  
-##  Max.   :0.82223   (Other)        :1447   Max.   :464.0   Max.   :97.000  
-##  NA&#39;s   :31        NA&#39;s           :  31   NA&#39;s   :31      NA&#39;s   :31      
+##  Max.   :0.82223   Study1D0S102T5 :   1   Max.   :464.0   Max.   :97.000  
+##                    (Other)        :1446                                   
 ##      dur_s        phonationtime_s  speechrate_nsyll_dur
 ##  Min.   :  0.50   Min.   : 0.210   Min.   :0.000       
 ##  1st Qu.:  3.50   1st Qu.: 2.380   1st Qu.:2.770       
@@ -779,41 +788,41 @@ df %&gt;%
 ##  Mean   : 12.32   Mean   : 8.069   Mean   :3.409       
 ##  3rd Qu.: 17.45   3rd Qu.:11.293   3rd Qu.:4.060       
 ##  Max.   :164.83   Max.   :85.570   Max.   :6.520       
-##  NA&#39;s   :31       NA&#39;s   :31       NA&#39;s   :31          
+##                                                        
 ##  articulation_rate_nsyll_phonationtime ASD_speakingtime_nsyll
 ##  Min.   :0.000                          0.183 :  33          
 ##  1st Qu.:4.527                          0.186 :  29          
 ##  Median :5.120                          0.181 :  27          
 ##  Mean   :4.980                          0.194 :  26          
 ##  3rd Qu.:5.562                          0.171 :  25          
-##  Max.   :8.930                         (Other):1312          
-##  NA&#39;s   :31                            NA&#39;s   :  31          
+##  Max.   :8.930                          0.184 :  25          
+##                                        (Other):1287          
 ## 
 ## $M
 ##  Study           Diagnosis     Participant                   New_id    
-##  1:366   Control      :1061   Min.   : 101.0   1037Schizophrenia:  58  
-##  2:260   Schizophrenia: 849   1st Qu.: 210.5   1203Control      :  55  
-##  3:209                        Median : 413.0   1201Control      :  43  
-##  4:270                        Mean   : 592.0   1008Schizophrenia:  32  
-##  5:157                        3rd Qu.:1027.0   1018Schizophrenia:  28  
-##  6:648                        Max.   :1206.0   1006Schizophrenia:  27  
-##                                                (Other)          :1667  
-##     Language    Gender        Age         Education          SANS       
-##  Chinese: 805   F:   0   Min.   :18.0   Min.   : 8.00   Min.   : 0.000  
-##  Danish :1105   M:1910   1st Qu.:22.0   1st Qu.:12.00   1st Qu.: 0.000  
-##                          Median :25.0   Median :14.00   Median : 4.000  
-##                          Mean   :27.9   Mean   :13.88   Mean   : 5.181  
-##                          3rd Qu.:30.0   3rd Qu.:16.00   3rd Qu.: 9.000  
-##                          Max.   :67.0   Max.   :23.00   Max.   :20.000  
-##                          NA&#39;s   :8      NA&#39;s   :1       NA&#39;s   :695     
+##  1:365   Control      :1055   Min.   : 101.0   1037Schizophrenia:  58  
+##  2:260   Schizophrenia: 815   1st Qu.: 210.0   1203Control      :  55  
+##  3:191                        Median : 413.0   1201Control      :  43  
+##  4:269                        Mean   : 590.4   1008Schizophrenia:  31  
+##  5:140                        3rd Qu.:1027.0   1006Schizophrenia:  27  
+##  6:645                        Max.   :1206.0   1018Schizophrenia:  27  
+##                                                (Other)          :1629  
+##     Language    Gender        Age          Education         SANS       
+##  Chinese: 785   F:   0   Min.   :18.00   Min.   : 8.0   Min.   : 0.000  
+##  Danish :1085   M:1870   1st Qu.:22.00   1st Qu.:12.0   1st Qu.: 0.000  
+##                          Median :25.00   Median :14.0   Median : 4.000  
+##                          Mean   :27.88   Mean   :13.9   Mean   : 5.135  
+##                          3rd Qu.:30.00   3rd Qu.:16.0   3rd Qu.: 9.000  
+##                          Max.   :62.00   Max.   :23.0   Max.   :20.000  
+##                          NA&#39;s   :8                      NA&#39;s   :676     
 ##       SAPS           VerbalIQ       NonVerbalIQ       TotalIQ      
-##  Min.   :-2.067   Min.   : 48.00   Min.   : 45.0   Min.   : 45.00  
+##  Min.   : 0.000   Min.   : 48.00   Min.   : 45.0   Min.   : 45.00  
 ##  1st Qu.: 0.000   1st Qu.: 86.00   1st Qu.: 90.0   1st Qu.: 86.00  
-##  Median : 6.000   Median : 97.00   Median :104.0   Median : 99.50  
-##  Mean   : 6.613   Mean   : 96.24   Mean   :101.7   Mean   : 98.25  
+##  Median : 6.000   Median : 97.00   Median :104.0   Median :100.00  
+##  Mean   : 6.549   Mean   : 96.23   Mean   :101.7   Mean   : 98.25  
 ##  3rd Qu.:12.000   3rd Qu.:108.00   3rd Qu.:118.0   3rd Qu.:112.00  
 ##  Max.   :20.000   Max.   :135.00   Max.   :143.0   Max.   :135.00  
-##  NA&#39;s   :695      NA&#39;s   :636      NA&#39;s   :636     NA&#39;s   :636     
+##  NA&#39;s   :676      NA&#39;s   :600      NA&#39;s   :600     NA&#39;s   :600     
 ##      Trial            mean       standard_deviation   range_low     
 ##  Min.   : 1.00   Min.   : 53.1   Min.   :  1.471    Min.   : 40.71  
 ##  1st Qu.: 3.00   1st Qu.:106.7   1st Qu.: 10.885    1st Qu.: 75.44  
@@ -821,7 +830,7 @@ df %&gt;%
 ##  Mean   : 8.65   Mean   :128.1   Mean   : 27.499    Mean   : 88.37  
 ##  3rd Qu.:10.00   3rd Qu.:131.9   3rd Qu.: 24.451    3rd Qu.: 96.34  
 ##  Max.   :58.00   Max.   :780.1   Max.   :375.416    Max.   :484.79  
-##  NA&#39;s   :40      NA&#39;s   :40      NA&#39;s   :40         NA&#39;s   :40      
+##                                                                     
 ##    range_high          median            IQR              mean_abs       
 ##  Min.   :  56.51   Min.   : 54.25   Min.   :  0.6025   Min.   :  0.9038  
 ##  1st Qu.: 151.67   1st Qu.:102.94   1st Qu.: 11.4019   1st Qu.:  7.9185  
@@ -829,15 +838,15 @@ df %&gt;%
 ##  Mean   : 217.36   Mean   :120.54   Mean   : 35.1967   Mean   : 22.0177  
 ##  3rd Qu.: 226.22   3rd Qu.:124.51   3rd Qu.: 24.8744   3rd Qu.: 17.9454  
 ##  Max.   :1100.82   Max.   :890.48   Max.   :808.5000   Max.   :359.1863  
-##  NA&#39;s   :40        NA&#39;s   :40       NA&#39;s   :40         NA&#39;s   :40        
+##                                                                          
 ##     coef_var                  soundname        nsyll       
 ##  Min.   :0.01328   Study3D0S342T1  :   2   Min.   :  0.00  
 ##  1st Qu.:0.09478   Study3D0S342T1T2:   2   1st Qu.: 11.00  
 ##  Median :0.13592   Study3D0S342T3  :   2   Median : 25.00  
 ##  Mean   :0.18559   Study3D0S342T3T2:   2   Mean   : 42.31  
 ##  3rd Qu.:0.19802   Study1D0S101T1  :   1   3rd Qu.: 58.00  
-##  Max.   :1.10867   (Other)         :1861   Max.   :401.00  
-##  NA&#39;s   :40        NA&#39;s            :  40   NA&#39;s   :40      
+##  Max.   :1.10867   Study1D0S101T10 :   1   Max.   :401.00  
+##                    (Other)         :1860                   
 ##      npause           dur_s         phonationtime_s  speechrate_nsyll_dur
 ##  Min.   : 0.000   Min.   :  0.500   Min.   : 0.190   Min.   :0.000       
 ##  1st Qu.: 1.000   1st Qu.:  3.600   1st Qu.: 2.373   1st Qu.:2.350       
@@ -845,15 +854,15 @@ df %&gt;%
 ##  Mean   : 6.017   Mean   : 14.074   Mean   : 8.821   Mean   :3.008       
 ##  3rd Qu.: 9.000   3rd Qu.: 20.075   3rd Qu.:12.137   3rd Qu.:3.670       
 ##  Max.   :51.000   Max.   :108.300   Max.   :81.080   Max.   :7.500       
-##  NA&#39;s   :40       NA&#39;s   :40        NA&#39;s   :40       NA&#39;s   :40          
+##                                                                          
 ##  articulation_rate_nsyll_phonationtime ASD_speakingtime_nsyll
 ##  Min.   :0.000                          0.202 :  36          
 ##  1st Qu.:4.210                          0.210 :  35          
 ##  Median :4.740                          0.199 :  33          
 ##  Mean   :4.603                          0.192 :  32          
 ##  3rd Qu.:5.160                          0.200 :  32          
-##  Max.   :7.940                         (Other):1702          
-##  NA&#39;s   :40                            NA&#39;s   :  40</code></pre>
+##  Max.   :7.940                          0.219 :  32          
+##                                        (Other):1670</code></pre>
 <pre class="r"><code>#SIGRID 
 
 #Summarizing by study
@@ -862,18 +871,18 @@ df %&gt;%
     map(summary)</code></pre>
 <pre><code>## $`1`
 ##  Study           Diagnosis    Participant               New_id   
-##  1:685   Control      :348   Min.   :101   101Control      : 10  
-##  2:  0   Schizophrenia:337   1st Qu.:110   102Control      : 10  
+##  1:683   Control      :348   Min.   :101   101Control      : 10  
+##  2:  0   Schizophrenia:335   1st Qu.:111   102Control      : 10  
 ##  3:  0                       Median :119   103Control      : 10  
 ##  4:  0                       Mean   :119   103Schizophrenia: 10  
 ##  5:  0                       3rd Qu.:128   104Control      : 10  
 ##  6:  0                       Max.   :136   104Schizophrenia: 10  
-##                                            (Other)         :625  
+##                                            (Other)         :623  
 ##     Language   Gender       Age          Education          SANS       
-##  Chinese:  0   F:319   Min.   :18.00   Min.   : 9.00   Min.   : 0.000  
-##  Danish :685   M:366   1st Qu.:21.00   1st Qu.:11.00   1st Qu.: 0.000  
+##  Chinese:  0   F:318   Min.   :18.00   Min.   : 9.00   Min.   : 0.000  
+##  Danish :683   M:365   1st Qu.:21.00   1st Qu.:11.00   1st Qu.: 0.000  
 ##                        Median :22.00   Median :12.00   Median : 0.000  
-##                        Mean   :22.74   Mean   :12.75   Mean   : 5.041  
+##                        Mean   :22.75   Mean   :12.75   Mean   : 5.038  
 ##                        3rd Qu.:24.00   3rd Qu.:15.00   3rd Qu.:11.000  
 ##                        Max.   :31.00   Max.   :18.00   Max.   :16.000  
 ##                                                                        
@@ -881,7 +890,7 @@ df %&gt;%
 ##  Min.   : 0.000   Min.   : 61.00   Min.   : 49.00   Min.   : 52.00  
 ##  1st Qu.: 0.000   1st Qu.: 81.00   1st Qu.: 83.00   1st Qu.: 80.00  
 ##  Median : 0.000   Median : 94.00   Median : 97.00   Median : 93.00  
-##  Mean   : 5.162   Mean   : 91.61   Mean   : 93.71   Mean   : 91.86  
+##  Mean   : 5.139   Mean   : 91.64   Mean   : 93.67   Mean   : 91.85  
 ##  3rd Qu.:11.000   3rd Qu.:103.00   3rd Qu.:105.00   3rd Qu.:102.00  
 ##  Max.   :17.000   Max.   :129.00   Max.   :121.00   Max.   :121.00  
 ##                                                                     
@@ -892,7 +901,7 @@ df %&gt;%
 ##  Mean   : 5.464   Mean   :157.5   Mean   : 23.383    Mean   :114.23  
 ##  3rd Qu.: 8.000   3rd Qu.:207.1   3rd Qu.: 25.567    3rd Qu.:149.75  
 ##  Max.   :10.000   Max.   :309.4   Max.   :252.384    Max.   :240.70  
-##  NA&#39;s   :2        NA&#39;s   :2       NA&#39;s   :2          NA&#39;s   :2       
+##                                                                      
 ##    range_high         median            IQR            mean_abs      
 ##  Min.   : 56.51   Min.   : 54.25   Min.   :  1.77   Min.   :  2.334  
 ##  1st Qu.:169.31   1st Qu.:109.33   1st Qu.: 12.26   1st Qu.:  8.628  
@@ -900,15 +909,15 @@ df %&gt;%
 ##  Mean   :245.03   Mean   :153.51   Mean   : 28.03   Mean   : 17.999  
 ##  3rd Qu.:297.53   3rd Qu.:204.44   3rd Qu.: 26.52   3rd Qu.: 18.542  
 ##  Max.   :822.78   Max.   :268.46   Max.   :479.00   Max.   :232.871  
-##  NA&#39;s   :2        NA&#39;s   :2        NA&#39;s   :2        NA&#39;s   :2        
+##                                                                      
 ##     coef_var                 soundname       nsyll            npause      
 ##  Min.   :0.03970   Study1D0S101T1 :  1   Min.   :  1.00   Min.   : 0.000  
 ##  1st Qu.:0.08521   Study1D0S101T10:  1   1st Qu.: 15.00   1st Qu.: 2.000  
 ##  Median :0.11169   Study1D0S101T2 :  1   Median : 28.00   Median : 4.000  
 ##  Mean   :0.14579   Study1D0S101T3 :  1   Mean   : 35.72   Mean   : 5.205  
 ##  3rd Qu.:0.15818   Study1D0S101T4 :  1   3rd Qu.: 50.00   3rd Qu.: 8.000  
-##  Max.   :1.10867   (Other)        :678   Max.   :204.00   Max.   :32.000  
-##  NA&#39;s   :2         NA&#39;s           :  2   NA&#39;s   :2        NA&#39;s   :2       
+##  Max.   :1.10867   Study1D0S101T5 :  1   Max.   :204.00   Max.   :32.000  
+##                    (Other)        :677                                    
 ##      dur_s         phonationtime_s  speechrate_nsyll_dur
 ##  Min.   :  0.700   Min.   : 0.480   Min.   :0.350       
 ##  1st Qu.:  5.185   1st Qu.: 3.075   1st Qu.:2.490       
@@ -916,15 +925,15 @@ df %&gt;%
 ##  Mean   : 12.035   Mean   : 7.323   Mean   :2.995       
 ##  3rd Qu.: 16.800   3rd Qu.:10.330   3rd Qu.:3.550       
 ##  Max.   :135.610   Max.   :41.950   Max.   :6.520       
-##  NA&#39;s   :2         NA&#39;s   :2        NA&#39;s   :2           
+##                                                         
 ##  articulation_rate_nsyll_phonationtime ASD_speakingtime_nsyll
 ##  Min.   :1.740                          0.200 : 15           
 ##  1st Qu.:4.350                          0.190 : 14           
 ##  Median :4.830                          0.192 : 14           
 ##  Mean   :4.804                          0.194 : 14           
 ##  3rd Qu.:5.265                          0.201 : 14           
-##  Max.   :8.930                         (Other):612           
-##  NA&#39;s   :2                             NA&#39;s   :  2           
+##  Max.   :8.930                          0.214 : 13           
+##                                        (Other):599           
 ## 
 ## $`2`
 ##  Study           Diagnosis    Participant                 New_id   
@@ -994,21 +1003,21 @@ df %&gt;%
 ## 
 ## $`3`
 ##  Study           Diagnosis    Participant                 New_id   
-##  1:  0   Control      :250   Min.   :301.0   342Control      : 12  
-##  2:  0   Schizophrenia:176   1st Qu.:311.0   307Schizophrenia:  9  
-##  3:426                       Median :323.0   310Schizophrenia:  9  
+##  1:  0   Control      :236   Min.   :301.0   342Control      : 12  
+##  2:  0   Schizophrenia:151   1st Qu.:311.0   307Schizophrenia:  9  
+##  3:387                       Median :323.0   310Schizophrenia:  9  
 ##  4:  0                       Mean   :322.5   311Schizophrenia:  9  
 ##  5:  0                       3rd Qu.:333.0   315Schizophrenia:  9  
 ##  6:  0                       Max.   :344.0   316Schizophrenia:  9  
-##                                              (Other)         :369  
-##     Language    Gender         Age          Education          SANS    
-##  Chinese:  0   F   :209   Min.   :19.00   Min.   : 8.00   Min.   : NA  
-##  Danish :418   M   :209   1st Qu.:26.00   1st Qu.:13.00   1st Qu.: NA  
-##  NA&#39;s   :  8   NA&#39;s:  8   Median :38.00   Median :15.00   Median : NA  
-##                           Mean   :37.82   Mean   :14.43   Mean   :NaN  
-##                           3rd Qu.:47.00   3rd Qu.:16.00   3rd Qu.: NA  
-##                           Max.   :67.00   Max.   :21.00   Max.   : NA  
-##                           NA&#39;s   :24      NA&#39;s   :8       NA&#39;s   :426  
+##                                              (Other)         :330  
+##     Language    Gender         Age          Education         SANS    
+##  Chinese:  0   F   :188   Min.   :20.00   Min.   : 8.0   Min.   : NA  
+##  Danish :379   M   :191   1st Qu.:27.00   1st Qu.:13.0   1st Qu.: NA  
+##  NA&#39;s   :  8   NA&#39;s:  8   Median :38.00   Median :15.0   Median : NA  
+##                           Mean   :38.83   Mean   :14.6   Mean   :NaN  
+##                           3rd Qu.:48.00   3rd Qu.:16.0   3rd Qu.: NA  
+##                           Max.   :62.00   Max.   :21.0   Max.   : NA  
+##                           NA&#39;s   :24      NA&#39;s   :8      NA&#39;s   :387  
 ##       SAPS        VerbalIQ    NonVerbalIQ     TotalIQ        Trial      
 ##  Min.   : NA   Min.   : NA   Min.   : NA   Min.   : NA   Min.   :1.000  
 ##  1st Qu.: NA   1st Qu.: NA   1st Qu.: NA   1st Qu.: NA   1st Qu.:2.000  
@@ -1016,7 +1025,7 @@ df %&gt;%
 ##  Mean   :NaN   Mean   :NaN   Mean   :NaN   Mean   :NaN   Mean   :4.468  
 ##  3rd Qu.: NA   3rd Qu.: NA   3rd Qu.: NA   3rd Qu.: NA   3rd Qu.:6.000  
 ##  Max.   : NA   Max.   : NA   Max.   : NA   Max.   : NA   Max.   :9.000  
-##  NA&#39;s   :426   NA&#39;s   :426   NA&#39;s   :426   NA&#39;s   :426   NA&#39;s   :39     
+##  NA&#39;s   :387   NA&#39;s   :387   NA&#39;s   :387   NA&#39;s   :387                  
 ##       mean        standard_deviation   range_low        range_high    
 ##  Min.   : 83.93   Min.   :  6.527    Min.   : 43.28   Min.   : 117.6  
 ##  1st Qu.:112.36   1st Qu.: 17.884    1st Qu.: 74.67   1st Qu.: 212.3  
@@ -1024,7 +1033,7 @@ df %&gt;%
 ##  Mean   :159.69   Mean   : 33.294    Mean   :104.73   Mean   : 291.4  
 ##  3rd Qu.:200.13   3rd Qu.: 34.346    3rd Qu.:134.20   3rd Qu.: 343.6  
 ##  Max.   :354.72   Max.   :242.992    Max.   :209.72   Max.   :1016.4  
-##  NA&#39;s   :39       NA&#39;s   :39         NA&#39;s   :39       NA&#39;s   :39      
+##                                                                       
 ##      median            IQR             mean_abs          coef_var      
 ##  Min.   : 75.08   Min.   :  7.393   Min.   :  5.063   Min.   :0.05556  
 ##  1st Qu.:108.18   1st Qu.: 18.646   1st Qu.: 12.852   1st Qu.:0.12474  
@@ -1032,15 +1041,15 @@ df %&gt;%
 ##  Mean   :151.62   Mean   : 41.020   Mean   : 25.904   Mean   :0.20201  
 ##  3rd Qu.:193.15   3rd Qu.: 35.561   3rd Qu.: 25.181   3rd Qu.:0.22055  
 ##  Max.   :284.24   Max.   :456.392   Max.   :220.325   Max.   :0.89502  
-##  NA&#39;s   :39       NA&#39;s   :39        NA&#39;s   :39        NA&#39;s   :39       
+##                                                                        
 ##             soundname       nsyll            npause          dur_s       
 ##  Study3D0S342T1  :  2   Min.   :  4.00   Min.   : 0.00   Min.   :  1.07  
 ##  Study3D0S342T1T2:  2   1st Qu.: 46.00   1st Qu.: 3.00   1st Qu.: 13.73  
 ##  Study3D0S342T3  :  2   Median : 72.00   Median : 8.00   Median : 21.97  
 ##  Study3D0S342T3T2:  2   Mean   : 85.62   Mean   :10.08   Mean   : 25.56  
 ##  Study3D0S301T1  :  1   3rd Qu.:113.00   3rd Qu.:14.00   3rd Qu.: 32.16  
-##  (Other)         :378   Max.   :464.00   Max.   :97.00   Max.   :164.83  
-##  NA&#39;s            : 39   NA&#39;s   :39       NA&#39;s   :39      NA&#39;s   :39      
+##  Study3D0S301T2  :  1   Max.   :464.00   Max.   :97.00   Max.   :164.83  
+##  (Other)         :377                                                    
 ##  phonationtime_s  speechrate_nsyll_dur
 ##  Min.   : 0.830   Min.   :0.780       
 ##  1st Qu.: 8.805   1st Qu.:2.930       
@@ -1048,41 +1057,41 @@ df %&gt;%
 ##  Mean   :17.534   Mean   :3.400       
 ##  3rd Qu.:23.510   3rd Qu.:3.965       
 ##  Max.   :85.570   Max.   :5.890       
-##  NA&#39;s   :39       NA&#39;s   :39          
+##                                       
 ##  articulation_rate_nsyll_phonationtime ASD_speakingtime_nsyll
 ##  Min.   :2.650                          0.181 : 12           
 ##  1st Qu.:4.570                          0.202 : 11           
 ##  Median :5.050                          0.190 :  9           
 ##  Mean   :4.969                          0.194 :  9           
 ##  3rd Qu.:5.460                          0.199 :  9           
-##  Max.   :7.000                         (Other):337           
-##  NA&#39;s   :39                            NA&#39;s   : 39           
+##  Max.   :7.000                          0.211 :  9           
+##                                        (Other):328           
 ## 
 ## $`4`
 ##  Study           Diagnosis    Participant                 New_id   
 ##  1:  0   Control      :233   Min.   :401.0   418Schizophrenia: 10  
-##  2:  0   Schizophrenia:240   1st Qu.:408.0   402Schizophrenia:  9  
+##  2:  0   Schizophrenia:238   1st Qu.:408.0   402Schizophrenia:  9  
 ##  3:  0                       Median :416.0   416Schizophrenia:  9  
-##  4:473                       Mean   :418.5   417Schizophrenia:  9  
+##  4:471                       Mean   :418.4   417Schizophrenia:  9  
 ##  5:  0                       3rd Qu.:423.0   418Control      :  9  
 ##  6:  0                       Max.   :448.0   419Schizophrenia:  9  
-##                                              (Other)         :418  
+##                                              (Other)         :416  
 ##     Language   Gender       Age          Education          SANS       
-##  Chinese:  0   F:203   Min.   :18.00   Min.   : 9.50   Min.   : 0.000  
-##  Danish :473   M:270   1st Qu.:21.00   1st Qu.:13.50   1st Qu.: 0.000  
+##  Chinese:  0   F:202   Min.   :18.00   Min.   : 9.50   Min.   : 0.000  
+##  Danish :471   M:269   1st Qu.:21.00   1st Qu.:13.50   1st Qu.: 0.000  
 ##                        Median :24.00   Median :15.50   Median : 4.000  
-##                        Mean   :24.58   Mean   :15.24   Mean   : 4.989  
+##                        Mean   :24.56   Mean   :15.23   Mean   : 4.989  
 ##                        3rd Qu.:27.00   3rd Qu.:17.50   3rd Qu.: 9.000  
-##                        Max.   :35.00   Max.   :19.00   Max.   :16.000  
-##                                        NA&#39;s   :1                       
+##                        Max.   :34.00   Max.   :19.00   Max.   :16.000  
+##                                                                        
 ##       SAPS           VerbalIQ    NonVerbalIQ     TotalIQ   
 ##  Min.   : 0.000   Min.   : NA   Min.   : NA   Min.   : NA  
 ##  1st Qu.: 0.000   1st Qu.: NA   1st Qu.: NA   1st Qu.: NA  
 ##  Median : 0.000   Median : NA   Median : NA   Median : NA  
-##  Mean   : 3.674   Mean   :NaN   Mean   :NaN   Mean   :NaN  
+##  Mean   : 3.665   Mean   :NaN   Mean   :NaN   Mean   :NaN  
 ##  3rd Qu.: 7.000   3rd Qu.: NA   3rd Qu.: NA   3rd Qu.: NA  
 ##  Max.   :14.000   Max.   : NA   Max.   : NA   Max.   : NA  
-##                   NA&#39;s   :473   NA&#39;s   :473   NA&#39;s   :473  
+##                   NA&#39;s   :471   NA&#39;s   :471   NA&#39;s   :471  
 ##      Trial             mean        standard_deviation   range_low     
 ##  Min.   : 1.000   Min.   : 83.23   Min.   :  3.341    Min.   : 42.43  
 ##  1st Qu.: 3.000   1st Qu.:108.84   1st Qu.: 14.015    1st Qu.: 75.27  
@@ -1090,7 +1099,7 @@ df %&gt;%
 ##  Mean   : 4.569   Mean   :166.40   Mean   : 35.091    Mean   :109.69  
 ##  3rd Qu.: 7.000   3rd Qu.:208.95   3rd Qu.: 27.458    3rd Qu.:143.66  
 ##  Max.   :10.000   Max.   :780.10   Max.   :375.416    Max.   :484.79  
-##  NA&#39;s   :2        NA&#39;s   :2        NA&#39;s   :2          NA&#39;s   :2       
+##                                                                       
 ##    range_high          median            IQR             mean_abs      
 ##  Min.   :  99.61   Min.   : 83.43   Min.   :  3.382   Min.   :  2.961  
 ##  1st Qu.: 185.43   1st Qu.:104.97   1st Qu.: 14.629   1st Qu.: 10.289  
@@ -1098,15 +1107,15 @@ df %&gt;%
 ##  Mean   : 290.58   Mean   :158.23   Mean   : 48.187   Mean   : 28.282  
 ##  3rd Qu.: 333.88   3rd Qu.:196.35   3rd Qu.: 30.085   3rd Qu.: 19.962  
 ##  Max.   :1100.82   Max.   :890.48   Max.   :808.500   Max.   :354.551  
-##  NA&#39;s   :2         NA&#39;s   :2        NA&#39;s   :2         NA&#39;s   :2        
+##                                                                        
 ##     coef_var                soundname       nsyll            npause     
 ##  Min.   :0.03563   Study4D0S401T1:  1   Min.   :  2.00   Min.   : 0.00  
 ##  1st Qu.:0.09983   Study4D0S401T2:  1   1st Qu.: 34.00   1st Qu.: 5.00  
 ##  Median :0.12943   Study4D0S401T3:  1   Median : 61.00   Median : 8.00  
 ##  Mean   :0.18469   Study4D0S401T4:  1   Mean   : 70.02   Mean   :10.11  
 ##  3rd Qu.:0.16454   Study4D0S401T5:  1   3rd Qu.: 97.00   3rd Qu.:14.00  
-##  Max.   :0.97617   (Other)       :466   Max.   :296.00   Max.   :51.00  
-##  NA&#39;s   :2         NA&#39;s          :  2   NA&#39;s   :2        NA&#39;s   :2      
+##  Max.   :0.97617   Study4D0S401T6:  1   Max.   :296.00   Max.   :51.00  
+##                    (Other)       :465                                   
 ##      dur_s        phonationtime_s speechrate_nsyll_dur
 ##  Min.   :  0.70   Min.   : 0.70   Min.   :0.480       
 ##  1st Qu.: 12.34   1st Qu.: 6.73   1st Qu.:2.595       
@@ -1114,33 +1123,33 @@ df %&gt;%
 ##  Mean   : 23.23   Mean   :14.02   Mean   :3.084       
 ##  3rd Qu.: 30.42   3rd Qu.:19.12   3rd Qu.:3.620       
 ##  Max.   :108.30   Max.   :57.33   Max.   :5.950       
-##  NA&#39;s   :2        NA&#39;s   :2       NA&#39;s   :2           
+##                                                       
 ##  articulation_rate_nsyll_phonationtime ASD_speakingtime_nsyll
 ##  Min.   :2.170                          0.191 : 12           
 ##  1st Qu.:4.625                          0.192 : 12           
 ##  Median :5.020                          0.207 : 12           
 ##  Mean   :4.988                          0.186 : 11           
 ##  3rd Qu.:5.390                          0.209 : 11           
-##  Max.   :7.200                         (Other):413           
-##  NA&#39;s   :2                             NA&#39;s   :  2           
+##  Max.   :7.200                          0.189 : 10           
+##                                        (Other):403           
 ## 
 ## $`5`
 ##  Study           Diagnosis    Participant           New_id      Language  
-##  1:  0   Control      :201   Min.   :1001   1203Control:55   Chinese:224  
-##  2:  0   Schizophrenia: 23   1st Qu.:1201   1201Control:43   Danish :  0  
+##  1:  0   Control      :201   Min.   :1201   1203Control:55   Chinese:201  
+##  2:  0   Schizophrenia:  0   1st Qu.:1202   1201Control:43   Danish :  0  
 ##  3:  0                       Median :1203   1204Control:32                
-##  4:  0                       Mean   :1184   1202Control:29                
-##  5:224                       3rd Qu.:1204   1206Control:25                
+##  4:  0                       Mean   :1203   1202Control:29                
+##  5:201                       3rd Qu.:1204   1206Control:25                
 ##  6:  0                       Max.   :1206   1205Control:17                
-##                                             (Other)    :23                
-##  Gender       Age          Education          SANS             SAPS       
-##  F: 67   Min.   :18.00   Min.   : 8.00   Min.   : 0.000   Min.   :-2.067  
-##  M:157   1st Qu.:27.00   1st Qu.:16.00   1st Qu.: 5.566   1st Qu.: 8.240  
-##          Median :27.00   Median :17.00   Median : 8.118   Median :11.898  
-##          Mean   :26.88   Mean   :16.35   Mean   : 7.445   Mean   :10.597  
-##          3rd Qu.:27.00   3rd Qu.:17.00   3rd Qu.: 9.536   3rd Qu.:14.225  
-##          Max.   :39.00   Max.   :19.00   Max.   :12.087   Max.   :16.553  
-##                                          NA&#39;s   :201      NA&#39;s   :201     
+##                                             (Other)    : 0                
+##  Gender       Age          Education          SANS          SAPS    
+##  F: 61   Min.   :24.00   Min.   :16.00   Min.   : NA   Min.   : NA  
+##  M:140   1st Qu.:27.00   1st Qu.:17.00   1st Qu.: NA   1st Qu.: NA  
+##          Median :27.00   Median :17.00   Median : NA   Median : NA  
+##          Mean   :27.02   Mean   :16.79   Mean   :NaN   Mean   :NaN  
+##          3rd Qu.:27.00   3rd Qu.:17.00   3rd Qu.: NA   3rd Qu.: NA  
+##          Max.   :30.00   Max.   :17.00   Max.   : NA   Max.   : NA  
+##                                          NA&#39;s   :201   NA&#39;s   :201  
 ##     VerbalIQ    NonVerbalIQ     TotalIQ        Trial      
 ##  Min.   : NA   Min.   : NA   Min.   : NA   Min.   : 1.00  
 ##  1st Qu.: NA   1st Qu.: NA   1st Qu.: NA   1st Qu.: 9.00  
@@ -1148,7 +1157,7 @@ df %&gt;%
 ##  Mean   :NaN   Mean   :NaN   Mean   :NaN   Mean   :19.54  
 ##  3rd Qu.: NA   3rd Qu.: NA   3rd Qu.: NA   3rd Qu.:28.00  
 ##  Max.   : NA   Max.   : NA   Max.   : NA   Max.   :55.00  
-##  NA&#39;s   :224   NA&#39;s   :224   NA&#39;s   :224   NA&#39;s   :23     
+##  NA&#39;s   :201   NA&#39;s   :201   NA&#39;s   :201                  
 ##       mean        standard_deviation   range_low        range_high   
 ##  Min.   : 67.88   Min.   :  4.584    Min.   : 45.65   Min.   :107.5  
 ##  1st Qu.:116.07   1st Qu.:  9.291    1st Qu.: 89.09   1st Qu.:146.4  
@@ -1156,7 +1165,7 @@ df %&gt;%
 ##  Mean   :138.73   Mean   : 19.132    Mean   :106.80   Mean   :198.6  
 ##  3rd Qu.:135.24   3rd Qu.: 19.403    3rd Qu.:107.10   3rd Qu.:214.1  
 ##  Max.   :351.80   Max.   :237.978    Max.   :222.80   Max.   :882.0  
-##  NA&#39;s   :23       NA&#39;s   :23         NA&#39;s   :23       NA&#39;s   :23     
+##                                                                      
 ##      median            IQR            mean_abs          coef_var      
 ##  Min.   : 48.98   Min.   :  3.97   Min.   :  3.241   Min.   :0.03890  
 ##  1st Qu.:112.52   1st Qu.: 10.01   1st Qu.:  7.155   1st Qu.:0.07542  
@@ -1164,15 +1173,15 @@ df %&gt;%
 ##  Mean   :135.02   Mean   : 23.75   Mean   : 14.904   Mean   :0.13125  
 ##  3rd Qu.:133.25   3rd Qu.: 23.16   3rd Qu.: 14.332   3rd Qu.:0.13355  
 ##  Max.   :304.57   Max.   :359.35   Max.   :203.505   Max.   :0.75578  
-##  NA&#39;s   :23       NA&#39;s   :23       NA&#39;s   :23        NA&#39;s   :23       
+##                                                                       
 ##            soundname       nsyll           npause            dur_s      
 ##  Study5D0S201T1 :  1   Min.   : 0.00   Min.   : 0.0000   Min.   : 0.60  
 ##  Study5D0S201T10:  1   1st Qu.: 6.00   1st Qu.: 0.0000   1st Qu.: 1.90  
 ##  Study5D0S201T11:  1   Median :11.00   Median : 0.0000   Median : 3.10  
 ##  Study5D0S201T12:  1   Mean   :14.05   Mean   : 0.9104   Mean   : 3.88  
 ##  Study5D0S201T13:  1   3rd Qu.:18.00   3rd Qu.: 1.0000   3rd Qu.: 4.80  
-##  (Other)        :196   Max.   :56.00   Max.   :13.0000   Max.   :30.40  
-##  NA&#39;s           : 23   NA&#39;s   :23      NA&#39;s   :23        NA&#39;s   :23     
+##  Study5D0S201T14:  1   Max.   :56.00   Max.   :13.0000   Max.   :30.40  
+##  (Other)        :195                                                    
 ##  phonationtime_s  speechrate_nsyll_dur
 ##  Min.   : 0.450   Min.   :0.000       
 ##  1st Qu.: 1.590   1st Qu.:2.860       
@@ -1180,41 +1189,41 @@ df %&gt;%
 ##  Mean   : 3.057   Mean   :3.685       
 ##  3rd Qu.: 3.700   3rd Qu.:4.530       
 ##  Max.   :11.650   Max.   :6.300       
-##  NA&#39;s   :23       NA&#39;s   :23          
+##                                       
 ##  articulation_rate_nsyll_phonationtime ASD_speakingtime_nsyll
 ##  Min.   :0.000                          0.233 :  6           
 ##  1st Qu.:3.810                          0.250 :  6           
 ##  Median :4.450                          0.194 :  4           
 ##  Mean   :4.368                          0.195 :  4           
 ##  3rd Qu.:5.070                          0.200 :  4           
-##  Max.   :6.320                         (Other):177           
-##  NA&#39;s   :23                            NA&#39;s   : 23           
+##  Max.   :6.320                          0.257 :  4           
+##                                        (Other):173           
 ## 
 ## $`6`
-##  Study            Diagnosis    Participant                 New_id    
-##  1:   0   Control      :600   Min.   :1001   1037Schizophrenia:  58  
-##  2:   0   Schizophrenia:630   1st Qu.:1011   1022Schizophrenia:  42  
-##  3:   0                       Median :1023   1026Schizophrenia:  41  
-##  4:   0                       Mean   :1023   1008Schizophrenia:  31  
-##  5:   0                       3rd Qu.:1035   1033Control      :  28  
-##  6:1230                       Max.   :1044   1006Schizophrenia:  27  
-##                                              (Other)          :1003  
+##  Study            Diagnosis    Participant                 New_id   
+##  1:   0   Control      :599   Min.   :1001   1037Schizophrenia: 58  
+##  2:   0   Schizophrenia:626   1st Qu.:1011   1022Schizophrenia: 42  
+##  3:   0                       Median :1023   1026Schizophrenia: 41  
+##  4:   0                       Mean   :1023   1008Schizophrenia: 31  
+##  5:   0                       3rd Qu.:1035   1033Control      : 28  
+##  6:1225                       Max.   :1044   1006Schizophrenia: 27  
+##                                              (Other)          :998  
 ##     Language    Gender       Age          Education          SANS       
-##  Chinese:1230   F:582   Min.   :18.00   Min.   : 9.00   Min.   : 0.000  
-##  Danish :   0   M:648   1st Qu.:23.00   1st Qu.:11.00   1st Qu.: 3.000  
+##  Chinese:1225   F:580   Min.   :18.00   Min.   : 9.00   Min.   : 0.000  
+##  Danish :   0   M:645   1st Qu.:23.00   1st Qu.:11.00   1st Qu.: 3.000  
 ##                         Median :27.00   Median :13.00   Median : 5.000  
-##                         Mean   :29.88   Mean   :13.01   Mean   : 5.365  
+##                         Mean   :29.87   Mean   :13.01   Mean   : 5.348  
 ##                         3rd Qu.:35.00   3rd Qu.:15.00   3rd Qu.: 8.000  
-##                         Max.   :52.00   Max.   :17.00   Max.   :13.000  
-##                                                         NA&#39;s   :600     
+##                         Max.   :52.00   Max.   :17.00   Max.   :12.000  
+##                                                         NA&#39;s   :599     
 ##       SAPS           VerbalIQ       NonVerbalIQ        TotalIQ      
 ##  Min.   : 0.000   Min.   : 60.00   Min.   : 39.00   Min.   : 48.00  
 ##  1st Qu.: 7.000   1st Qu.: 86.00   1st Qu.: 80.00   1st Qu.: 88.00  
 ##  Median :10.000   Median : 95.00   Median : 95.00   Median : 98.00  
-##  Mean   : 9.491   Mean   : 96.32   Mean   : 99.21   Mean   : 97.95  
+##  Mean   : 9.497   Mean   : 96.35   Mean   : 99.26   Mean   : 97.99  
 ##  3rd Qu.:12.000   3rd Qu.:106.00   3rd Qu.:119.00   3rd Qu.:111.00  
 ##  Max.   :15.000   Max.   :133.00   Max.   :143.00   Max.   :132.00  
-##  NA&#39;s   :600                                                        
+##  NA&#39;s   :599                                                        
 ##      Trial            mean        standard_deviation   range_low     
 ##  Min.   : 1.00   Min.   : 60.76   Min.   :  1.471    Min.   : 43.49  
 ##  1st Qu.: 5.00   1st Qu.:122.61   1st Qu.: 13.646    1st Qu.: 88.87  
@@ -1222,7 +1231,7 @@ df %&gt;%
 ##  Mean   :11.57   Mean   :171.59   Mean   : 25.488    Mean   :126.71  
 ##  3rd Qu.:16.00   3rd Qu.:218.35   3rd Qu.: 29.908    3rd Qu.:162.87  
 ##  Max.   :58.00   Max.   :431.01   Max.   :281.311    Max.   :250.53  
-##  NA&#39;s   :5       NA&#39;s   :5        NA&#39;s   :5          NA&#39;s   :5       
+##                                                                      
 ##    range_high         median            IQR              mean_abs       
 ##  Min.   : 64.49   Min.   : 57.68   Min.   :  0.6025   Min.   :  0.9038  
 ##  1st Qu.:191.63   1st Qu.:115.93   1st Qu.: 15.3000   1st Qu.: 10.4706  
@@ -1230,15 +1239,15 @@ df %&gt;%
 ##  Mean   :249.09   Mean   :167.17   Mean   : 34.1256   Mean   : 20.4055  
 ##  3rd Qu.:293.24   3rd Qu.:214.43   3rd Qu.: 38.1100   3rd Qu.: 23.1450  
 ##  Max.   :912.80   Max.   :465.50   Max.   :537.6400   Max.   :273.9067  
-##  NA&#39;s   :5        NA&#39;s   :5        NA&#39;s   :5          NA&#39;s   :5         
+##                                                                         
 ##     coef_var                 soundname        nsyll       
 ##  Min.   :0.01328   Study6D0S001T1 :   1   Min.   :  0.00  
 ##  1st Qu.:0.08487   Study6D0S001T10:   1   1st Qu.:  6.00  
 ##  Median :0.12034   Study6D0S001T11:   1   Median : 14.00  
 ##  Mean   :0.15152   Study6D0S001T12:   1   Mean   : 25.07  
 ##  3rd Qu.:0.17282   Study6D0S001T13:   1   3rd Qu.: 30.00  
-##  Max.   :0.85766   (Other)        :1220   Max.   :258.00  
-##  NA&#39;s   :5         NA&#39;s           :   5   NA&#39;s   :5       
+##  Max.   :0.85766   Study6D0S001T2 :   1   Max.   :258.00  
+##                    (Other)        :1219                   
 ##      npause           dur_s        phonationtime_s  speechrate_nsyll_dur
 ##  Min.   : 0.000   Min.   : 0.500   Min.   : 0.190   Min.   :0.000       
 ##  1st Qu.: 0.000   1st Qu.: 1.900   1st Qu.: 1.300   1st Qu.:2.500       
@@ -1246,15 +1255,15 @@ df %&gt;%
 ##  Mean   : 2.731   Mean   : 7.347   Mean   : 5.034   Mean   :3.302       
 ##  3rd Qu.: 4.000   3rd Qu.: 9.000   3rd Qu.: 5.970   3rd Qu.:4.170       
 ##  Max.   :51.000   Max.   :95.400   Max.   :63.600   Max.   :7.500       
-##  NA&#39;s   :5        NA&#39;s   :5        NA&#39;s   :5        NA&#39;s   :5           
+##                                                                         
 ##  articulation_rate_nsyll_phonationtime ASD_speakingtime_nsyll
 ##  Min.   :0.000                          0.197 :  25          
 ##  1st Qu.:4.020                          0.183 :  23          
 ##  Median :4.860                          0.196 :  21          
 ##  Mean   :4.644                          0.203 :  21          
 ##  3rd Qu.:5.430                          0.189 :  19          
-##  Max.   :8.510                         (Other):1116          
-##  NA&#39;s   :5                             NA&#39;s   :   5</code></pre>
+##  Max.   :8.510                          0.198 :  18          
+##                                        (Other):1098</code></pre>
 </div>
 <div id="now-we-can-analyze-the-data" class="section level2">
 <h2>Now we can analyze the data</h2>
@@ -1267,16 +1276,6 @@ logit2prob &lt;- function(logit){
     return(prob)
 }</code></pre>
 <pre class="r"><code>#ANDERS 
-
-#Filtering out NAs
-df &lt;- df %&gt;% 
-    filter(
-        is.na(Diagnosis) == F,
-        is.na(df$dur_s) ==F,
-        is.na(df$phonationtime_s) == F, 
-        is.na(df$npause) == F
-        )
-
 #Making the new variables to investigate
 df &lt;- df %&gt;%
     mutate(
