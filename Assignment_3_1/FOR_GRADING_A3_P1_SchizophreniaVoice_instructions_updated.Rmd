@@ -107,43 +107,148 @@ Only then (when everything works) turn the code into a function and use map_df()
 See placeholder code here for help.
 
 ```{r}
-library(tidyverse)
+#ANDERS 
 
+pacman::p_load(tidyverse, EnvStats, DescTools, lme4, effsize)
+```
+
+
+```{r, eval= FALSE}
+#SIGRID
+
+#Making a function that reads the pitch
 read_pitch <- function(filename) {
     # load data
-    
-    # parse filename to extract study, diagnosis, subject and trial
-    
-    # extract pitch descriptors (mean, sd, iqr, etc)
+    path_name <- str_c("Pitch/",filename)
+    data <- read_tsv(path_name)
+   
+    #CLeaning the data and comprimising it
+    data <- data %>% 
+        mutate(
+             # parse filename to extract study, diagnosis, subject and trial
+            Study = str_extract(filename, "Study\\d"),
+            Study = str_extract(Study, "\\d"),
+            Diagnosis = str_extract(filename, "D\\d"),
+            Diagnosis = recode(Diagnosis, 
+                "D0" = "Control",
+                "D1" = "Schizophrenia"),
+            Participant =  str_extract(filename, "S\\d{3}"),
+            Participant = as.integer(str_extract(Participant, "\\d{3}")),
+            Participant = ifelse(Study == "5" | Study == "6", Participant + 1000, Participant),
+            Participant = as.character(Participant),
+            Trial = str_extract(filename, "T\\d{1,2}"),
+            Trial = str_extract(Trial, "\\d{1,2}"),
+            
+            # extract pitch descriptors (mean, sd, iqr, etc)
+            mean = mean(f0),
+            standard_deviation = sd(f0),
+            range_low = range(f0)[1],
+            range_high = range(f0)[2],
+            median = median(f0),
+            IQR = IQR(f0),
+            mean_abs = MeanAD(f0),
+            coef_var = cv(f0),
+            New_id = as.factor(paste0(Participant, Diagnosis))
+            ) %>% 
+        select(Study:New_id) %>% 
+        slice(1) 
     
     # combine all this data in one dataset
     return(data)
 }
+```
+
+
+```{r, eval = FALSE}
+#GUSTAV 
 
 # test it on just one file while writing the function
-test_data = read_pitch("Pitch/a_file_to_test.txt")
+test_data = read_pitch("Study6D1S044T22.txt")
 
 # when you've created a function that works, you can
-pitch_data = list.files(path = "Assignment3/data/Pitch/",pattern = ".txt") %>% ## NB replace with your path to the files
+pitch_data = list.files(path = "Pitch/",pattern = ".txt") %>% ## NB replace with your path to the files
     purrr::map_df(read_pitch)
 
-write_csv(pitch_data, ...)
+#Filtering incomplete cases out. 
+pitch_data <- pitch_data %>% 
+    filter(complete.cases(pitch_data)) 
+
+#Exporting the data to a new csv
+write_csv(pitch_data, "pitch_data.csv")
 
 ```
 
 
 ### Now you need to merge demographic/clinical, duration and pitch data
+```{r, eval = FALSE}
+#ANDERS 
 
-```{r}
-# Let's start with the demographic and clinical data
+#Reading pitch data
+pitch_data <- read_csv("pitch_data.csv") 
 
-# then duration data
+# Loading the duration data
+dur <- read.csv("Articulation.txt", sep = ",")
 
-# Finally the pitch data
+#Cleaning the duration data
+dur <- dur %>% 
+    mutate(
+            Study = str_extract(soundname, "Study\\d"),
+            Study = str_extract(Study, "\\d"),
+            Diagnosis = str_extract(soundname, "D\\d"),
+            Diagnosis = recode(Diagnosis, 
+                "D0" = "Control",
+                "D1" = "Schizophrenia"),
+            Participant =  str_extract(soundname, "S\\d{3}"),
+            Participant = as.integer(str_extract(Participant, "\\d{3}")),
+            Participant = ifelse(Study == "5" | Study == "6", Participant + 1000, Participant),
+            Participant = as.character(Participant),
+            Trial = str_extract(soundname, "T\\d{1,2}"),
+            Trial = str_extract(Trial, "\\d{1,2}"),
+            New_id = as.factor(paste0(Participant, Diagnosis))
+    ) %>% 
+    filter(
+        complete.cases(dur)
+        )
 
-# Now we merge them
+#Merging pitch data and duration data
+df <- merge(pitch_data, dur, all = T)
+
+# Loading the demographic data
+demo <- read.csv("DemographicData.csv", sep = ";") %>% 
+    mutate(
+        Participant = as.integer(Participant),
+        Participant = ifelse(Study == 5 | Study == 6, Participant + 1000, Participant),
+        Participant = as.character(Participant),
+        Diagnosis = as.character(Diagnosis),
+        New_id = as.factor(paste0(Participant, Diagnosis))
+    )
+
+#Merging demo with the rest of the data
+df1 <- merge(demo, df, all = T) %>%
+    filter(Study != 7) %>% 
+    rename(
+        dur_s = dur..s.,
+        phonationtime_s = phonationtime..s.,
+        speechrate_nsyll_dur = speechrate..nsyll.dur.,
+        articulation_rate_nsyll_phonationtime = articulation.rate..nsyll...phonationtime.,
+        ASD_speakingtime_nsyll = ASD..speakingtime.nsyll.
+    ) %>% 
+    mutate(
+        Study = as.factor(Study),
+        Diagnosis = as.factor(Diagnosis),
+    )
 
 # Now we save them
+write_csv(df1, "FINAL_DATA.csv")
+```
+
+## Now we need to describe our sample
+```{r}
+#SIGRID 
+
+#Loading the final dataset
+df <- read.csv("FINAL_DATA.csv") %>% 
+    mutate(Study = as.factor(Study))
 
 ```
 
@@ -155,15 +260,282 @@ Finally, do the same by diagnosis and study, to assess systematic differences in
 I like to use group_by() %>% summarize() for quick summaries
 
 ```{r}
+#GUSTAV 
+
+#Summarizing by diagnosis
+df %>% 
+    split(df$Diagnosis) %>% 
+    map(summary)
+```
+
+```{r}
+#ANDERS 
+
+#Summarizing by gender
+df %>% 
+    split(df$Gender) %>% 
+    map(summary)
+```
+
+```{r}
+#SIGRID 
+
+#Summarizing by study
+df %>% 
+    split(df$Study) %>% 
+    map(summary)
 
 ```
 
 ## Now we can analyze the data
+```{r}
+#GUSTAV 
+
+#Defining the function for converting estimates into probabilities. 
+logit2prob <- function(logit){
+    odds = exp(logit)
+    prob = odds/(1+odds)
+    return(prob)
+}
+```
+
+```{r}
+#ANDERS 
+
+#Filtering out NAs
+df <- df %>% 
+    filter(
+        is.na(Diagnosis) == F,
+        is.na(df$dur_s) ==F,
+        is.na(df$phonationtime_s) == F, 
+        is.na(df$npause) == F
+        )
+
+#Making the new variables to investigate
+df <- df %>%
+    mutate(
+        pitch_variability = range_high-range_low,
+        scaled_pitch_variability = scale(pitch_variability),
+        proportion_spoken = phonationtime_s/dur_s,
+        scaled_proportion_spoken = scale(proportion_spoken),
+        scaled_speech_rate = scale(speechrate_nsyll_dur),
+        npause_1 = ifelse(npause == 0, 1, npause),
+        pause_duration = (dur_s - phonationtime_s)/npause_1,
+        scaled_pause_duration = scale(pause_duration)
+        )
+```
+
+
 If you were to examine the meta analysis you would find that the differences (measured as Hedges' g, very close to Cohen's d, that is, in standard deviations) to be the following
 - pitch variability (lower, Hedges' g: -0.55, 95% CIs: -1.06, 0.09)
+
+```{r}
+################################### PITCH VARIABILITY#################################
+# SIGRID 
+
+#Exploring difference between language according to pitch variability
+l1 <- lmerTest::lmer(scaled_pitch_variability ~ Language + (1|New_id) + (1|Study), data = df)
+summary(l1)
+
+#Language does not significantly predict pitch variability why we will continue our analysis with both chinese and danish participants in one pool.
+```
+
+```{r}
+#making model -  Significant
+m1 <- glmer(Diagnosis ~ scaled_pitch_variability + (1|New_id) + (1|Study), df, family = 'binomial')
+summary(m1)
+#Scaled pitch variability does significantly predict diagnosis.
+```
+
+```{r}
+#plotting the data
+df %>% 
+    mutate(
+        Diagnosis = recode(Diagnosis, 
+           "Control" = 0,
+           "Schizophrenia" = 1)) %>% 
+    ggplot(aes(scaled_pitch_variability, Diagnosis, color = Diagnosis)) + 
+        geom_point() + 
+        stat_smooth(method="glm",
+        method.args=list(family="binomial"), se = FALSE)+
+        labs(title = "Diagnosis by scaled mean pitch")+
+        theme_classic()
+```
+
+```{r}
+# getting the probability of participant being schizophrenic at a scaled pitch variability of 0.
+m1_prob <- logit2prob(fixef(m1)[1])
+m1_prob
+# At a scaled pitch variability of 0, there is a 99,9 % probability of the participant being schizophrenic 
+
+
+# investigating Hedge's G
+effsize::cohen.d(df$scaled_pitch_variability, df$Diagnosis, hedges.correction = T)
+# We get a hedges' g of (0.18, CI[0.11, 0.25]).
+
+```
+
+
 - proportion of spoken time (lower, Hedges' g: -1.26, 95% CIs: -2.26, 0.25)
+
+```{r}
+################ PROPORTON OF SPOKEN TIME  ############################################
+#GUSTAV 
+
+#Exploring difference between language according to pitch variability
+l2 <- lmerTest::lmer(scaled_proportion_spoken ~ Language + (1|New_id) + (1|Study), data = df)
+summary(l2)
+
+#Language does not significantly predict proportion spoken why we will continue our analysis with both chinese and danish participants in one pool.
+```
+
+```{r}
+#making model -  not significant
+m2 <- glmer(Diagnosis ~ scaled_proportion_spoken + (1|New_id) + (1|Study), df, family = 'binomial')
+summary(m2)
+#Scaled proportion spoken does not significantly predict diagnosis.
+```
+
+```{r}
+#plotting the data
+df %>% 
+    mutate(
+        Diagnosis = recode(Diagnosis, 
+           "Control" = 0,
+           "Schizophrenia" = 1)) %>% 
+    ggplot(aes(scaled_proportion_spoken, Diagnosis, color = Diagnosis)) + 
+        geom_point() + 
+        stat_smooth(method="glm",
+        method.args=list(family="binomial"), se = FALSE)+
+        labs(title = "Diagnosis by scaled mean pitch")+
+        theme_classic()
+```
+
+```{r}
+# getting the probability of participant being schizophrenic at a scaled pitch variability of 0.
+m2_prob <- logit2prob(fixef(m2)[1])
+m2_prob
+# At a scaled pitch variability of 0, there is a 99,9 % probability of the participant being schizophrenic 
+
+
+# investigating Hedge's G
+effsize::cohen.d(df$scaled_proportion_spoken, df$Diagnosis, hedges.correction = T)
+# We get a hedges' g of (0.12, CI[0.05, 0.19]).
+
+```
+
+
 - speech rate (slower, Hedges' g: -0.75, 95% CIs: -1.51, 0.04)
+```{r}
+################################## SPEECH RATE ##########################################
+# ANDERS
+
+#Exploring difference between language according to pitch variability
+l3 <- lmerTest::lmer(scaled_speech_rate ~ Language + (1|New_id) + (1|Study), data = df)
+summary(l3)
+
+#Language does not significantly predict speech rate why we will continue our analysis with both chinese and danish participants in one pool.
+```
+
+```{r}
+#making model -  Significant
+m3 <- glmer(Diagnosis ~ scaled_speech_rate + (1|New_id) + (1|Study), df, family = 'binomial')
+summary(m3)
+#Scaled speech rate does not significantly predict diagnosis.
+```
+
+```{r}
+#plotting the data
+df %>% 
+    mutate(
+        Diagnosis = recode(Diagnosis, 
+           "Control" = 0,
+           "Schizophrenia" = 1)) %>% 
+    ggplot(aes(scaled_speech_rate, Diagnosis, color = Diagnosis)) + 
+        geom_point() + 
+        stat_smooth(method="glm",
+        method.args=list(family="binomial"), se = FALSE)+
+        labs(title = "Diagnosis by scaled mean pitch")+
+        theme_classic()
+```
+
+```{r}
+# getting the probability of participant being schizophrenic at a scaled speech rate of 0.
+m3_prop <- logit2prob(fixef(m3)[1])
+m3_prop
+# At a scaled pitch variability of 0, there is a 99,9 % probability of the participant being schizophrenic 
+
+
+# investigating Hedge's G
+effsize::cohen.d(df$scaled_speech_rate, df$Diagnosis, hedges.correction = T)
+# We get a hedges' g of (0.17, CI[0.10, 0.24]).
+
+```
+
 - pause duration (longer, Hedges' g: 1.89, 95% CIs: 0.72, 3.21). (Duration - Spoken Duration) / PauseN
+
+```{r pause duration}
+############################### PAUSE DURATION ###################################
+# SIGRID
+
+#Exploring difference between language according to pitch variability
+l4 <- lmerTest::lmer(scaled_pause_duration ~ Language + (1|New_id) + (1|Study), data = df)
+summary(l4)
+
+#Language does significantly predict pitch variability why we will make separate analysis for chinese and danish participants
+```
+
+```{r}
+#DANSKEREN - Non significant:
+m4_DK <- glmer(Diagnosis ~ scaled_pause_duration + (1|New_id) + (1|Study), 
+               df %>% filter(Language == "Danish"), 
+               family = 'binomial')
+summary(m4_DK)
+#Danskeren pause duration does not significantly predict diagnosis
+```
+
+```{r}
+#NESEREN - significant: 
+m4_Chinese <- glmer(Diagnosis ~ scaled_pause_duration + (1|New_id) + (1|Study), 
+               df %>% filter(Language == "Chinese"), 
+               family = 'binomial')
+summary(m4_Chinese)
+#Neseren pause duration does significantly predict diagnosis
+```
+
+```{r}
+#plotting the data
+df %>% 
+    filter(Language == "Chinese") %>% 
+    mutate(
+        Diagnosis = recode(Diagnosis, 
+           "Control" = 0,
+           "Schizophrenia" = 1)) %>% 
+    ggplot(aes(scaled_pitch_variability, Diagnosis, color = Diagnosis)) + 
+        geom_point() + 
+        stat_smooth(method="glm",
+        method.args=list(family="binomial"), se = FALSE)+
+        labs(title = "Diagnosis by scaled mean pitch")+
+        theme_classic()
+```
+
+```{r}
+# getting the probability of participant being schizophrenic at a scaled pitch variability of 0.
+m4_prob <- logit2prob(fixef(m4_Chinese)[1])
+m4_prob
+# At a scaled pitch variability of 0, there is a 99,9 % probability of the participant being schizophrenic 
+
+
+# investigating Hedge's G
+df_chinese <- df %>% 
+    filter(Language == "Chinese")  
+
+effsize::cohen.d(df_chinese$scaled_pause_duration, df_chinese$Diagnosis, hedges.correction = T)
+
+# We get a hedges' g of (-0.004, CI[-0.11, 0.10]).
+
+```
+
 
 We need therefore to set up 4 models to see how well our results compare to the meta-analytic findings (Feel free of course to test more features)
 Describe the acoustic profile of a schizophrenic voice
@@ -173,17 +545,6 @@ N.B. the meta-analytic findings are on scaled measures. If you want to compare y
 N.N.B. We want to think carefully about fixed and random effects in our model. In particular: how should study be included? Does it make sense to have all studies put together? Does it make sense to analyze both languages together? Relatedly: does it make sense to scale all data from all studies together?
 N.N.N.B. If you want to estimate the studies separately, you can try this syntax:  Feature ~ 0 + Study + Study:Diagnosis + [your randomEffects]. Now you'll have an intercept per each study (the estimates for the controls) and an effect of diagnosis per each study
 
-- Bonus points: cross-validate the models and report the betas and standard errors from all rounds to get an idea of how robust the estimates are. 
-
-```{r}
-   set.seed(1)
-   x <- runif(7)
-
-   # Manually scaling
-   (x - mean(x)) / sd(x)
-
-   scale(x)
-```
 
 ## N.B. Remember to save the acoustic features of voice in a separate file, so to be able to load them next time
 
@@ -207,3 +568,4 @@ which fixed and random effects should be included, given your dataset? E.g. what
 
 
 - Your report should look like a methods paragraph followed by a result paragraph in a typical article (think the Communication and Cognition paper)
+
