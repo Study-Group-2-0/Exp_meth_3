@@ -296,6 +296,7 @@ df_no_na_1 <- merge(df_no_na, duration_no_na, by = c('new_ID', 'Study', 'Diagnos
 
 ```{r loading final data}
 
+data_all <- read_csv('FINAL_DATA.csv')
 data_DK <- read_csv('FINAL_DATA.csv') %>% filter(
     Study < 5
 )
@@ -591,3 +592,11 @@ which fixed and random effects should be included, given your dataset? E.g. what
 
 
 - Your report should look like a methods paragraph followed by a result paragraph in a typical article (think the Communication and Cognition paper)
+
+
+```{r}
+
+
+
+```
+
