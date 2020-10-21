@@ -107,6 +107,19 @@ Only then (when everything works) turn the code into a function and use map_df()
 See placeholder code here for help.
 
 ```{r}
+path_name <- str_c("Pitch/","Study6D1S044T22.txt")
+data <- read_tsv(path_name)
+
+#Extracting variables from the file name
+vars <- str_match(path_name, "Study(\\d+)D(\\d)S(\\d+)T(\\d+)")
+vars <- as.data.frame(t(vars[2:length(vars)]))
+names(vars) <- c("Study","Diagnosis","Subject","Trial")
+
+
+```
+
+
+```{r}
 pacman::p_load(tidyverse, EnvStats, DescTools)
 
 #Making a function that reads the pitch
