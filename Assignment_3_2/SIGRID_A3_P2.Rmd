@@ -9,22 +9,121 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+## Assignment 3 - Part 2 - Diagnosing schizophrenia from voice
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+In the previous part of the assignment you generated a bunch of "features", that is, of quantitative descriptors of voice in schizophrenia. We then looked at whether we could replicate results from the previous literature.
+We now want to know whether we can automatically diagnose schizophrenia from voice only, that is, relying on the set of features you produced last time, we will try to produce an automated classifier.
+Again, remember that the dataset containst 7 studies and 3 languages. Feel free to only include Danish (Study 1-4) if you feel that adds too much complexity.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+Issues to be discussed your report:
+- Should you run the analysis on all languages/studies at the same time? 
+- Choose your best acoustic feature from part 1. How well can you diagnose schizophrenia just using it?
+- Identify the best combination of acoustic features to diagnose schizophrenia using logistic regression.
+- Discuss the "classification" process: which methods are you using? Which confounds should you be aware of? What are the strength and limitation of the analysis?
+- Bonus question: Logistic regression is only one of many classification algorithms. Try using others and compare performance. Some examples: Discriminant Function, Random Forest, Support Vector Machine, etc. The package caret provides them. 
+- Bonus Bonus question: It is possible combine the output of multiple  classification models to improve classification accuracy. For inspiration see,
+https://machinelearningmastery.com/machine-learning-ensembles-with-r/
+ The interested reader might also want to look up 'The BigChaos Solution to the Netflix Grand Prize'
 
-```{r cars}
-summary(cars)
+## Learning objectives
+- Learn the basics of classification in a machine learning framework
+- Design, fit and report logistic regressions
+- Apply feature selection techniques
+
+```{r}
+#packages
+pacman::p_load(tidyverse, caret, lme4, lmerTest, effsize, pROC)
+
+#data
+data <- read_csv('FINAL_DATA.csv')
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
+```{r}
+#Defining the function for converting estimates into probabilities. 
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+logit2prob <- function(logit){
+    odds = exp(logit)
+    prob = odds/(1+odds)
+    return(prob)
+}
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+### Let's start
+
+We first want to build a logistic regression to see whether you can diagnose schizophrenia from your best acoustic feature. Let's use the full dataset and calculate the different performance measures (accuracy, sensitivity, specificity, PPV, NPV, ROC curve). You need to think carefully as to how we should (or not) use study and subject ID.
+
+```{r}
+# logistic function
+data$scaled_mean <- scale(data$mean)
+data$Diagnosis <- as.factor(data$Diagnosis)
+data$scaled_mean <- as.numeric(data$scaled_mean)
+
+m <- glmer(Diagnosis ~ scaled_mean + (1|Participant) + (1|Study), data, family = 'binomial')
+summary(m)
+
+#plotting the data
+ggplot(data, aes(scaled_mean, Diagnosis, color = Diagnosis)) + geom_point() + theme_classic()
+
+#Byurakn's code to make a confusion matrix of actual and predicted values
+data$pred <- logit2prob(predict(m))
+data$pred[data$pred > 0.5] = 'Schizophrenia'
+data$pred[data$pred <= 0.5] = 'Control'
+data$pred <- as.factor(data$pred)
+confusionMatrix(data = data$pred, reference = data$Diagnosis, positive = 'Schizophrenia')
+
+# true positive 894
+# true negative 1333
+# false positive 468
+# false negative 635
+
+#Sensitivity - the proportion of correctly identified positive cases: TP / (TP + FN)
+sens <- (894/(894 + 635))
+
+# or you could just use the function.........
+sensitivity(data$pred, data$Diagnosis, positive = 'Schizophrenia')
+
+#Specificity - the proportion of correctly identified negative cases: TN / (TN + FP)
+spec <- (1333 / (1333 + 468))
+
+specificity(data$pred, data$Diagnosis, negative = 'Control')
+
+
+# Accuracy - the proportion of correctly identified cases of all cases: (TP + TN) / (TP, TN, FP, FN))
+accu <- (894 + 1333)/(894 + 1333 + 468 + 635) # or just look at the confusion matrix
+
+#PPV positive predictive value
+posPredValue(data$pred, data$Diagnosis, positive = 'Schizophrenia')
+
+# NPV negative predictive value
+negPredValue(data$pred, data$Diagnosis, negative = 'Control')
+
+# how to change the baseline manually
+#posPredValue(data$pred, data$Diagnosis, positive = 'Schizophrenia', prevalence = .59)
+
+#ROC curve
+data$pred <- as.numeric(data$pred)
+rocCurve <- roc(response = data$Diagnosis, predictor = data$pred)
+
+auc(rocCurve)
+ci(rocCurve)
+plot(rocCurve, axes.legacy = T)
+
+```
+
+
+Then cross-validate the logistic regression and re-calculate performance on the testing folds. N.B. The cross-validation functions you already have should be tweaked: you need to calculate these new performance measures. Alternatively, the groupdata2 and cvms package created by Ludvig are an easy solution. 
+
+N.B. the predict() function generates log odds (the full scale between minus and plus infinity). Log odds > 0 indicates a choice of 1, below a choice of 0.
+N.N.B. you need to decide whether calculate performance on each single test fold or save all the prediction for test folds in one datase, so to calculate overall performance.
+N.N.N.B. Now you have two levels of structure: subject and study. Should this impact your cross-validation?
+N.N.N.N.B. A more advanced solution could rely on the tidymodels set of packages (warning: Time-consuming to learn as the documentation is sparse, but totally worth it)
+
+
+
+```{r}
+
+
+
+```
