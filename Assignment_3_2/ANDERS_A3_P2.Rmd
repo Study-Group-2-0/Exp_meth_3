@@ -20,7 +20,7 @@ Again, remember that the dataset containst 7 studies and 3 languages. Feel free 
 
 Issues to be discussed your report:
 - Should you run the analysis on all languages/studies at the same time? 
-For the most part yes, when there arr no language differences.
+For the most part yes, when there arr no language differences. We checked for that in A3_P1. 
 
 - Choose your best acoustic feature from part 1. How well can you diagnose schizophrenia just using it?
 1) pitch variavility
@@ -111,8 +111,8 @@ Then cross-validate the logistic regression and re-calculate performance on the 
 N.B. The cross-validation functions you already have should be tweaked: you need to calculate these new performance measures. Alternatively, the groupdata2 and cvms package created by Ludvig are an easy solution. 
 
 ```{r}
-############ Function for cross-validating ##################
-cross_valid <- function(data, k, mod){
+############ Function for cross-validating - calculating performance on each single test fold ##################
+cross_valid_single <- function(data, k, mod){
   
 folds <- createFolds(unique(df$Participant), k = k, list = T, returnTrain = F)
   
@@ -149,18 +149,83 @@ return(result)
 }
 
 
+
 ```
 
 
 ```{r}
-m1_cross_valid <- Diagnosis ~ scaled_pitch_variability + (1|New_id) + (1|Study)
+############ Function for cross-validating - calculate overall performance  ##################
+# We had to fold by study instead of participant for some reason...
+cross_valid_overall <- function(data, k, mod){
+  
+folds <- createFolds(unique(df$Study), k = k, list = T, returnTrain = F)
+  
+datalist <- list()
+i = 1
 
-m1_cv <- cross_valid(df, 6, m1_cross_valid)
+
+for (fold in folds){
+  #making folds and model based on Participant
+  train = subset(data, !(Study %in% fold))
+  test = subset(data, Study %in% fold)
+  model = glmer(mod, family = 'binomial', train)
+  
+  #getting predicted probabilities for test
+test <- test %>% 
+  mutate(
+    pred = Logit2Prop(predict(model, test, allow.new.levels = T)),
+    predDiagnosis = ifelse(pred >= 0.5, "Schizophrenia", "Control"),
+    predDiagnosis = as.factor(predDiagnosis),
+    Diagnosis = as.factor(Diagnosis)
+  )
+  
+  
+  datalist[[i]] <- test
+  
+  
+  i = i + 1
+}
+
+result <- dplyr::bind_rows(datalist)
+return(result)
+
+}
 
 ```
 
 
-N.B. the predict() function generates log odds (the full scale between minus and plus infinity). Log odds > 0 indicates a choice of 1, below a choice of 0.
+
+
+```{r}
+################################# PERFORMANCE OF SINGLE FOLDS ##############################
+#cross validating model using AUC as a measure of comparison
+m1_cross_valid <- Diagnosis ~ scaled_pitch_variability + (1|New_id) + (1|Study)
+
+#getting auc for each single test fold
+m1_cv_single <- cross_valid_single(df, 6, m1_cross_valid)
+```
+
+
+```{r}
+######################### OVERALL PERFORMANCE OF FOLDS #################################
+#running the cross_valid_overall function. The output of this function is a dataframe with actual values of diagnosis and predicted values of diagnosis for each test fold. 
+m1_cv_overall <- cross_valid_overall(df,6, m1_cross_valid)
+
+
+#making roc and auc and confusion matrix for the overall performance of test folds
+confusionMatrix(m1_cv_overall$predDiagnosis, m1_cv_overall$Diagnosis, positive = "Schizophrenia")
+
+rocCurve_cv_overall <- roc(response = m1_cv_overall$Diagnosis, predictor = as.numeric(m1_cv_overall$pred))
+plot(rocCurve_cv_overall)
+auc(rocCurve_cv_overall)
+
+
+
+
+```
+
+
+N.B. the predict() function generates log odds (the full scale between minus and plus infinity). Log odds > 0 indicates a choice of 1, below a choice of 0. 
 N.N.B. you need to decide whether to calculate performance on each single test fold or save all the prediction for test folds in one dataset, so to calculate overall performance.
 N.N.N.B. Now you have two levels of structure: subject and study. Should this impact your cross-validation?
 N.N.N.N.B. A more advanced solution could rely on the tidymodels set of packages (warning: Time-consuming to learn as the documentation is sparse, but totally worth it)
@@ -168,7 +233,13 @@ N.N.N.N.B. A more advanced solution could rely on the tidymodels set of packages
 
 
 ```{r}
-
+############################# RANDOM FOREST ################################
+rf <- train(Diagnosis ~ scaled_pitch_variability,
+            data = df,
+            method = "rf",
+            number = 5
+            )
+rf$results
 
 
 ```
