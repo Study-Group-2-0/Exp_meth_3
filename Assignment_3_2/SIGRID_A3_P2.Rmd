@@ -32,16 +32,24 @@ https://machinelearningmastery.com/machine-learning-ensembles-with-r/
 
 ```{r}
 #packages
-pacman::p_load(tidyverse, caret, lme4, lmerTest, effsize, pROC)
+pacman::p_load(tidyverse, caret, lme4, lmerTest, effsize, pROC, reshape2, groupdata2)
 
 #data
 data <- read_csv('FINAL_DATA.csv')
+
+#fixing variables
+data <- data %>% mutate(
+  pitch_variability = range_high-range_low,
+  pitch_variability_scaled <- scale(pitch_variability),
+  pitch_variability_scaled <- as.numeric(pitch_variability_scaled),
+  Diagnosis = as.factor(Diagnosis),
+  New_id = as.numeric(New_id)
+)
 ```
 
 
 ```{r}
 #Defining the function for converting estimates into probabilities. 
-
 logit2prob <- function(logit){
     odds = exp(logit)
     prob = odds/(1+odds)
@@ -56,62 +64,52 @@ We first want to build a logistic regression to see whether you can diagnose sch
 
 ```{r}
 # logistic function
-data$scaled_mean <- scale(data$mean)
-data$Diagnosis <- as.factor(data$Diagnosis)
-data$scaled_mean <- as.numeric(data$scaled_mean)
-
-m <- glmer(Diagnosis ~ scaled_mean + (1|Participant) + (1|Study), data, family = 'binomial')
+m <- glmer(Diagnosis ~ data$pitch_variability_scaled + (1|New_id) + (1|Study), data, family = 'binomial')
 summary(m)
 
 #plotting the data
-ggplot(data, aes(scaled_mean, Diagnosis, color = Diagnosis)) + geom_point() + theme_classic()
+ggplot(data, aes(pitch_variability_scaled, Diagnosis, color = Diagnosis)) + geom_point() + theme_classic()
+```
 
+
+```{r}
 #Byurakn's code to make a confusion matrix of actual and predicted values
 data$pred <- logit2prob(predict(m))
-data$pred[data$pred > 0.5] = 'Schizophrenia'
-data$pred[data$pred <= 0.5] = 'Control'
-data$pred <- as.factor(data$pred)
-confusionMatrix(data = data$pred, reference = data$Diagnosis, positive = 'Schizophrenia')
-
-# true positive 894
-# true negative 1333
-# false positive 468
-# false negative 635
-
-#Sensitivity - the proportion of correctly identified positive cases: TP / (TP + FN)
-sens <- (894/(894 + 635))
-
-# or you could just use the function.........
-sensitivity(data$pred, data$Diagnosis, positive = 'Schizophrenia')
-
-#Specificity - the proportion of correctly identified negative cases: TN / (TN + FP)
-spec <- (1333 / (1333 + 468))
-
-specificity(data$pred, data$Diagnosis, negative = 'Control')
-
-
-# Accuracy - the proportion of correctly identified cases of all cases: (TP + TN) / (TP, TN, FP, FN))
-accu <- (894 + 1333)/(894 + 1333 + 468 + 635) # or just look at the confusion matrix
-
-#PPV positive predictive value
-posPredValue(data$pred, data$Diagnosis, positive = 'Schizophrenia')
-
-# NPV negative predictive value
-negPredValue(data$pred, data$Diagnosis, negative = 'Control')
-
-# how to change the baseline manually
-#posPredValue(data$pred, data$Diagnosis, positive = 'Schizophrenia', prevalence = .59)
+data$pred <- as.numeric(data$pred)
+data$pred_diagnosis <- ifelse(data$pred > 0.5, 'Schizophrenia', 'Control')
+data$pred_diagnosis <- as.factor(data$pred_diagnosis)
+cm <- confusionMatrix(data = data$pred_diagnosis, reference = data$Diagnosis, positive = 'Schizophrenia')
 
 #ROC curve
-data$pred <- as.numeric(data$pred)
-rocCurve <- roc(response = data$Diagnosis, predictor = data$pred)
-
+data$pred_diagnosis_num <- as.numeric(data$pred_diagnosis)
+rocCurve <- roc(response = data$Diagnosis, predictor = data$pred_diagnosis_num)
 auc(rocCurve)
 ci(rocCurve)
 plot(rocCurve, axes.legacy = T)
-
 ```
 
+
+```{r manual stuff - don't use} 
+########################## How to do it manually - irrelevant ##########################
+#Sensitivity - the proportion of correctly identified positive cases: TP / (TP + FN)
+# or you could just use the function.........
+sensitivity(data$pred_diagnosis, data$Diagnosis, positive = 'Schizophrenia')
+
+#Specificity - the proportion of correctly identified negative cases: TN / (TN + FP)
+specificity(data$pred_diagnosis, data$Diagnosis, negative = 'Control')
+
+# Accuracy - the proportion of correctly identified cases of all cases: (TP + TN) / (TP, TN, FP, FN))
+#accu <- (894 + 1333)/(894 + 1333 + 468 + 635) # or just look at the confusion matrix
+
+#PPV positive predictive value
+posPredValue(data$pred_diagnosis, data$Diagnosis, positive = 'Schizophrenia')
+
+# NPV negative predictive value
+negPredValue(data$pred_diagnosis, data$Diagnosis, negative = 'Control')
+
+# how to change the baseline manually
+#posPredValue(data$pred, data$Diagnosis, positive = 'Schizophrenia', prevalence = .59)
+```
 
 Then cross-validate the logistic regression and re-calculate performance on the testing folds. N.B. The cross-validation functions you already have should be tweaked: you need to calculate these new performance measures. Alternatively, the groupdata2 and cvms package created by Ludvig are an easy solution. 
 
@@ -124,6 +122,90 @@ N.N.N.N.B. A more advanced solution could rely on the tidymodels set of packages
 
 ```{r}
 
+# Cross validation function
+cross_valid <- function(data, k, mod){
+  folds <- createFolds(unique(data$New_id), k = k, list = T, returnTrain = F)
+
+train_AUC <- rep(NA, k) 
+test_AUC <- rep(NA, k)
+sensitivity <- rep(NA,k)
+specificity <- rep(NA,k)
+PPV <- rep(NA,k)
+NPV <- rep(NA,k)
+accuracy <- rep(NA,k)
+
+i = 1
+
+for (fold in folds){
+  train = subset(data, !(New_id %in% fold))
+  test = subset(data, New_id %in% fold)
+  model = lmer(mod, family = 'binomial', train)
+
+  #getting predicted probabilities for both training and test
+  train$predDiagnosis <- Logit2Prop(fitted(model))
+  test$predDiagnosis <- Logit2Prop(predict(model, test, allow.new.levels = T))
+  
+  #making ROC-curves for both train and test data
+  rocCurve_train = roc(response = train$Diagnosis, predictor = as.numeric(train$predDiagnosis))
+  rocCurve_test = roc(response = test$Diagnosis, predictor = as.numeric(test$predDiagnosis))
+  
+  #calculating AUC for both training and test
+  train_AUC[i] <- auc(rocCurve_train)
+  test_AUC[i] <- auc(rocCurve_test)
+  
+  #making a confusion matrix
+  #cm <- confusionMatrix(test$predDiagnosis, reference = test$Diagnosis, positive = 'Schizophrenia'))
+  accuracy = cm$overall[[1]] 
+  sensitivity = cm$byClass[[1]]
+  
+  
+  i = i+1
+}
+result = data.frame(train_AUC, test_AUC, sensitivity, specificity, PPV, NPV, accuracy)
+  return (result)
+}
 
 
+test <- cross_valid_single(data, 50, m)
 ```
+
+
+```{r}
+############ Function for cross-validating - calculating performance on each single test fold ##################
+cross_valid_single <- function(data, k, mod){
+  
+folds <- createFolds(unique(df$Participant), k = k, list = T, returnTrain = F)
+  
+
+train_AUC <- rep(NA, k) 
+test_AUC <- rep(NA, k)
+i = 1
+
+
+for (fold in folds){
+  #making folds and model based on Participant
+  train = subset(data, !(Participant %in% fold))
+  test = subset(data, Participant %in% fold)
+  model = glmer(mod, family = 'binomial', train)
+  
+  #getting predicted probabilities for both training and test
+  train$predDiagnosis <- Logit2Prop(fitted(model))
+  test$predDiagnosis <- Logit2Prop(predict(model, test, allow.new.levels = T))
+  
+  #making ROC-curves for both train and test data
+  rocCurve_train = roc(response = train$Diagnosis, predictor = as.numeric(train$predDiagnosis))
+  rocCurve_test = roc(response = test$Diagnosis, predictor = as.numeric(test$predDiagnosis))
+  
+  #calculating AUC for both training and test
+  train_AUC[i] <- auc(rocCurve_train)
+  test_AUC[i] <- auc(rocCurve_test)
+  i = i + 1
+}
+
+result = data.frame(train_AUC, test_AUC)
+return(result)
+
+
+}
+```
+
