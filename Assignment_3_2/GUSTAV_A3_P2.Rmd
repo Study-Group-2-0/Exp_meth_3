@@ -34,7 +34,7 @@ https://machinelearningmastery.com/machine-learning-ensembles-with-r/
 
 ```{r}
 #Importing packages
-pacman::p_load(tidyverse, lme4, caret, pROC)
+pacman::p_load(tidyverse, lme4, caret, pROC, tidymodels)
 
 ```
 
@@ -91,15 +91,15 @@ plot(roc_m1, legacy.axes = T)
 
 ```
 
-Then cross-validate the logistic regression and re-calculate performance on the testing folds. N.B. The cross-validation functions you already have should be tweaked: you need to calculate these new performance measures. Alternatively, the groupdata2 and cvms package created by Ludvig are an easy solution. 
+Then cross-validate the logistic regression and re-calculate performance on the testing folds. N.B. The cross-validation functions you already have should be tweaked: you need to calculate these new performance measures. Alternatively, the groupdata2 and cvms package created by Ludvig are an easy solution.
+
 ```{r}
 #Making a function for cross validation. 
 cross_valid <- function(data, k, mod){
-  folds <- createFolds(unique(data$New_id), k = k, list = T, returnTrain = F)
- 
+  data <- groupdata2::fold(data, k = k, cat_col = "Diagnosis", id_col = "New_id") %>% arrange(.folds) 
+  
 #Defining output variables 
-train_AUC <- rep(NA,k)
-test_AUC <- rep(NA,k)
+AUC <- rep(NA,k)
 Accuracy <- rep(NA,k)
 Sensitivity <- rep(NA,k)
 Specificity <- rep(NA,k)
@@ -107,10 +107,9 @@ PPV <- rep(NA,k)
 NPV <- rep(NA,k)
 
 
-i = 1
-for (fold in folds){
-  train = subset(data, !(New_id %in% fold))
-  test = subset(data, New_id %in% fold)
+for (i in seq.int(1,k)){
+  train = subset(data, .folds != i)
+  test = subset(data, .folds == i)
   model = glmer(mod, family = "binomial", train)
   
   #Getting predictions in probabilities for test data and train data
@@ -121,20 +120,12 @@ for (fold in folds){
     prediction = ifelse(prediction > 0.5, "Schizophrenia", "Control"),
     prediction = as.factor(prediction)
   )
-  #Train
-  train <- train %>% 
-    mutate(
-    prediction = logit2prob(fitted(model)),
-    prediction = ifelse(prediction > 0.5, "Schizophrenia", "Control"),
-    prediction = as.factor(prediction)
-  )
 
   #Getting different performance measures
   cm <- confusionMatrix(data = test$prediction, reference = test$Diagnosis, positive = "Schizophrenia")
   
   #making ROC-curves for both train and test data
-  rocCurve_train = roc(response = train$Diagnosis, predictor = as.numeric(train$prediction))
-  rocCurve_test = roc(response = test$Diagnosis, predictor = as.numeric(test$prediction))
+  rocCurve = roc(response = test$Diagnosis, predictor = as.numeric(test$prediction))
   
   #Adding values to the variables
   Accuracy[i] <- cm$overall[[1]] #Accurancy
@@ -142,15 +133,12 @@ for (fold in folds){
   Specificity[i] <- cm$byClass[[2]] #Specificity
   PPV[i] <- cm$byClass[[3]] #PPV
   NPV[i] <- cm$byClass[[4]] #NPV
-  train_AUC[i] <- auc(rocCurve_train)
-  test_AUC[i] <- auc(rocCurve_test)
-  i = i+1
+  AUC[i] <- auc(rocCurve)
 }
-result = data.frame(Accuracy, Sensitivity, Specificity, PPV, NPV, train_AUC, test_AUC)
+result = data.frame(Accuracy, Sensitivity, Specificity, PPV, NPV, AUC)
   return (result)
 }
 ```
-
 
 ```{r}
 #Cross validating different models
@@ -160,6 +148,7 @@ m3_cv
 
 #Using function on different models
 cv_m1 <- cross_valid(df, 6, m1_cv)
+
 ```
 
 
@@ -172,7 +161,19 @@ N.N.N.N.B. A more advanced solution could rely on the tidymodels set of packages
 
 
 ```{r}
+################# MACHINE LEANING WORKFLOW FROM BYRAKINS VIDEO ######################
 
+#Partioning and feature preprocessing
+# folding in a new way
+df_par <- partition(df, p=0.8, cat_col = "Diagnosis", id_col = "New_id", list_out = F)
+df_par_train <- subset(df_par, .partitions == 1)
+df_par_test <- subset(df_par, .partitions =! 1)
+
+rec <- recipe(Diagnosis ~ ., data = df_par_train) %>% 
+  step_scale(all_numeric()) %>% 
+  step_center(all_numeric())
+
+prepped_recipe <- prep(rec, training = df_par_train, retain = T)
 
 
 ```
