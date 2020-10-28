@@ -45,7 +45,7 @@ https://machinelearningmastery.com/machine-learning-ensembles-with-r/
 ### Let's start
 
 ```{r}
-pacman::p_load(pROC, tidyverse, caret, lme4, groupdata2)
+pacman::p_load(pROC, tidyverse, caret, lme4, groupdata2, recipes, parsnip, kernlab, yardstick, xgboost)
 ```
 
 
@@ -70,11 +70,10 @@ df <- df %>%
         New_id = as.factor(New_id)
         )
 
-#df <- groupdata2::fold(df, k = 6, cat_col = "Diagnosis", id_col = "New_id") %>% arrange(.folds)
 
 
 #building logistic regression
-m1 <- glmer(Diagnosis ~ scaled_pitch_variability + (1|New_id) + (1|Study), data = df, family = 'binomial')
+m1 <- glm(Diagnosis ~ scaled_pitch_variability, data = df, family = 'binomial')
 summary(m1)
 
 ```
@@ -93,7 +92,7 @@ Logit2Prop <- function(logit){
 ### making confusion matrix
 df <- df %>% 
   mutate(
-    pred = Logit2Prop(predict(m1)),
+    pred = Logit2Prop(predict(m1, re.form=NA)),
     predDiagnosis = ifelse(pred >= 0.5, "Schizophrenia", "Control"),
     predDiagnosis = as.factor(predDiagnosis)
   )
@@ -219,15 +218,69 @@ return(result)
 
 ```
 
+```{r}
+############ Function for cross-validating - calculate overall performance - with new folding techniques ##################
+
+cross_valid_overall_new <- function(data, k, mod){
+  
+#making the better folds/partitioning
+df1 <- groupdata2::fold(data, k = k, cat_col = "Diagnosis", id_col = "New_id") %>% arrange(.folds) 
+
+
+datalist <- list()
+#i = 1
+
+
+for (i in seq.int(1,k)){
+  #making folds and model based on Participant and balanced by Diagnosis
+  train = subset(df1, .folds =! i)
+  test = subset(df1, .folds == i)
+  model = glmer(mod, family = 'binomial', train)
+  
+  #getting predicted probabilities for test
+test <- test %>% 
+  mutate(
+    pred = Logit2Prop(predict(model, test, allow.new.levels = T)),
+    predDiagnosis = ifelse(pred >= 0.5, "Schizophrenia", "Control"),
+    predDiagnosis = as.factor(predDiagnosis),
+    Diagnosis = as.factor(Diagnosis)
+  )
+  
+  
+  
+  datalist[[i]] <- test
+  
+  
+  #i = i + 1
+}
+
+result <- dplyr::bind_rows(datalist) %>% 
+  select(Diagnosis, predDiagnosis)
+
+
+return(result)
+
+}
+
+```
+
+
+
+
+
+```{r}
+##########################MODEL FOR CV #####################################
+
+m1_cross_valid <- Diagnosis ~ scaled_pitch_variability + (1|New_id) + (1|Study)
+```
+
 
 ```{r}
 ################################# PERFORMANCE OF SINGLE FOLDS ##############################
-#cross validating model using AUC as a measure of comparison
-m1_cross_valid <- Diagnosis ~ scaled_pitch_variability + (1|New_id) + (1|Study)
-
 #getting auc for each single test fold
 m1_cv_single <- cross_valid_single(df, 6, m1_cross_valid)
 ```
+
 
 
 ```{r}
@@ -248,10 +301,122 @@ auc(rocCurve_cv_overall)
 
 ```
 
+```{r}
+######################### OVERALL PERFORMANCE OF FOLDS -  new folding techniques #################################
+#running the cross_valid_overall function. The output of this function is a dataframe with actual values of diagnosis and predicted values of diagnosis for each test fold. 
+m1_cv_overall_new <- cross_valid_overall_new(df,6, m1_cross_valid)
+
+
+#making roc and auc and confusion matrix for the overall performance of test folds
+confusionMatrix(m1_cv_overall_new$predDiagnosis, m1_cv_overall_new$Diagnosis, positive = "Schizophrenia")
+
+rocCurve_cv_overall_new <- roc(response = m1_cv_overall_new$Diagnosis, predictor = as.numeric(m1_cv_overall_new$predDiagnosis))
+plot(rocCurve_cv_overall_new)
+auc(rocCurve_cv_overall_new)
+
+
+
+
+
+```
+
+```{r}
+################# MACHINE LEANING WORKFLOW FROM BYRAKINS VIDEO ######################
+
+#Partioning and feature preprocessing
+# folding in a new way
+df_par <- partition(df, p=0.8, cat_col = "Diagnosis", id_col = "New_id", list_out = F)
+df_par_train <- subset(df_par, .partitions == 1)
+df_par_test <- subset(df_par, .partitions =! 1)
+
+#making the recipe/model on training data
+rec <- df_par_train %>% 
+  recipe(Diagnosis ~ pitch_variability, data = df_par_train)
+
+# making predicter numeric and scaling it
+rec_steps <- rec %>% 
+  step_scale(all_numeric()) %>% 
+  step_center(all_numeric())
+
+#?????????????????
+prepped_recipe <- prep(rec_steps, training = df_par_train, retain = T)
+df_par_train_n <- juice(prepped_recipe) #%>% select(-c(Study, ID, .partitions))
+df_par_test_n <- bake(rec, new_data = df_par_test, all_predictors()) #%>% select(-c(Study, ID, .partitions))
+
+
+
+
+#model training
+
+#making more classifications
+log_fit <- 
+  logistic_reg() %>% 
+  set_mode("classification") %>% 
+  set_engine("glm") %>% 
+  fit(Diagnosis ~ pitch_variability, df_par_train_n)
+summary(log_fit)
+
+svm_fit <- 
+  svm_rbf() %>% 
+  set_mode("classification") %>% 
+  set_engine("kernlab") %>% 
+  fit(Diagnosis ~ pitch_variability, df_par_train_n)
+summary(svm_fit)
+
+RandomForest <- 
+  rand_forest() %>%
+  set_mode("classification") %>% 
+  set_engine("randomForest") %>%
+  fit(Diagnosis ~ pitch_variability , data = df_par_train_n) 
+
+BoostedTree <- 
+  boost_tree() %>%
+  set_mode("classification") %>% 
+  set_engine("xgboost") %>%
+  fit(Diagnosis ~ pitch_variability , data = df_par_train_n) 
+
+
+
+#assessing the models
+test_results <- 
+  df_par_test %>% 
+  as_tibble() %>% 
+  mutate(
+    #log_fit
+    log_class = predict(log_fit, new_data = df_par_test_n) %>% 
+    pull(.pred_class),
+    log_prop = predict(log_fit, new_data = df_par_test_n, type = "prob") %>% 
+      pull(.pred_Schizophrenia),
+    #svm_fit
+    svm_class = predict(svm_fit, new_data = df_par_test_n) %>% 
+    pull(.pred_class),
+    svm_prop = predict(svm_fit, new_data = df_par_test_n, type = "prob") %>% 
+      pull(.pred_Schizophrenia),
+    #random forest
+    rf_class = predict(RandomForest, new_data = df_par_test_n) %>% 
+    pull(.pred_class),
+    log_prop = predict(RandomForest, new_data = df_par_test_n, type = "prob") %>% 
+      pull(.pred_Schizophrenia),
+    #boosted tree
+    bt_class = predict(BoostedTree, new_data = df_par_test_n) %>% 
+    pull(.pred_class),
+    svm_prop = predict(BoostedTree, new_data = df_par_test_n, type = "prob") %>% 
+      pull(.pred_Schizophrenia)
+  )
+
+#getting the performance of the models
+metrics(test_results, truth = Diagnosis, estimate = log_class) %>% knitr::kable()
+metrics(test_results, truth = Diagnosis, estimate = svm_class) %>% knitr::kable()
+metrics(test_results, truth = Diagnosis, estimate = rf_class) %>% knitr::kable()
+metrics(test_results, truth = Diagnosis, estimate = bt_class) %>% knitr::kable()
+
+```
+
 
 N.B. the predict() function generates log odds (the full scale between minus and plus infinity). Log odds > 0 indicates a choice of 1, below a choice of 0. 
 N.N.B. you need to decide whether to calculate performance on each single test fold or save all the prediction for test folds in one dataset, so to calculate overall performance.
-N.N.N.B. Now you have two levels of structure: subject and study. Should this impact your cross-validation?
+
+N.N.N.B. Now you have two levels of structure: subject and study. Should this impact your cross-validation? THINK ABOUT THIS QUESTION. WHY DO WE FOLD ON X RATHER THAN Y?
 
 
 N.N.N.N.B. A more advanced solution could rely on the tidymodels set of packages (warning: Time-consuming to learn as the documentation is sparse, but totally worth it)
