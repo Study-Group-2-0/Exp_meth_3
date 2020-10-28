@@ -131,62 +131,174 @@ plot(roc_m3, axes.legacy = T)
 
 Then cross-validate the logistic regression and re-calculate performance on the testing folds. N.B. The cross-validation functions you already have should be tweaked: you need to calculate these new performance measures. Alternatively, the groupdata2 and cvms package created by Ludvig are an easy solution. 
 
+N.B. the predict() function generates log odds (the full scale between minus and plus infinity). Log odds > 0 indicates a choice of 1, below a choice of 0.
+N.N.B. you need to decide whether calculate performance on each single test fold or save all the prediction for test folds in one datase, so to calculate overall performance.
+N.N.N.B. Now you have two levels of structure: subject and study. Should this impact your cross-validation?
+N.N.N.N.B. A more advanced solution could rely on the tidymodels set of packages (warning: Time-consuming to learn as the documentation is sparse, but totally worth it)
 
 ```{r}
 ################################### Cross validation function ########################################
-cross_valid <- function(dataset, k, mod){
-
-dataset <- groupdata2::fold(dataset, k = k, cat_col = "Diagnosis", id_col = "New_id") %>% arrange(.folds) 
+#Making a function for cross validation. 
+cross_valid_single <- function(dataset, k, mod){
+  df1 <- groupdata2::fold(dataset, k = k, cat_col = "Diagnosis", id_col = "New_id") %>% arrange(.folds) 
   
-train_AUC <- rep(NA, k) 
-test_AUC <- rep(NA, k)
-sensitivity <- rep(NA,k)
-specificity <- rep(NA,k)
+#Defining output variables 
+AUC <- rep(NA,k)
+Accuracy <- rep(NA,k)
+Sensitivity <- rep(NA,k)
+Specificity <- rep(NA,k)
 PPV <- rep(NA,k)
 NPV <- rep(NA,k)
-accuracy <- rep(NA,k)
 
-i = 1
-for (fold in seq.int(1,k)){
-  train = subset(dataset, .folds != fold)
-  test = subset(dataset, .folds == fold)
-  model = glmer(mod, family = 'binomial', train)
 
-  #getting predicted probabilities for both training and test
-  train <- train %>% mutate(
-    prediction = logit2prob(fitted(model)),
-    prediction = ifelse(prediction >= 0.5, 'Schizophrenia', 'Control'),
-    prediction = as.factor(prediction)
-    )
+for (i in seq.int(1,k)){
+  train = subset(df1, .folds != i)
+  test = subset(df1, .folds == i)
+  model = glmer(mod, family = "binomial", train)
   
-  test <- test %>% mutate(
+  #Getting predictions in probabilities for test data and train data
+  #Test
+  test <- test %>% 
+    mutate(
     prediction = logit2prob(predict(model, test, allow.new.levels = T)),
-    prediction = ifelse(prediction >= 0.5, 'Schizophrenia', 'Control'),
+    prediction = ifelse(prediction > 0.5, "Schizophrenia", "Control"),
     prediction = as.factor(prediction)
-    )
-  
-  #making a confusion matrix
-  cm = confusionMatrix(test$prediction, reference = test$Diagnosis, positive = 'Schizophrenia')
+  )
+
+  #Getting different performance measures
+  cm <- confusionMatrix(data = test$prediction, reference = test$Diagnosis, positive = "Schizophrenia")
   
   #making ROC-curves for both train and test data
-  rocCurve_train = roc(response = train$Diagnosis, predictor = as.numeric(train$prediction))
-  rocCurve_test = roc(response = test$Diagnosis, predictor = as.numeric(test$prediction))
+  rocCurve = roc(response = test$Diagnosis, predictor = as.numeric(test$prediction))
   
-  #making variables
-  accuracy[i] = cm$overall[[1]] 
-  sensitivity[i] = cm$byClass[[1]]
-  specificity[i] = cm$byClass[[2]]
-  PPV[i] = cm$byClass[[3]]
-  NPV[i] = cm$byClass[[4]]
-  train_AUC[i] <- auc(rocCurve_train)
-  test_AUC[i] <- auc(rocCurve_test)
-
-  i = i+1
+  #Adding values to the variables
+  Accuracy[i] <- cm$overall[[1]] #Accurancy
+  Sensitivity[i] <- cm$byClass[[1]] #Sensitivity
+  Specificity[i] <- cm$byClass[[2]] #Specificity
+  PPV[i] <- cm$byClass[[3]] #PPV
+  NPV[i] <- cm$byClass[[4]] #NPV
+  AUC[i] <- auc(rocCurve)
 }
-#result = data.frame(train$prediction)
-result = data.frame(accuracy, sensitivity, specificity, PPV, NPV, train_AUC, test_AUC)
+result = data.frame(Accuracy, Sensitivity, Specificity, PPV, NPV, AUC)
   return (result)
 }
+
+```
+
+```{r}
+#Testing the function on different models
+
+# logistic model with random intercept for subject - full model
+m1_cv <- Diagnosis ~ pitch_variability_scaled + (1|New_id)
+m1_cv_single <- cross_valid_single(data, 6, m1_cv)
+
+# random effect model
+m2_cv <- Diagnosis ~ (1|New_id)
+m2_cv_single <- cross_valid_single(data, 10, m2_cv)
+
+#fixed effect model
+m3_cv <- Diagnosis ~ pitch_variability_scaled
+m3_cv_single <- cross_valid_single(data, 10, m3_cv)
+
+```
+
+
+
+```{r}
+############ Function for cross-validating - calculate overall performance ##################
+
+cross_valid_overall <- function(dataset, k, mod){
+  
+#making the better folds/partitioning
+df1 <- groupdata2::fold(dataset, k = k, cat_col = "Diagnosis", id_col = "New_id") %>% arrange(.folds) 
+
+datalist <- list()
+
+for (i in seq.int(1,k)){
+  #making folds and model based on Participant and balanced by Diagnosis
+  train = subset(df1, .folds =! i)
+  test = subset(df1, .folds == i)
+  model = glm(mod, family = 'binomial', train)
+  
+  #getting predicted probabilities for test
+test <- test %>% 
+  mutate(
+    pred = logit2prob(predict(model, test, allow.new.levels = T)),
+    predDiagnosis = ifelse(pred >= 0.5, "Schizophrenia", "Control"),
+    predDiagnosis = as.factor(predDiagnosis),
+    Diagnosis = as.factor(Diagnosis)
+  )
+  
+  datalist[[i]] <- test
+}
+
+result <- dplyr::bind_rows(datalist) %>% 
+  select(Diagnosis, predDiagnosis)
+
+return(result)
+
+}
+
+```
+
+```{r}
+#testing overall
+
+m1_cv_overall <- cross_valid_overall(data, 10, m1_cv)
+
+m2_cv_overall <- cross_valid_overall(data, 10, m2_cv)
+
+m3_cv_overall <- cross_valid_overall(data, 10, m3_cv)
+
+```
+```{r}
+# AUC
+
+#making confusion matrices for all three models
+confusionMatrix(data = m1_cv_overall$predDiagnosis, reference = m1_cv_overall$Diagnosis, positive = 'Schizophrenia')
+
+confusionMatrix(data = data$pred_m2, reference = data$Diagnosis, positive = 'Schizophrenia')
+confusionMatrix(data = m3_cv_overall$predDiagnosis, reference = m3_cv_overall$Diagnosis, positive = 'Schizophrenia')
+
+
+#ROC curve
+#m1
+roc_m1 <- roc(response = data$Diagnosis, predictor = as.numeric(data$pred_m1))
+auc(roc_m1)
+ci(roc_m1)
+plot(roc_m1, axes.legacy = T)
+
+#m2
+roc_m2 <- roc(response = data$Diagnosis, predictor = as.numeric(data$pred_m2))
+auc(roc_m2)
+ci(roc_m2)
+plot(roc_m2, axes.legacy = T)
+
+#m3
+roc_m3 <- roc(response = data$Diagnosis, predictor = as.numeric(data$pred_m3))
+auc(roc_m3)
+ci(roc_m3)
+plot(roc_m3, axes.legacy = T)
+
+
+```
+
+
+
+```{r}
+#Making ROC curve
+roc_m1 <- roc(response = df$Diagnosis, predictor = as.numeric(df$prediction))
+auc(roc_m1)
+ci(roc_m1)
+plot(roc_m1, legacy.axes = T)
+
+```
+
+Then cross-validate the logistic regression and re-calculate performance on the testing folds. N.B. The cross-validation functions you already have should be tweaked: you need to calculate these new performance measures. Alternatively, the groupdata2 and cvms package created by Ludvig are an easy solution.
+
+```{r} 
+####### GUSTAVs
+
 ```
 
 
@@ -198,20 +310,10 @@ df1 <- groupdata2::fold(data, k = 6, cat_col = "Diagnosis", id_col = "New_id") %
 
 test <- cross_valid(data, 6, m1_cv)
 
+test_2 <- cross_valid_overall_new(data, 6, m1_cv)
 
-# logistic model with random intercept for subject - full model
-m1_cv <- Diagnosis ~ pitch_variability_scaled + (1|New_id)
 
-# random effect model
-m2_cv <- Diagnosis ~ (1|New_id)
-
-#fixed effect model
-m3_cv <- Diagnosis ~ pitch_variability_scaled
 ```
-N.B. the predict() function generates log odds (the full scale between minus and plus infinity). Log odds > 0 indicates a choice of 1, below a choice of 0.
-N.N.B. you need to decide whether calculate performance on each single test fold or save all the prediction for test folds in one datase, so to calculate overall performance.
-N.N.N.B. Now you have two levels of structure: subject and study. Should this impact your cross-validation?
-N.N.N.N.B. A more advanced solution could rely on the tidymodels set of packages (warning: Time-consuming to learn as the documentation is sparse, but totally worth it)
 
 
 
