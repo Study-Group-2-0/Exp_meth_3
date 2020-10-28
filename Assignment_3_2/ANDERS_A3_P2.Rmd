@@ -117,28 +117,19 @@ N.B. The cross-validation functions you already have should be tweaked: you need
 ```{r}
 ############ Function for cross-validating - calculating performance on each single test fold ##################
 cross_valid_single <- function(data, k, mod){
-  
-folds <- createFolds(unique(data$Participant), k = k, list = T, returnTrain = F)
+df1 <- groupdata2::fold(data, k = k, cat_col = "Diagnosis", id_col = "New_id") %>% arrange(.folds)
   
 
-train_AUC <- rep(NA, k) 
 test_AUC <- rep(NA, k)
-i = 1
 
 
-for (fold in folds){
+
+for (i in seq.int(1,k)){
   #making folds and model based on Participant
-  train = subset(data, !(Participant %in% fold))
-  test = subset(data, Participant %in% fold)
+  train = subset(df1, .folds =! i)
+  test = subset(df1, .folds == i)
   model = glmer(mod, family = 'binomial', train)
   
-  #getting predicted probabilities for both training and test
-    train <- train %>% 
-    mutate(
-    pred = Logit2Prop(predict(model, train, allow.new.levels = T)),
-    predDiagnosis = ifelse(pred >= 0.5, "Schizophrenia", "Control"),
-    predDiagnosis = as.factor(predDiagnosis)
-  )
   
   #confusion matrix
     test <- test %>% 
@@ -152,18 +143,16 @@ for (fold in folds){
   
   
   #making ROC-curves for both train and test data
-  rocCurve_train = roc(response = train$Diagnosis, predictor = as.numeric(train$predDiagnosis))
   rocCurve_test = roc(response = test$Diagnosis, predictor = as.numeric(test$predDiagnosis))
   
   #calculating AUC for both training and test
-  train_AUC[i] <- auc(rocCurve_train)
   test_AUC[i] <- auc(rocCurve_test)
-  i = i + 1
+
   
   print(confu)
 }
 
-result = data.frame(train_AUC, test_AUC)
+result = data.frame(test_AUC)
 return(result)
 
 
