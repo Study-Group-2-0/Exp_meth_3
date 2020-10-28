@@ -137,7 +137,7 @@ N.N.N.B. Now you have two levels of structure: subject and study. Should this im
 N.N.N.N.B. A more advanced solution could rely on the tidymodels set of packages (warning: Time-consuming to learn as the documentation is sparse, but totally worth it)
 
 ```{r}
-################################### Cross validation function ########################################
+################################### Cross validation function (single) ####################################
 #Making a function for cross validation. 
 cross_valid_single <- function(dataset, k, mod){
   df1 <- groupdata2::fold(dataset, k = k, cat_col = "Diagnosis", id_col = "New_id") %>% arrange(.folds) 
@@ -188,6 +188,8 @@ result = data.frame(Accuracy, Sensitivity, Specificity, PPV, NPV, AUC)
 ```{r}
 #Testing the function on different models
 
+data$New_id <- as.factor(data$New_id)
+
 # logistic model with random intercept for subject - full model
 m1_cv <- Diagnosis ~ pitch_variability_scaled + (1|New_id)
 m1_cv_single <- cross_valid_single(data, 6, m1_cv)
@@ -236,7 +238,6 @@ result <- dplyr::bind_rows(datalist) %>%
   select(Diagnosis, predDiagnosis)
 
 return(result)
-
 }
 
 ```
@@ -252,7 +253,6 @@ m3_cv_overall <- cross_valid_overall(data, 10, m3_cv)
 
 ```
 ```{r}
-# AUC
 
 #making confusion matrices for all three models
 confusionMatrix(data = m1_cv_overall$predDiagnosis, reference = m1_cv_overall$Diagnosis, positive = 'Schizophrenia')
@@ -284,42 +284,12 @@ plot(roc_m3, axes.legacy = T)
 ```
 
 
-
 ```{r}
 #Making ROC curve
 roc_m1 <- roc(response = df$Diagnosis, predictor = as.numeric(df$prediction))
 auc(roc_m1)
 ci(roc_m1)
 plot(roc_m1, legacy.axes = T)
-
-```
-
-Then cross-validate the logistic regression and re-calculate performance on the testing folds. N.B. The cross-validation functions you already have should be tweaked: you need to calculate these new performance measures. Alternatively, the groupdata2 and cvms package created by Ludvig are an easy solution.
-
-```{r} 
-####### GUSTAVs
-
-```
-
-
-```{r}
-###### TESTING STUFF - to be deleted
-
-data$New_id <- as.factor(data$New_id)
-df1 <- groupdata2::fold(data, k = 6, cat_col = "Diagnosis", id_col = "New_id") %>% arrange(.folds) 
-
-test <- cross_valid(data, 6, m1_cv)
-
-test_2 <- cross_valid_overall_new(data, 6, m1_cv)
-
-
-```
-
-
-
-```{r}
-
-
 
 ```
 
