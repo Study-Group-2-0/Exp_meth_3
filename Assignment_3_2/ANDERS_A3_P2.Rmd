@@ -73,7 +73,7 @@ df <- df %>%
 
 
 #building logistic regression
-m1 <- glm(Diagnosis ~ scaled_pitch_variability, data = df, family = 'binomial')
+m1 <- glm(Diagnosis ~ pitch_variability, data = df, family = 'binomial')
 summary(m1)
 
 ```
@@ -321,34 +321,47 @@ auc(rocCurve_cv_overall_new)
 ```
 
 ```{r}
-################# MACHINE LEANING WORKFLOW FROM BYRAKINS VIDEO ######################
+############################### STANDARDIZED WORKFLOW USING RECIPE-PACKAGE ################################
+#Note that this workflow doesnt contain any cross-validation. It is simply partioning the data, preprocessing the features, training the model, and then assesing the model.
 
-#Partioning and feature preprocessing
+
+######################## PREPROCESSING #####################
 # folding in a new way
 df_par <- partition(df, p=0.8, cat_col = "Diagnosis", id_col = "New_id", list_out = F)
 df_par_train <- subset(df_par, .partitions == 1)
-df_par_test <- subset(df_par, .partitions =! 1)
+df_par_test <- subset(df_par, .partitions == 2)
 
-#making the recipe/model on training data
+#making the recipe/model on training data - get ingredients
 rec <- df_par_train %>% 
-  recipe(Diagnosis ~ pitch_variability, data = df_par_train)
+  recipe(Diagnosis ~ ., data = df_par_train)
+summary(rec)
 
-# making predicter numeric and scaling it
-rec_steps <- rec %>% 
+# preprocessing of features: making predicter numeric and scaling it - write the recipe
+rec_standardized <- rec %>% 
   step_scale(all_numeric()) %>% 
   step_center(all_numeric())
+  
 
-#?????????????????
-prepped_recipe <- prep(rec_steps, training = df_par_train, retain = T)
-df_par_train_n <- juice(prepped_recipe) #%>% select(-c(Study, ID, .partitions))
-df_par_test_n <- bake(rec, new_data = df_par_test, all_predictors()) #%>% select(-c(Study, ID, .partitions))
-
-
+#estimating mean and sd for each of the preprocessed predictors in training set - prepare the recipe
+prepped_recipe <- prep(rec_standardized, training = df_par_train, retain = T)
+prepped_recipe
 
 
-#model training
+#applying preprocessing to training and test - baking the recipe
+#this returns a tibble including all the variables now preprocessed. We remove coloumns that dont predict
+df_par_train_n <- juice(prepped_recipe) %>% select(-c(Study, New_id, Participant, .partitions))
 
-#making more classifications
+#this does the same for test data
+df_par_test_n <- bake(prepped_recipe, new_data = df_par_test, all_predictors()) %>% select(-c(Study, New_id, Participant, .partitions))
+
+#note that juice() is doing just the same as bake(). It is just more neat. so juice(prepped_recipe) is doing the same
+#as bake(rec_standarized, new_data = df_par_train)
+
+
+
+###################### MODEL TRAINING AND ASSESSMENT ########################
+
+#making 4 classification-algorithms
 log_fit <- 
   logistic_reg() %>% 
   set_mode("classification") %>% 
@@ -367,17 +380,18 @@ RandomForest <-
   rand_forest() %>%
   set_mode("classification") %>% 
   set_engine("randomForest") %>%
-  fit(Diagnosis ~ pitch_variability , data = df_par_train_n) 
+  fit(Diagnosis ~ pitch_variability, data = df_par_train_n) 
 
 BoostedTree <- 
   boost_tree() %>%
   set_mode("classification") %>% 
   set_engine("xgboost") %>%
-  fit(Diagnosis ~ pitch_variability , data = df_par_train_n) 
+  fit(Diagnosis ~ pitch_variability, data = df_par_train_n) 
 
 
 
-#assessing the models
+#assessing the models.
+#this return a dataframe containing coloumn for predicted values of each classification algorithm.
 test_results <- 
   df_par_test %>% 
   as_tibble() %>% 
@@ -387,16 +401,19 @@ test_results <-
     pull(.pred_class),
     log_prop = predict(log_fit, new_data = df_par_test_n, type = "prob") %>% 
       pull(.pred_Schizophrenia),
+    
     #svm_fit
     svm_class = predict(svm_fit, new_data = df_par_test_n) %>% 
     pull(.pred_class),
     svm_prop = predict(svm_fit, new_data = df_par_test_n, type = "prob") %>% 
       pull(.pred_Schizophrenia),
+    
     #random forest
     rf_class = predict(RandomForest, new_data = df_par_test_n) %>% 
     pull(.pred_class),
     log_prop = predict(RandomForest, new_data = df_par_test_n, type = "prob") %>% 
       pull(.pred_Schizophrenia),
+    
     #boosted tree
     bt_class = predict(BoostedTree, new_data = df_par_test_n) %>% 
     pull(.pred_class),
@@ -423,15 +440,4 @@ N.N.N.N.B. A more advanced solution could rely on the tidymodels set of packages
 
 
 
-```{r}
-############################# RANDOM FOREST ################################
-rf <- train(Diagnosis ~ scaled_pitch_variability,
-            data = df,
-            method = "rf",
-            number = 5
-            )
-rf$results
-
-
-```
 
