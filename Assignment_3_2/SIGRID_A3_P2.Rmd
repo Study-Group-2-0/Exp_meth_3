@@ -43,7 +43,7 @@ data <- data %>% mutate(
   pitch_variability_scaled = scale(pitch_variability),
   pitch_variability_scaled = as.numeric(pitch_variability_scaled),
   Diagnosis = as.factor(Diagnosis),
-  #New_id = as.numeric(New_id)
+  New_id = as.numeric(as.factor(New_id))
 )
 ```
 
@@ -63,12 +63,21 @@ logit2prob <- function(logit){
 We first want to build a logistic regression to see whether you can diagnose schizophrenia from your best acoustic feature. Let's use the full dataset and calculate the different performance measures (accuracy, sensitivity, specificity, PPV, NPV, ROC curve). You need to think carefully as to how we should (or not) use study and subject ID.
 
 ```{r}
-# logistic function
-m <- glmer(Diagnosis ~ data$pitch_variability_scaled + (1|New_id) + (1|Study), data, family = 'binomial')
-summary(m)
+# making three different models
+# logistic model with random intercept for subject - full model
+m1 <- glmer(Diagnosis ~ data$pitch_variability_scaled + (1|New_id), data, family = 'binomial')
+summary(m1)
+
+# random effect model
+m2 <- glm(Diagnosis ~ (1|New_id), data, family = 'binomial')
+summary(m2)
+
+#fixed effect model
+m3 <- glm(Diagnosis ~ pitch_variability_scaled, data, family = 'binomial')
+summary(m3)
 
 #plotting the data
-ggplot(data, aes(pitch_variability_scaled, Diagnosis, color = Diagnosis)) + geom_point() + theme_classic()
+#ggplot(data, aes(pitch_variability_scaled, Diagnosis, color = Diagnosis)) + geom_point() + theme_classic()
 ```
 
 
