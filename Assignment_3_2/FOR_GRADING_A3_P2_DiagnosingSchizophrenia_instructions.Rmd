@@ -256,7 +256,6 @@ m3_cv_overall <- cross_valid_overall(data, 10, m3_cv)
 
 #making confusion matrices for all three models
 confusionMatrix(data = m1_cv_overall$predDiagnosis, reference = m1_cv_overall$Diagnosis, positive = 'Schizophrenia')
-
 confusionMatrix(data = data$pred_m2, reference = data$Diagnosis, positive = 'Schizophrenia')
 confusionMatrix(data = m3_cv_overall$predDiagnosis, reference = m3_cv_overall$Diagnosis, positive = 'Schizophrenia')
 
@@ -284,12 +283,5 @@ plot(roc_m3, axes.legacy = T)
 ```
 
 
-```{r}
-#Making ROC curve
-roc_m1 <- roc(response = df$Diagnosis, predictor = as.numeric(df$prediction))
-auc(roc_m1)
-ci(roc_m1)
-plot(roc_m1, legacy.axes = T)
 
-```
 

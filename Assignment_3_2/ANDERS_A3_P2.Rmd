@@ -340,12 +340,12 @@ my_recipe <- training(df_split) %>%
 
 my_recipe
 
-#execute preprocessing on training and test data, removing coloumn that dont predict
-my_training <- juice(my_recipe) %>% select(-c(Study, New_id, Participant))
+#execute preprocessing on training and test data, selecting our predicting coloumn
+my_training <- juice(my_recipe) %>% select(c(Diagnosis,pitch_variability))
 
 my_testing <- my_recipe %>% 
   bake(testing(df_split)) %>% 
-  select(-c(Study, New_id, Participant))
+  select(c(Diagnosis,pitch_variability))
 
 #note that juice() is doing just the same as bake(). It is just more neat. so juice(my_recipe) is doing the same
 #as bake(my_recipe, new_data = my_training)
