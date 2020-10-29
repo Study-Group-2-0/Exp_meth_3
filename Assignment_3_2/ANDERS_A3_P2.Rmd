@@ -313,7 +313,7 @@ auc(rocCurve_cv_overall_new)
 
 ```{r}
 ################################################# TIDYMODELLING ##############################################
-#Note that this workflow doesnt contain any cross-validation. It is simply partioning the data, preprocessing the features, training the model, and then validating the model.
+#This chunk it partioning the data, preprocessing the features, training the model, and then validating the model.
 
 ################################ PARTIONING - RSAMPLE ############################
 #splitting into training and test

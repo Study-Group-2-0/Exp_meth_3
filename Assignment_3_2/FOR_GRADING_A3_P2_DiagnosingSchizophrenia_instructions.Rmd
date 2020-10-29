@@ -34,7 +34,7 @@ https://machinelearningmastery.com/machine-learning-ensembles-with-r/
 
 ```{r}
 #loading packages
-pacman::p_load(tidyverse, caret, lme4, lmerTest, effsize, pROC, reshape2, groupdata2, cvms)
+pacman::p_load(tidyverse, caret, lme4, lmerTest, pROC, groupdata2, cvms)
 ```
 
 
@@ -66,6 +66,7 @@ We first want to build a logistic regression to see whether you can diagnose sch
 
 ```{r}
 # making three different models
+
 # logistic model with random intercept for subject - full model
 m1 <- glmer(Diagnosis ~ data$pitch_variability_scaled + (1|New_id), data, family = 'binomial')
 summary(m1)
@@ -78,6 +79,7 @@ summary(m2)
 m3 <- glm(Diagnosis ~ pitch_variability_scaled, data, family = 'binomial')
 summary(m3)
 
+#Study is excluded as a random effect, because it didnt account for any variance
 ```
 
 
@@ -127,6 +129,7 @@ auc(roc_m3)
 ci(roc_m3)
 plot(roc_m3, axes.legacy = T)
 
+#models are either perfect, or chance performing
 ```
 
 Then cross-validate the logistic regression and re-calculate performance on the testing folds. N.B. The cross-validation functions you already have should be tweaked: you need to calculate these new performance measures. Alternatively, the groupdata2 and cvms package created by Ludvig are an easy solution. 
@@ -138,7 +141,8 @@ N.N.N.N.B. A more advanced solution could rely on the tidymodels set of packages
 
 ```{r}
 ################################### Cross validation function (single) ####################################
-#Making a function for cross validation. 
+
+#partioning data, balanced by diagnosis
 cross_valid_single <- function(dataset, k, mod){
   df1 <- groupdata2::fold(dataset, k = k, cat_col = "Diagnosis", id_col = "New_id") %>% arrange(.folds) 
   
@@ -150,14 +154,13 @@ Specificity <- rep(NA,k)
 PPV <- rep(NA,k)
 NPV <- rep(NA,k)
 
-
+#looping over folds
 for (i in seq.int(1,k)){
   train = subset(df1, .folds != i)
   test = subset(df1, .folds == i)
   model = glmer(mod, family = "binomial", train)
   
-  #Getting predictions in probabilities for test data and train data
-  #Test
+  #Getting predictions in probabilities for test data 
   test <- test %>% 
     mutate(
     prediction = logit2prob(predict(model, test, allow.new.levels = T)),
@@ -168,7 +171,7 @@ for (i in seq.int(1,k)){
   #Getting different performance measures
   cm <- confusionMatrix(data = test$prediction, reference = test$Diagnosis, positive = "Schizophrenia")
   
-  #making ROC-curves for both train and test data
+  #making ROC-curves for test data
   rocCurve = roc(response = test$Diagnosis, predictor = as.numeric(test$prediction))
   
   #Adding values to the variables
@@ -186,7 +189,7 @@ result = data.frame(Accuracy, Sensitivity, Specificity, PPV, NPV, AUC)
 ```
 
 ```{r}
-#Testing the function on different models
+#Running cross-validation_single function on the 3 different models
 
 data$New_id <- as.factor(data$New_id)
 
@@ -196,31 +199,32 @@ m1_cv_single <- cross_valid_single(data, 6, m1_cv)
 
 # random effect model
 m2_cv <- Diagnosis ~ (1|New_id)
-m2_cv_single <- cross_valid_single(data, 10, m2_cv)
+m2_cv_single <- cross_valid_single(data, 6, m2_cv)
 
 #fixed effect model
 m3_cv <- Diagnosis ~ pitch_variability_scaled
-m3_cv_single <- cross_valid_single(data, 10, m3_cv)
+m3_cv_single <- cross_valid_single(data, 6, m3_cv)
 
 ```
 
 
 
 ```{r}
-############ Function for cross-validating - calculate overall performance ##################
+############################ Cross-validation function (overall) #########################
 
 cross_valid_overall <- function(dataset, k, mod){
   
-#making the better folds/partitioning
+#partioning data, balanced by Diagnosis
 df1 <- groupdata2::fold(dataset, k = k, cat_col = "Diagnosis", id_col = "New_id") %>% arrange(.folds) 
 
+#make an empty list
 datalist <- list()
 
+#loop over folds
 for (i in seq.int(1,k)){
-  #making folds and model based on Participant and balanced by Diagnosis
   train = subset(df1, .folds =! i)
   test = subset(df1, .folds == i)
-  model = glm(mod, family = 'binomial', train)
+  model = glmer(mod, family = 'binomial', train)
   
   #getting predicted probabilities for test
 test <- test %>% 
@@ -243,17 +247,16 @@ return(result)
 ```
 
 ```{r}
-#testing overall
+#running cross_valdation_overall function on the 3 different models
 
-m1_cv_overall <- cross_valid_overall(data, 10, m1_cv)
-
-m2_cv_overall <- cross_valid_overall(data, 10, m2_cv)
-
-m3_cv_overall <- cross_valid_overall(data, 10, m3_cv)
+m1_cv_overall <- cross_valid_overall(data, 6, m1_cv)
+m2_cv_overall <- cross_valid_overall(data, 6, m2_cv)
+m3_cv_overall <- cross_valid_overall(data, 6, m3_cv)
 
 ```
-```{r}
 
+```{r}
+#Assessing overall performance of the 3 models
 #making confusion matrices for all three models
 confusionMatrix(data = m1_cv_overall$predDiagnosis, reference = m1_cv_overall$Diagnosis, positive = 'Schizophrenia')
 confusionMatrix(data = data$pred_m2, reference = data$Diagnosis, positive = 'Schizophrenia')
@@ -282,6 +285,10 @@ plot(roc_m3, axes.legacy = T)
 
 ```
 
+```{r}
+############################################### TIDYMODELIING ######################################
+
+```
 
 
 
