@@ -68,14 +68,27 @@ df <- df %>%
         pitch_variability = range_high-range_low,
         scaled_pitch_variability = scale(pitch_variability),
         Diagnosis = as.factor(Diagnosis),
-        New_id = as.factor(New_id)
+        New_id = as.factor(New_id),
+        Language = as.factor(Language)
         )
 
+#making chinese dataset with pauseduration
+df_chinese <- df %>% 
+  filter(Language == "Chinese") %>% 
+  mutate(
+    npause_1 = ifelse(npause == 0, 1, npause),
+    pause_duration = (dur_s - phonationtime_s)/npause_1
+  )
 
 
 #building logistic regression
 m1 <- glm(Diagnosis ~ pitch_variability, data = df, family = 'binomial')
 summary(m1)
+
+#chinese is also shit
+m1_chinese <- glmer(Diagnosis ~ pause_duration + (1|New_id), 
+               df_chinese, family = 'binomial')
+summary(m1_chinese)
 
 ```
 
