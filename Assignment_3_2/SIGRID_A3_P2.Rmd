@@ -205,8 +205,8 @@ test <- cross_valid(data, 10, m1)
 ## TRYING SOMETHING WITH TIDYMODELS
 
 ```{r}
-install.packages('tidymodels')
-pacman::p_load(rsample, recipes)
+install.packages('tidymodels', 'Metrics')
+pacman::p_load(rsample, recipes, parsnip, kernlab, Metrics)
 ```
 
 ```{r}
@@ -253,7 +253,40 @@ df_test_n$.partitions <- NULL
 In the df_test_n there is no 'Diagnosis' column, so now we have a dataset containing only the predictors.. why is that useful? 
 
 ```{r}
+#Byurakn's code
 
+#parsnip library
+logfit <- 
+  logistic_reg() %>% 
+  set_mode('classification') %>% 
+  set_engine('glm') %>% 
+  fit(Diagnosis ~ ., df_train_n)
+
+#kernlab package
+svm_fit <- 
+  svm_rbf() %>% 
+  set_mode('classification') %>% 
+  set_engine('kernlab') %>% 
+  fit(Diagnosis ~ ., df_train_n)
+
+# virker ikke? 
+test_results <- 
+  df_test %>% 
+  as.tibble() %>% 
+  mutate(
+    log_class = predict(log_fit, new_data = df_test_n) %>% 
+      pull(.pred_class),
+    log_prob = predict(log_fit, new_data = df_test_n, type = 'prob') %>% 
+      pull(.pred_Schizophrenia),
+    svm_class = predict(svm_fit, new_data = df_test_n) %>% 
+      pull(.pred_class),
+    svm_prob = predict(svm_fit, new_data = df_test_n, type = 'prob') %>% 
+      pull(.pred_Schizophrenia)
+  )
+
+#getting AUC
+# Metrics package
+metrics(test_results, truth = 'Diagnosis', estimate = log_class) %>% knitr::kable()
 
 ```
 
