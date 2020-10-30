@@ -147,6 +147,7 @@ m2_cv
 m3_cv
 
 #Using function on different models
+df$New_id <- as_factor(df$New_id)
 cv_m1 <- cross_valid(df, 6, m1_cv)
 
 ```
