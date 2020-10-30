@@ -32,7 +32,7 @@ https://machinelearningmastery.com/machine-learning-ensembles-with-r/
 
 ```{r}
 #packages
-pacman::p_load(tidyverse, caret, lme4, lmerTest, effsize, pROC, reshape2, groupdata2)
+pacman::p_load(tidyverse, caret, lme4, lmerTest, effsize, pROC, reshape2, groupdata2, cvms)
 
 #data
 data <- read_csv('FINAL_DATA.csv')
@@ -40,10 +40,10 @@ data <- read_csv('FINAL_DATA.csv')
 #fixing variables
 data <- data %>% mutate(
   pitch_variability = range_high-range_low,
-  pitch_variability_scaled <- scale(pitch_variability),
-  pitch_variability_scaled <- as.numeric(pitch_variability_scaled),
+  pitch_variability_scaled = scale(pitch_variability),
+  pitch_variability_scaled = as.numeric(pitch_variability_scaled),
   Diagnosis = as.factor(Diagnosis),
-  New_id = as.numeric(New_id)
+  New_id = as.numeric(as.factor(New_id))
 )
 ```
 
@@ -63,12 +63,21 @@ logit2prob <- function(logit){
 We first want to build a logistic regression to see whether you can diagnose schizophrenia from your best acoustic feature. Let's use the full dataset and calculate the different performance measures (accuracy, sensitivity, specificity, PPV, NPV, ROC curve). You need to think carefully as to how we should (or not) use study and subject ID.
 
 ```{r}
-# logistic function
-m <- glmer(Diagnosis ~ data$pitch_variability_scaled + (1|New_id) + (1|Study), data, family = 'binomial')
-summary(m)
+# making three different models
+# logistic model with random intercept for subject - full model
+m1 <- glmer(Diagnosis ~ data$pitch_variability_scaled + (1|New_id), data, family = 'binomial')
+summary(m1)
+
+# random effect model
+m2 <- glm(Diagnosis ~ (1|New_id), data, family = 'binomial')
+summary(m2)
+
+#fixed effect model
+m3 <- glm(Diagnosis ~ pitch_variability_scaled, data, family = 'binomial')
+summary(m3)
 
 #plotting the data
-ggplot(data, aes(pitch_variability_scaled, Diagnosis, color = Diagnosis)) + geom_point() + theme_classic()
+#ggplot(data, aes(pitch_variability_scaled, Diagnosis, color = Diagnosis)) + geom_point() + theme_classic()
 ```
 
 
@@ -79,9 +88,11 @@ data$pred <- as.numeric(data$pred)
 data$pred_diagnosis <- ifelse(data$pred > 0.5, 'Schizophrenia', 'Control')
 data$pred_diagnosis <- as.factor(data$pred_diagnosis)
 cm <- confusionMatrix(data = data$pred_diagnosis, reference = data$Diagnosis, positive = 'Schizophrenia')
+cm
 
 #ROC curve
 data$pred_diagnosis_num <- as.numeric(data$pred_diagnosis)
+data$Diagnosis <- as.factor(data$Diagnosis)
 rocCurve <- roc(response = data$Diagnosis, predictor = data$pred_diagnosis_num)
 auc(rocCurve)
 ci(rocCurve)
@@ -118,13 +129,13 @@ N.N.B. you need to decide whether calculate performance on each single test fold
 N.N.N.B. Now you have two levels of structure: subject and study. Should this impact your cross-validation?
 N.N.N.N.B. A more advanced solution could rely on the tidymodels set of packages (warning: Time-consuming to learn as the documentation is sparse, but totally worth it)
 
-
-
 ```{r}
+#data$New_id <- as.character(data$New_id)
+#data$Study <- as.character(data$Study)
 
-# Cross validation function
+################################### Cross validation function ########################################
 cross_valid <- function(data, k, mod){
-  folds <- createFolds(unique(data$New_id), k = k, list = T, returnTrain = F)
+  folds <- createFolds(unique(data$Participant), k = k, list = T, returnTrain = F)
 
 train_AUC <- rep(NA, k) 
 test_AUC <- rep(NA, k)
@@ -135,77 +146,149 @@ NPV <- rep(NA,k)
 accuracy <- rep(NA,k)
 
 i = 1
-
 for (fold in folds){
-  train = subset(data, !(New_id %in% fold))
-  test = subset(data, New_id %in% fold)
-  model = lmer(mod, family = 'binomial', train)
+  train = subset(data, !(Participant %in% fold))
+  test = subset(data, Participant %in% fold)
+  model = glmer(mod, family = 'binomial', train)
 
   #getting predicted probabilities for both training and test
-  train$predDiagnosis <- Logit2Prop(fitted(model))
-  test$predDiagnosis <- Logit2Prop(predict(model, test, allow.new.levels = T))
+  train <- train %>% mutate(
+    prediction = logit2prob(fitted(model)),
+    prediction = ifelse(prediction >= 0.5, 'Schizophrenia', 'Control'),
+    prediction = as.factor(prediction)
+    )
   
-  #making ROC-curves for both train and test data
-  rocCurve_train = roc(response = train$Diagnosis, predictor = as.numeric(train$predDiagnosis))
-  rocCurve_test = roc(response = test$Diagnosis, predictor = as.numeric(test$predDiagnosis))
-  
-  #calculating AUC for both training and test
-  train_AUC[i] <- auc(rocCurve_train)
-  test_AUC[i] <- auc(rocCurve_test)
+  test <- test %>% mutate(
+    prediction = logit2prob(predict(model, test, allow.new.levels = T)),
+    prediction = ifelse(prediction >= 0.5, 'Schizophrenia', 'Control'),
+    prediction = as.factor(prediction)
+    )
   
   #making a confusion matrix
-  #cm <- confusionMatrix(test$predDiagnosis, reference = test$Diagnosis, positive = 'Schizophrenia'))
-  accuracy = cm$overall[[1]] 
-  sensitivity = cm$byClass[[1]]
+  cm = confusionMatrix(test$prediction, reference = test$Diagnosis, positive = 'Schizophrenia')
   
+  #making ROC-curves for both train and test data
+  rocCurve_train = roc(response = train$Diagnosis, predictor = as.numeric(train$prediction))
+  rocCurve_test = roc(response = test$Diagnosis, predictor = as.numeric(test$prediction))
   
+  #making variables
+  accuracy[i] = cm$overall[[1]] 
+  sensitivity[i] = cm$byClass[[1]]
+  specificity[i] = cm$byClass[[2]]
+  PPV[i] = cm$byClass[[3]]
+  NPV[i] = cm$byClass[[4]]
+  train_AUC[i] <- auc(rocCurve_train)
+  test_AUC[i] <- auc(rocCurve_test)
+
   i = i+1
 }
-result = data.frame(train_AUC, test_AUC, sensitivity, specificity, PPV, NPV, accuracy)
+#result = data.frame(train$prediction)
+result = data.frame(accuracy, sensitivity, specificity, PPV, NPV, train_AUC, test_AUC)
   return (result)
 }
 
-
-test <- cross_valid_single(data, 50, m)
 ```
 
 
 ```{r}
-############ Function for cross-validating - calculating performance on each single test fold ##################
-cross_valid_single <- function(data, k, mod){
-  
-folds <- createFolds(unique(df$Participant), k = k, list = T, returnTrain = F)
-  
+################## MAKING MODELS
+m0 <- glmer(Diagnosis ~ pitch_variability_scaled + (1|Study), data, family = 'binomial')
 
-train_AUC <- rep(NA, k) 
-test_AUC <- rep(NA, k)
-i = 1
+m1 <- glmer(Diagnosis ~ pitch_variability_scaled + (1|Participant), data, family = 'binomial')
 
+test <- cross_valid(data, 10, m1)
 
-for (fold in folds){
-  #making folds and model based on Participant
-  train = subset(data, !(Participant %in% fold))
-  test = subset(data, Participant %in% fold)
-  model = glmer(mod, family = 'binomial', train)
-  
-  #getting predicted probabilities for both training and test
-  train$predDiagnosis <- Logit2Prop(fitted(model))
-  test$predDiagnosis <- Logit2Prop(predict(model, test, allow.new.levels = T))
-  
-  #making ROC-curves for both train and test data
-  rocCurve_train = roc(response = train$Diagnosis, predictor = as.numeric(train$predDiagnosis))
-  rocCurve_test = roc(response = test$Diagnosis, predictor = as.numeric(test$predDiagnosis))
-  
-  #calculating AUC for both training and test
-  train_AUC[i] <- auc(rocCurve_train)
-  test_AUC[i] <- auc(rocCurve_test)
-  i = i + 1
-}
-
-result = data.frame(train_AUC, test_AUC)
-return(result)
+```
 
 
-}
+
+## TRYING SOMETHING WITH TIDYMODELS
+
+```{r}
+install.packages('tidymodels')
+pacman::p_load(rsample, recipes, parsnip, kernlab, Metrics)
+
+pacman::p_load(tidymodels)
+```
+
+```{r}
+####################### TRYING RECIPES - Byurakn's code - preprocessing
+
+#copying data set
+df <- data
+
+df <- df %>% mutate(
+  New_id = as.factor(New_id)
+)
+
+# partitioning at a threshold of 0.8 (?)
+df_par <- partition(df, p = 0.8, cat_col = 'Diagnosis', id_col = 'New_id', list_out = F) 
+
+# dividing into test and training sets
+df_train <- subset(df_par, .partitions == 1)
+df_test <- subset(df_par, .partitions == 2)
+
+# making a recipe
+rec <- df_train %>% 
+  recipe(Diagnosis ~ ., df_train)
+
+# stating the steps of the recipe - scaling and mean-centering
+rec_steps <- rec %>% 
+  step_scale(all_numeric()) %>% 
+  step_center(all_numeric())
+
+# training the recipe
+prepped_recipe <- prep(rec_steps, training = df_train, retain = T)
+
+#extract finalized training set and remove columns that should not be predictors
+df_train_n <- juice(prepped_recipe) %>% 
+  select(-c(Study, New_id, .partitions))
+
+#testing the recipe on the test data
+df_test_n <- bake(prepped_recipe, new_data = df_test, all_predictors()) %>% 
+  select(-c(Study, New_id, .partitions))
+
+#removing the partitions column
+df_test_n$.partitions <- NULL
+```
+
+In the df_test_n there is no 'Diagnosis' column, so now we have a dataset containing only the predictors.. why is that useful? 
+
+```{r}
+#Byurakn's code
+
+#parsnip library
+log_fit <- 
+  logistic_reg() %>% 
+  set_mode('classification') %>% 
+  set_engine('glm') %>% 
+  fit(Diagnosis ~ ., df_train_n)
+
+#kernlab package
+svm_fit <- 
+  svm_rbf() %>% 
+  set_mode('classification') %>% 
+  set_engine('kernlab') %>% 
+  fit(Diagnosis ~ ., df_train_n)
+
+# virker ikke? 
+test_results <- 
+  df_test %>% 
+  as.tibble() %>% 
+  mutate(
+    log_class = predict(log_fit, new_data = df_test_n) %>% 
+      pull(.pred_class),
+    log_prob = predict(log_fit, new_data = df_test_n, type = 'prob') %>% 
+      pull(.pred_Schizophrenia),
+    svm_class = predict(svm_fit, new_data = df_test_n) %>% 
+      pull(.pred_class),
+    svm_prob = predict(svm_fit, new_data = df_test_n, type = 'prob') %>% 
+      pull(.pred_Schizophrenia)
+  )
+
+#getting AUC
+# Metrics package
+metrics(test_results, truth = 'Diagnosis', estimate = log_class) %>% knitr::kable()
+
 ```
 

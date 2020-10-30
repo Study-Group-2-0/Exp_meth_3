@@ -32,7 +32,105 @@ https://machinelearningmastery.com/machine-learning-ensembles-with-r/
 
 ### Let's start
 
+```{r}
+#loading packages
+pacman::p_load(tidyverse, caret, lme4, lmerTest, pROC, groupdata2, cvms)
+```
+
+
+```{r}
+#loading data only including study 1-6, excluding the Japanese study (study 7)
+data <- read_csv('FINAL_DATA.csv')
+
+#making significant variables to predict diagnosis
+data <- data %>% mutate(
+  pitch_variability = range_high-range_low,
+  pitch_variability_scaled = scale(pitch_variability),
+  pitch_variability_scaled = as.numeric(pitch_variability_scaled),
+  Diagnosis = as.factor(Diagnosis),
+  New_id = as.numeric(as.factor(New_id))
+)
+```
+
+
+```{r}
+#Defining the function for converting estimates into probabilities. 
+logit2prob <- function(logit){
+    odds = exp(logit)
+    prob = odds/(1+odds)
+    return(prob)
+}
+```
+
 We first want to build a logistic regression to see whether you can diagnose schizophrenia from your best acoustic feature. Let's use the full dataset and calculate the different performance measures (accuracy, sensitivity, specificity, PPV, NPV, ROC curve). You need to think carefully as to how we should (or not) use study and subject ID.
+
+```{r}
+# making three different models
+
+# logistic model with random intercept for subject - full model
+m1 <- glmer(Diagnosis ~ data$pitch_variability_scaled + (1|New_id), data, family = 'binomial')
+summary(m1)
+
+# random effect model
+m2 <- glm(Diagnosis ~ (1|New_id), data, family = 'binomial')
+summary(m2)
+
+#fixed effect model
+m3 <- glm(Diagnosis ~ pitch_variability_scaled, data, family = 'binomial')
+summary(m3)
+
+#Study is excluded as a random effect, because it didnt account for any variance
+```
+
+
+
+```{r}
+# model performance parameters 
+data <- data %>% 
+  mutate(
+    #predicted values for m1
+  pred_m1 = logit2prob(predict(m1)),
+  pred_m1 = ifelse(pred_m1 >= 0.5, 'Schizophrenia', 'Control'),
+  pred_m1 = as.factor(pred_m1),
+  
+  #predicted values for m2
+  pred_m2 = logit2prob(predict(m2)),
+  pred_m2 = ifelse(pred_m2 >= 0.5, 'Schizophrenia', 'Control'),
+  pred_m2 = as.factor(pred_m2),
+  
+  #predicted values for m3
+  pred_m3 = logit2prob(predict(m3)),
+  pred_m3 = ifelse(pred_m3 >= 0.5, 'Schizophrenia', 'Control'),
+  pred_m3 = as.factor(pred_m3)
+)
+
+#making confusion matrices for all three models
+confusionMatrix(data = data$pred_m1, reference = data$Diagnosis, positive = 'Schizophrenia')
+confusionMatrix(data = data$pred_m2, reference = data$Diagnosis, positive = 'Schizophrenia')
+confusionMatrix(data = data$pred_m3, reference = data$Diagnosis, positive = 'Schizophrenia')
+
+
+#ROC curve
+#m1
+roc_m1 <- roc(response = data$Diagnosis, predictor = as.numeric(data$pred_m1))
+auc(roc_m1)
+ci(roc_m1)
+plot(roc_m1, axes.legacy = T)
+
+#m2
+roc_m2 <- roc(response = data$Diagnosis, predictor = as.numeric(data$pred_m2))
+auc(roc_m2)
+ci(roc_m2)
+plot(roc_m2, axes.legacy = T)
+
+#m3
+roc_m3 <- roc(response = data$Diagnosis, predictor = as.numeric(data$pred_m3))
+auc(roc_m3)
+ci(roc_m3)
+plot(roc_m3, axes.legacy = T)
+
+#models are either perfect, or chance performing
+```
 
 Then cross-validate the logistic regression and re-calculate performance on the testing folds. N.B. The cross-validation functions you already have should be tweaked: you need to calculate these new performance measures. Alternatively, the groupdata2 and cvms package created by Ludvig are an easy solution. 
 
@@ -41,11 +139,156 @@ N.N.B. you need to decide whether calculate performance on each single test fold
 N.N.N.B. Now you have two levels of structure: subject and study. Should this impact your cross-validation?
 N.N.N.N.B. A more advanced solution could rely on the tidymodels set of packages (warning: Time-consuming to learn as the documentation is sparse, but totally worth it)
 
+```{r}
+################################### Cross validation function (single) ####################################
+
+#partioning data, balanced by diagnosis
+cross_valid_single <- function(dataset, k, mod){
+  df1 <- groupdata2::fold(dataset, k = k, cat_col = "Diagnosis", id_col = "New_id") %>% arrange(.folds) 
+  
+#Defining output variables 
+AUC <- rep(NA,k)
+Accuracy <- rep(NA,k)
+Sensitivity <- rep(NA,k)
+Specificity <- rep(NA,k)
+PPV <- rep(NA,k)
+NPV <- rep(NA,k)
+
+#looping over folds
+for (i in seq.int(1,k)){
+  train = subset(df1, .folds != i)
+  test = subset(df1, .folds == i)
+  model = glmer(mod, family = "binomial", train)
+  
+  #Getting predictions in probabilities for test data 
+  test <- test %>% 
+    mutate(
+    prediction = logit2prob(predict(model, test, allow.new.levels = T)),
+    prediction = ifelse(prediction > 0.5, "Schizophrenia", "Control"),
+    prediction = as.factor(prediction)
+  )
+
+  #Getting different performance measures
+  cm <- confusionMatrix(data = test$prediction, reference = test$Diagnosis, positive = "Schizophrenia")
+  
+  #making ROC-curves for test data
+  rocCurve = roc(response = test$Diagnosis, predictor = as.numeric(test$prediction))
+  
+  #Adding values to the variables
+  Accuracy[i] <- cm$overall[[1]] #Accurancy
+  Sensitivity[i] <- cm$byClass[[1]] #Sensitivity
+  Specificity[i] <- cm$byClass[[2]] #Specificity
+  PPV[i] <- cm$byClass[[3]] #PPV
+  NPV[i] <- cm$byClass[[4]] #NPV
+  AUC[i] <- auc(rocCurve)
+}
+result = data.frame(Accuracy, Sensitivity, Specificity, PPV, NPV, AUC)
+  return (result)
+}
+
+```
+
+```{r}
+#Running cross-validation_single function on the 3 different models
+
+data$New_id <- as.factor(data$New_id)
+
+# logistic model with random intercept for subject - full model
+m1_cv <- Diagnosis ~ pitch_variability_scaled + (1|New_id)
+m1_cv_single <- cross_valid_single(data, 6, m1_cv)
+
+# random effect model
+m2_cv <- Diagnosis ~ (1|New_id)
+m2_cv_single <- cross_valid_single(data, 6, m2_cv)
+
+#fixed effect model
+m3_cv <- Diagnosis ~ pitch_variability_scaled
+m3_cv_single <- cross_valid_single(data, 6, m3_cv)
+
+```
+
 
 
 ```{r}
+############################ Cross-validation function (overall) #########################
 
+cross_valid_overall <- function(dataset, k, mod){
+  
+#partioning data, balanced by Diagnosis
+df1 <- groupdata2::fold(dataset, k = k, cat_col = "Diagnosis", id_col = "New_id") %>% arrange(.folds) 
+
+#make an empty list
+datalist <- list()
+
+#loop over folds
+for (i in seq.int(1,k)){
+  train = subset(df1, .folds =! i)
+  test = subset(df1, .folds == i)
+  model = glmer(mod, family = 'binomial', train)
+  
+  #getting predicted probabilities for test
+test <- test %>% 
+  mutate(
+    pred = logit2prob(predict(model, test, allow.new.levels = T)),
+    predDiagnosis = ifelse(pred >= 0.5, "Schizophrenia", "Control"),
+    predDiagnosis = as.factor(predDiagnosis),
+    Diagnosis = as.factor(Diagnosis)
+  )
+  
+  datalist[[i]] <- test
+}
+
+result <- dplyr::bind_rows(datalist) %>% 
+  select(Diagnosis, predDiagnosis)
+
+return(result)
+}
+
+```
+
+```{r}
+#running cross_valdation_overall function on the 3 different models
+
+m1_cv_overall <- cross_valid_overall(data, 6, m1_cv)
+m2_cv_overall <- cross_valid_overall(data, 6, m2_cv)
+m3_cv_overall <- cross_valid_overall(data, 6, m3_cv)
+
+```
+
+```{r}
+#Assessing overall performance of the 3 models
+#making confusion matrices for all three models
+confusionMatrix(data = m1_cv_overall$predDiagnosis, reference = m1_cv_overall$Diagnosis, positive = 'Schizophrenia')
+confusionMatrix(data = data$pred_m2, reference = data$Diagnosis, positive = 'Schizophrenia')
+confusionMatrix(data = m3_cv_overall$predDiagnosis, reference = m3_cv_overall$Diagnosis, positive = 'Schizophrenia')
+
+
+#ROC curve
+#m1
+roc_m1 <- roc(response = data$Diagnosis, predictor = as.numeric(data$pred_m1))
+auc(roc_m1)
+ci(roc_m1)
+plot(roc_m1, axes.legacy = T)
+
+#m2
+roc_m2 <- roc(response = data$Diagnosis, predictor = as.numeric(data$pred_m2))
+auc(roc_m2)
+ci(roc_m2)
+plot(roc_m2, axes.legacy = T)
+
+#m3
+roc_m3 <- roc(response = data$Diagnosis, predictor = as.numeric(data$pred_m3))
+auc(roc_m3)
+ci(roc_m3)
+plot(roc_m3, axes.legacy = T)
 
 
 ```
+
+```{r}
+############################################### TIDYMODELIING ######################################
+
+```
+
+
 
