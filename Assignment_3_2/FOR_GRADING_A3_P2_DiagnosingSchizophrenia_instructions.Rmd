@@ -33,27 +33,77 @@ https://machinelearningmastery.com/machine-learning-ensembles-with-r/
 ### Let's start
 
 ```{r}
+#ANDERS
 #loading packages
-pacman::p_load(tidyverse, caret, lme4, lmerTest, pROC, groupdata2, cvms)
+pacman::p_load(tidyverse, caret, lme4, lmerTest, pROC, groupdata2, cvms, tidymodels)
 ```
 
 
 ```{r}
+#GUSTAV
 #loading data only including study 1-6, excluding the Japanese study (study 7)
 data <- read_csv('FINAL_DATA.csv')
 
 #making significant variables to predict diagnosis
 data <- data %>% mutate(
-  pitch_variability = range_high-range_low,
-  pitch_variability_scaled = scale(pitch_variability),
-  pitch_variability_scaled = as.numeric(pitch_variability_scaled),
+  pitch_variability = as.numeric(standard_deviation),
   Diagnosis = as.factor(Diagnosis),
-  New_id = as.numeric(as.factor(New_id))
+  New_id = as.factor(New_id),
+  Study = as.factor(Study)
 )
+```
+
+```{r}
+####################### CHECKING FOR DIFFERENCES IN STUDY AND LANGUAGE #########################
+#SIGRID
+#language
+m_lang <- lm(pitch_variability ~ Language, data)
+summary(m_lang)
+
+#study 
+m_study <- lm(pitch_variability ~ Study, data)
+summary(m_study)
+
+# Due to the results of the models we will include random effects for study, language and new_id
+
+```
+
+
+
+```{r}
+######### SPLITTING DATA INTO TEST AND TRAINING SETS #########
+#ANDERS
+# Making sure to get the same results each time we run the code
+set.seed(332)
+
+# Initial split - test data will only be used at the very end of this analysis to test the model
+df_split <- partition(data, p=0.8, cat_col = "Diagnosis", id_col = "New_id", list_out = F)
+df_train <- subset(df_split, .partitions == 1)
+df_test <- subset(df_split, .partitions == 2)
+
 ```
 
 
 ```{r}
+####### Preprocessing the test and training sets ################
+#GUSTAV
+# creating a recipe for preprocessing, scaling the predictor and prepping the recipe
+rec <- recipe(Diagnosis ~ pitch_variability + Study + New_id + Language, data = df_train) %>% 
+  step_scale(pitch_variability) %>% 
+  step_center(pitch_variability) %>% 
+  prep()
+
+# making a tibble with the preprocessed data
+df_train <- juice(rec)
+
+# Applying to test_data
+df_test <- bake(rec, new_data = df_test)
+
+```
+
+
+```{r}
+#SIGRID
 #Defining the function for converting estimates into probabilities. 
 logit2prob <- function(logit){
     odds = exp(logit)
@@ -65,71 +115,34 @@ logit2prob <- function(logit){
 We first want to build a logistic regression to see whether you can diagnose schizophrenia from your best acoustic feature. Let's use the full dataset and calculate the different performance measures (accuracy, sensitivity, specificity, PPV, NPV, ROC curve). You need to think carefully as to how we should (or not) use study and subject ID.
 
 ```{r}
-# making three different models
-
-# logistic model with random intercept for subject - full model
-m1 <- glmer(Diagnosis ~ data$pitch_variability_scaled + (1|New_id), data, family = 'binomial')
+#ANDERS
+# random effects model
+m1 <- glmer(Diagnosis ~ pitch_variability + (1|New_id) + (1|Language) + (1|Study), df_train, family = 'binomial')
 summary(m1)
-
-# random effect model
-m2 <- glm(Diagnosis ~ (1|New_id), data, family = 'binomial')
-summary(m2)
-
-#fixed effect model
-m3 <- glm(Diagnosis ~ pitch_variability_scaled, data, family = 'binomial')
-summary(m3)
-
-#Study is excluded as a random effect, because it didnt account for any variance
 ```
 
 
-
 ```{r}
+#GUSTAV
 # model performance parameters 
-data <- data %>% 
+df_train <- df_train %>% 
   mutate(
-    #predicted values for m1
-  pred_m1 = logit2prob(predict(m1)),
+  #predicted values for m1
+  pred_m1 = logit2prob(predict(m1, df_train, allow.new.levels = T)),
   pred_m1 = ifelse(pred_m1 >= 0.5, 'Schizophrenia', 'Control'),
-  pred_m1 = as.factor(pred_m1),
-  
-  #predicted values for m2
-  pred_m2 = logit2prob(predict(m2)),
-  pred_m2 = ifelse(pred_m2 >= 0.5, 'Schizophrenia', 'Control'),
-  pred_m2 = as.factor(pred_m2),
-  
-  #predicted values for m3
-  pred_m3 = logit2prob(predict(m3)),
-  pred_m3 = ifelse(pred_m3 >= 0.5, 'Schizophrenia', 'Control'),
-  pred_m3 = as.factor(pred_m3)
+  pred_m1 = as.factor(pred_m1)
 )
 
 #making confusion matrices for all three models
-confusionMatrix(data = data$pred_m1, reference = data$Diagnosis, positive = 'Schizophrenia')
-confusionMatrix(data = data$pred_m2, reference = data$Diagnosis, positive = 'Schizophrenia')
-confusionMatrix(data = data$pred_m3, reference = data$Diagnosis, positive = 'Schizophrenia')
+confusionMatrix(data = df_train$pred_m1, reference = df_train$Diagnosis, positive = 'Schizophrenia')
 
 
 #ROC curve
-#m1
-roc_m1 <- roc(response = data$Diagnosis, predictor = as.numeric(data$pred_m1))
+roc_m1 <- roc(response = df_train$Diagnosis, predictor = as.numeric(df_train$pred_m1))
 auc(roc_m1)
 ci(roc_m1)
 plot(roc_m1, axes.legacy = T)
 
-#m2
-roc_m2 <- roc(response = data$Diagnosis, predictor = as.numeric(data$pred_m2))
-auc(roc_m2)
-ci(roc_m2)
-plot(roc_m2, axes.legacy = T)
-
-#m3
-roc_m3 <- roc(response = data$Diagnosis, predictor = as.numeric(data$pred_m3))
-auc(roc_m3)
-ci(roc_m3)
-plot(roc_m3, axes.legacy = T)
-
-#models are either perfect, or chance performing
 ```
 
 Then cross-validate the logistic regression and re-calculate performance on the testing folds. N.B. The cross-validation functions you already have should be tweaked: you need to calculate these new performance measures. Alternatively, the groupdata2 and cvms package created by Ludvig are an easy solution. 
@@ -139,11 +152,13 @@ N.N.B. you need to decide whether calculate performance on each single test fold
 N.N.N.B. Now you have two levels of structure: subject and study. Should this impact your cross-validation?
 N.N.N.N.B. A more advanced solution could rely on the tidymodels set of packages (warning: Time-consuming to learn as the documentation is sparse, but totally worth it)
 
-```{r}
-################################### Cross validation function (single) ####################################
 
-#partioning data, balanced by diagnosis
-cross_valid_single <- function(dataset, k, mod){
+```{r}
+#SIGRID
+################################ Cross validation function ####################################
+
+cross_valid <- function(dataset, k, mod){
+  #partioning data, balanced by diagnosis
   df1 <- groupdata2::fold(dataset, k = k, cat_col = "Diagnosis", id_col = "New_id") %>% arrange(.folds) 
   
 #Defining output variables 
@@ -153,26 +168,29 @@ Sensitivity <- rep(NA,k)
 Specificity <- rep(NA,k)
 PPV <- rep(NA,k)
 NPV <- rep(NA,k)
+Intercept <- rep(NA,k)
+Slope <- rep(NA,k)
 
-#looping over folds
 for (i in seq.int(1,k)){
-  train = subset(df1, .folds != i)
-  test = subset(df1, .folds == i)
-  model = glmer(mod, family = "binomial", train)
+  train_set = subset(df1, .folds != i)
+  validation_set = subset(df1, .folds == i)
+  model = glmer(mod, family = "binomial", train_set)
+  model_result = summary(model)
   
-  #Getting predictions in probabilities for test data 
-  test <- test %>% 
+  #Getting predictions in probabilities for test data and train data
+  #Test
+  validation_set <- validation_set %>% 
     mutate(
-    prediction = logit2prob(predict(model, test, allow.new.levels = T)),
+    prediction = logit2prob(predict(model, validation_set, allow.new.levels = T)),
     prediction = ifelse(prediction > 0.5, "Schizophrenia", "Control"),
     prediction = as.factor(prediction)
   )
 
   #Getting different performance measures
-  cm <- confusionMatrix(data = test$prediction, reference = test$Diagnosis, positive = "Schizophrenia")
+  cm <- confusionMatrix(data = validation_set$prediction, reference = validation_set$Diagnosis, positive = "Schizophrenia")
   
-  #making ROC-curves for test data
-  rocCurve = roc(response = test$Diagnosis, predictor = as.numeric(test$prediction))
+  #making ROC-curves for both train and test data
+  rocCurve = roc(response = validation_set$Diagnosis, predictor = as.numeric(validation_set$prediction))
   
   #Adding values to the variables
   Accuracy[i] <- cm$overall[[1]] #Accurancy
@@ -181,114 +199,61 @@ for (i in seq.int(1,k)){
   PPV[i] <- cm$byClass[[3]] #PPV
   NPV[i] <- cm$byClass[[4]] #NPV
   AUC[i] <- auc(rocCurve)
+  Intercept[i] <- model_result$coefficients[1]
+  Slope[i] <- model_result$coefficients[2]
 }
-result = data.frame(Accuracy, Sensitivity, Specificity, PPV, NPV, AUC)
+result = data.frame(Accuracy, Sensitivity, Specificity, PPV, NPV, AUC, Intercept, Slope)
   return (result)
 }
+```
+
+```{r}
+# ANDERS 
+#Using the cross-validation function
+
+# writing the model formula to use in the cv function
+m1_cv <- Diagnosis ~ pitch_variability + (1|New_id) + (1|Language) + (1|Study)
+
+# running the cross validation and saving it in a table
+cv_results <- cross_valid(df_train, 10, m1_cv)
+
+cv_results
 
 ```
 
 ```{r}
-#Running cross-validation_single function on the 3 different models
+############################### MAKING FINAL MODEL ######################################
+#GUSTAV
+#averaging the intercept and beta estimates 
+intercept <- mean(cv_results$Intercept)
+slope <- mean(cv_results$Slope)
 
-data$New_id <- as.factor(data$New_id)
+# inserting the averaged intercept and slope in m1 
+m1@beta[1] <- intercept
+m1@beta[2] <- slope
 
-# logistic model with random intercept for subject - full model
-m1_cv <- Diagnosis ~ pitch_variability_scaled + (1|New_id)
-m1_cv_single <- cross_valid_single(data, 6, m1_cv)
-
-# random effect model
-m2_cv <- Diagnosis ~ (1|New_id)
-m2_cv_single <- cross_valid_single(data, 6, m2_cv)
-
-#fixed effect model
-m3_cv <- Diagnosis ~ pitch_variability_scaled
-m3_cv_single <- cross_valid_single(data, 6, m3_cv)
-
+summary(m1)
 ```
 
 
-
-```{r}
-############################ Cross-validation function (overall) #########################
-
-cross_valid_overall <- function(dataset, k, mod){
-  
-#partioning data, balanced by Diagnosis
-df1 <- groupdata2::fold(dataset, k = k, cat_col = "Diagnosis", id_col = "New_id") %>% arrange(.folds) 
-
-#make an empty list
-datalist <- list()
-
-#loop over folds
-for (i in seq.int(1,k)){
-  train = subset(df1, .folds =! i)
-  test = subset(df1, .folds == i)
-  model = glmer(mod, family = 'binomial', train)
-  
-  #getting predicted probabilities for test
-test <- test %>% 
+```{r} 
+################### TESTING THE MODEL ON THE TEST DATA ############################
+#SIGRID
+df_test <- df_test %>% 
   mutate(
-    pred = logit2prob(predict(model, test, allow.new.levels = T)),
-    predDiagnosis = ifelse(pred >= 0.5, "Schizophrenia", "Control"),
-    predDiagnosis = as.factor(predDiagnosis),
-    Diagnosis = as.factor(Diagnosis)
-  )
-  
-  datalist[[i]] <- test
-}
+    pred = logit2prob(predict(m1, df_test, allow.new.levels = T)),
+    pred = ifelse(pred > 0.5, "Schizophrenia", "Control"),
+    pred = as.factor(pred)
+)
 
-result <- dplyr::bind_rows(datalist) %>% 
-  select(Diagnosis, predDiagnosis)
+# getting performance measures
+confusionMatrix(data = df_test$pred, reference = df_test$Diagnosis, positive = 'Schizophrenia')
 
-return(result)
-}
-
-```
-
-```{r}
-#running cross_valdation_overall function on the 3 different models
-
-m1_cv_overall <- cross_valid_overall(data, 6, m1_cv)
-m2_cv_overall <- cross_valid_overall(data, 6, m2_cv)
-m3_cv_overall <- cross_valid_overall(data, 6, m3_cv)
-
-```
-
-```{r}
-#Assessing overall performance of the 3 models
-#making confusion matrices for all three models
-confusionMatrix(data = m1_cv_overall$predDiagnosis, reference = m1_cv_overall$Diagnosis, positive = 'Schizophrenia')
-confusionMatrix(data = data$pred_m2, reference = data$Diagnosis, positive = 'Schizophrenia')
-confusionMatrix(data = m3_cv_overall$predDiagnosis, reference = m3_cv_overall$Diagnosis, positive = 'Schizophrenia')
-
-
-#ROC curve
-#m1
-roc_m1 <- roc(response = data$Diagnosis, predictor = as.numeric(data$pred_m1))
-auc(roc_m1)
-ci(roc_m1)
-plot(roc_m1, axes.legacy = T)
-
-#m2
-roc_m2 <- roc(response = data$Diagnosis, predictor = as.numeric(data$pred_m2))
-auc(roc_m2)
-ci(roc_m2)
-plot(roc_m2, axes.legacy = T)
-
-#m3
-roc_m3 <- roc(response = data$Diagnosis, predictor = as.numeric(data$pred_m3))
-auc(roc_m3)
-ci(roc_m3)
-plot(roc_m3, axes.legacy = T)
+# ROC-curve
+rocCurve <-  roc(response = df_test$Diagnosis, predictor = as.numeric(df_test$pred))
+auc(rocCurve)
+ci(rocCurve)
+plot(rocCurve, axes.legacy = T)
 
 
 ```
-
-```{r}
-############################################### TIDYMODELIING ######################################
-
-```
-
-
-
