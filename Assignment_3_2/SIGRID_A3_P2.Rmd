@@ -205,8 +205,10 @@ test <- cross_valid(data, 10, m1)
 ## TRYING SOMETHING WITH TIDYMODELS
 
 ```{r}
-install.packages('tidymodels', 'Metrics')
+install.packages('tidymodels')
 pacman::p_load(rsample, recipes, parsnip, kernlab, Metrics)
+
+pacman::p_load(tidymodels)
 ```
 
 ```{r}
@@ -243,7 +245,7 @@ df_train_n <- juice(prepped_recipe) %>%
   select(-c(Study, New_id, .partitions))
 
 #testing the recipe on the test data
-df_test_n <- bake(rec, new_data = df_test, all_predictors()) %>% 
+df_test_n <- bake(prepped_recipe, new_data = df_test, all_predictors()) %>% 
   select(-c(Study, New_id, .partitions))
 
 #removing the partitions column
@@ -256,7 +258,7 @@ In the df_test_n there is no 'Diagnosis' column, so now we have a dataset contai
 #Byurakn's code
 
 #parsnip library
-logfit <- 
+log_fit <- 
   logistic_reg() %>% 
   set_mode('classification') %>% 
   set_engine('glm') %>% 
