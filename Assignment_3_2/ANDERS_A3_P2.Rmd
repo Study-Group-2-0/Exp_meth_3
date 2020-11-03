@@ -326,7 +326,7 @@ auc(rocCurve_cv_overall_new)
 
 ```{r}
 ################################################# TIDYMODELLING ##############################################
-#This chunk it partioning the data, preprocessing the features, training the model, and then validating the model.
+#This chunk is partioning the data, preprocessing the features, training the model, and then validating the model.
 
 ################################ PARTIONING - RSAMPLE ############################
 #splitting into training and test
