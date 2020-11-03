@@ -81,6 +81,7 @@ df_split <- partition(data, p=0.8, cat_col = "Diagnosis", id_col = "New_id", lis
 df_train <- subset(df_split, .partitions == 1)
 df_test <- subset(df_split, .partitions == 2)
 
+
 ```
 
 
@@ -124,21 +125,21 @@ summary(m1)
 
 ```{r}
 #GUSTAV
-# model performance parameters 
-df_train <- df_train %>% 
+# model performance on the test set 
+df_test_m1 <- df_test %>% 
   mutate(
   #predicted values for m1
-  pred_m1 = logit2prob(predict(m1, df_train, allow.new.levels = T)),
+  pred_m1 = logit2prob(predict(m1, df_test, allow.new.levels = T)),
   pred_m1 = ifelse(pred_m1 >= 0.5, 'Schizophrenia', 'Control'),
   pred_m1 = as.factor(pred_m1)
 )
 
 #making confusion matrices for all three models
-confusionMatrix(data = df_train$pred_m1, reference = df_train$Diagnosis, positive = 'Schizophrenia')
+confusionMatrix(data = df_test_m1$pred_m1, reference = df_test_m1$Diagnosis, positive = 'Schizophrenia')
 
 
 #ROC curve
-roc_m1 <- roc(response = df_train$Diagnosis, predictor = as.numeric(df_train$pred_m1))
+roc_m1 <- roc(response = df_test_m1$Diagnosis, predictor = as.numeric(df_test_m1$pred_m1))
 auc(roc_m1)
 ci(roc_m1)
 plot(roc_m1, axes.legacy = T)
@@ -155,7 +156,7 @@ N.N.N.N.B. A more advanced solution could rely on the tidymodels set of packages
 
 ```{r}
 #SIGRID
-################################ Cross validation function ####################################
+############################## Cross validation function ##########################
 
 cross_valid <- function(dataset, k, mod){
   #partioning data, balanced by diagnosis
