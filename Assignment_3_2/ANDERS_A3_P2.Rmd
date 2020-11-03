@@ -93,7 +93,7 @@ summary(m1_chinese)
 ```
 
 ```{r}
-##############FUNCTION FOR GETTING PROBABILITIES ########################
+##############FUNCTION FOR GETTING PROBABILITIES s########################
 Logit2Prop <- function(logit){
   odds = exp(logit)
   prop = odds/(1+odds)
