@@ -306,7 +306,6 @@ data <- list.files(path = "data/", pattern = ".csv") %>%
 write_csv(data, "data_Gustav.csv")
 # Run the function on the whole dataset using map_df
 
-         
 # Now we need to make sure all the data are meaningful or something has to be removed
 # E.g. "Study1_G1_T1_Synchronous" has one bad respiration signal. We could replace it with NAs
 
