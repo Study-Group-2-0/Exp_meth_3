@@ -174,7 +174,7 @@ df1_downs <- df1_downs %>%
 
 Go through all the files (with a function passed onto map_df), check which files should be excluded, if any, and save the pre-processed time-series. This procedure is similar to what you have done in portfolio 3. You may use the code you wrote for that assignment and adjust it to this one.
 
-A couple of tips:
+A couple of tips:a
 - looping will be too slow for these files (remember you have ~200 000 rows in each file!). Making a function and using Map/Map_df is your salvation.
 - you may want your first step after loading a file to be downsampling, so that you don't work with enormous amount of data
 - each study restarts the group numbering, so you should make sure to change that (e.g. 100 * Study + Group)
