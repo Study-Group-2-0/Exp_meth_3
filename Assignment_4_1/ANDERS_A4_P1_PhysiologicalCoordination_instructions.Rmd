@@ -159,7 +159,8 @@ df1_downs <- df1_downs %>%
     Trial = str_extract(Trial, "\\d{1}"),
     Condition = str_sub(filename, 14, -5),
     Condition = str_replace(Condition, "_", ""),
-    New_ID = paste0(Study,"_", Group)
+    New_ID = paste0(Study,"_", Group),
+    New_ID_2 = paste0(Study, "_", Group, "_", Trial)
   )
 
 
@@ -263,7 +264,7 @@ z_scale <- function(column){
 data_preprocess <- function(filename, threshold = 2.5){
 
   # Reading data
-  path_name <- str_c("data/",filename)
+  path_name <- paste0("data/",filename)
   data <- read_csv(path_name)
 
   # Downsampling
@@ -289,7 +290,10 @@ data_preprocess <- function(filename, threshold = 2.5){
     Trial = str_extract(Trial, "\\d"),
     Condition = str_sub(filename, 14, -5),
     Condition = str_replace(Condition, "-", ""),
-    ID = str_c(Study, Pair),
+    ID = paste0(Study, "_", Pair),
+    ID_2 = paste0(Study, "_", Pair, "_", Trial),
+    
+    
 
     # Removing outliers and scaling
     Resp1 = z_scale(removeOuts(Resp1, threshold)),
@@ -299,14 +303,29 @@ data_preprocess <- function(filename, threshold = 2.5){
     HR1 = z_scale(removeOuts(HR1, threshold)),
     HR2 = z_scale(removeOuts(HR2, threshold))
 
-  ) %>% 
+  )
+    
+    
+    #selecting correct coloumns
+  
+  data <- data %>%   
+    if (data$Study == "4") {
     select(
-       c(ID, Study:Condition, time, HR1:ECG2)
-    )
+       c(ID, Study:Condition, Time, HR1:ECG2)) %>% 
+        mutate(
+          time = Time
+        )
+}
+    else {
+    select(
+      c(ID, Study, Condition, time, HR1:ECG2))
+}
+    
 
   return(data)
 }
-data <- list.files(path = "data/", pattern = ".csv") %>% 
+
+data <- list.files(path = "data_test/", pattern = ".csv") %>% 
   map_df(data_preprocess)
 
 
@@ -315,12 +334,73 @@ data <- list.files(path = "data/", pattern = ".csv") %>%
 
 
 
+```{r}
+#creating new id variable
+
+data <- data %>% 
+  mutate(
+    new_ID = paste0(ID, "_", Trial),
+    new_ID = as.factor(new_ID)
+  )
+
+#write to csv
+write_csv(data, "data_clean_2.csv")
+
+
+#in Study 4, time is "Time" and not "time". Fuark.
+
+```
+
+
+
 
 ```{r}
+
 # Now we need to make sure all the data are meaningful or something has to be removed
 # E.g. "Study1_G1_T1_Synchronous" has one bad respiration signal. We could replace it with NAs
 
+data <- read_csv("data_clean_2.csv")
+
+
 # plots plots plots
+data_clean <- data %>% 
+  filter(
+    !is.na(HR1),
+    !is.na(HR2)
+  )
+
+ggplot(data_clean) +
+  geom_path(aes(time,HR1, color = "Blue")) + 
+  geom_path(aes(time, HR2, color = "Red")) + 
+  labs(x = "time", y = "Values") + 
+  facet_wrap(data_clean$new_ID)
+  
+
+
+
+#there is something weird with study 4
+data_clean$Study <- as.factor(data_clean$Study)
+
+
+#plotting Study 1-3
+data_clean_S123 <- filter(data_clean, Study != 4)
+
+ggplot(data_clean_S123) +
+  geom_path(aes(time,HR1, color = "Blue")) + 
+  geom_path(aes(time, HR2, color = "Red")) + 
+  labs(x = "time", y = "Values") + 
+  facet_wrap(data_clean_S123$new_ID)
+
+
+#plotting Study 4
+data_clean_S4 <- filter(data_clean, Study == 4)
+
+ggplot(data_clean_S4) +
+  geom_path(aes(time,HR1, color = "Blue")) + 
+  geom_path(aes(time, HR2, color = "Red")) + 
+  labs(x = "time", y = "Values") + 
+  facet_wrap(data_clean_S4$new_ID)
+
 
 # Remove bad data
 
