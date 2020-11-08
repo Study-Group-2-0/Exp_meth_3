@@ -243,6 +243,28 @@ pitch_data = list.files(path = "data/",pattern = ".csv") %>% ## NB replace with 
 ```
 
 ```{r}
+#### the coloumn "time" is named "Time" in study 4. This is a problem for GULLE FUNCTION. So we have moved all csv-files in study 4 to a new folder called data_4. This for-loop iterates over all the study4-files, creates a new coloum called "time", and overwrites the old file.
+list_study4 = list.files(path = "data_4/", pattern = ".csv")
+
+for (filename in list_study4){
+  path_name <- paste0("data_4/",filename)
+  data = read_csv(path_name)
+  
+  data <- data %>% 
+    mutate(
+      time = min
+    )
+  
+  
+  write_csv(data, path_name)
+  
+  
+}
+
+
+```
+
+```{r}
 #GULLE FUNCTION
 #Removing outliers
 removeOuts <- function(ts,threshold){
@@ -264,7 +286,7 @@ z_scale <- function(column){
 data_preprocess <- function(filename, threshold = 2.5){
 
   # Reading data
-  path_name <- paste0("data/",filename)
+  path_name <- paste0("data_fixed/",filename)
   data <- read_csv(path_name)
 
   # Downsampling
@@ -289,9 +311,10 @@ data_preprocess <- function(filename, threshold = 2.5){
     Trial = str_extract(filename, "T\\d"),
     Trial = str_extract(Trial, "\\d"),
     Condition = str_sub(filename, 14, -5),
-    Condition = str_replace(Condition, "-", ""),
-    ID = paste0(Study, "_", Pair),
-    ID_2 = paste0(Study, "_", Pair, "_", Trial),
+    Condition = str_replace(Condition, "_", ""),
+    ID = paste0(Study, Pair),
+    fileID = paste0(Study, Pair, Trial),
+    Time = time,
     
     
 
@@ -303,29 +326,20 @@ data_preprocess <- function(filename, threshold = 2.5){
     HR1 = z_scale(removeOuts(HR1, threshold)),
     HR2 = z_scale(removeOuts(HR2, threshold))
 
-  )
-    
-    
-    #selecting correct coloumns
-  
-  data <- data %>%   
-    if (data$Study == "4") {
+  ) %>% 
     select(
-       c(ID, Study:Condition, Time, HR1:ECG2)) %>% 
-        mutate(
-          time = Time
-        )
-}
-    else {
-    select(
-      c(ID, Study, Condition, time, HR1:ECG2))
-}
+      c(ID, fileID, Study, Pair, Trial, Condition, time, HR1:ECG2))
+
     
 
   return(data)
 }
+```
 
-data <- list.files(path = "data_test/", pattern = ".csv") %>% 
+
+```{r, include = False}
+#pure magic m8
+data <- list.files(path = "data_fixed/", pattern = ".csv") %>% 
   map_df(data_preprocess)
 
 
@@ -335,72 +349,160 @@ data <- list.files(path = "data_test/", pattern = ".csv") %>%
 
 
 ```{r}
-#creating new id variable
-
-data <- data %>% 
-  mutate(
-    new_ID = paste0(ID, "_", Trial),
-    new_ID = as.factor(new_ID)
-  )
-
 #write to csv
-write_csv(data, "data_clean_2.csv")
-
-
-#in Study 4, time is "Time" and not "time". Fuark.
+write_csv(data, "data_clean_andes.csv")
 
 ```
 
 
 
 
-```{r}
 
+
+```{r}
+#loading data
+data <- read_csv("data_clean_andes.csv")
+
+#cleaning and preparing data
+data <- data %>% 
+  filter(
+    !is.na(time),
+    !is.na(HR1),
+    !is.na(HR2),
+    !is.na(Resp1),
+    !is.na(Resp2)
+  ) %>% 
+  mutate(
+    ID = as.factor(ID),
+    fileID = as.factor(fileID),
+    Study = as.factor(Study),
+    Pair = as.factor(Pair),
+    Trial = as.factor(Trial),
+    Condition = as.factor(Condition),
+    ID2 = paste0(Pair,Trial),
+    ID2 = as.factor(ID2)
+    
+  )
+```
+
+
+```{r}
 # Now we need to make sure all the data are meaningful or something has to be removed
 # E.g. "Study1_G1_T1_Synchronous" has one bad respiration signal. We could replace it with NAs
 
-data <- read_csv("data_clean_2.csv")
-
-
 # plots plots plots
-data_clean <- data %>% 
-  filter(
-    !is.na(HR1),
-    !is.na(HR2)
-  )
-
-ggplot(data_clean) +
-  geom_path(aes(time,HR1, color = "Blue")) + 
+ggplot(data) +
+  geom_path(aes(time, HR1, color = "Blue")) + 
   geom_path(aes(time, HR2, color = "Red")) + 
   labs(x = "time", y = "Values") + 
-  facet_wrap(data_clean$new_ID)
+  facet_wrap(data$fileID)
   
+ggplot(data) +
+  geom_path(aes(time, Resp1, color = "Blue")) + 
+  geom_path(aes(time, Resp2, color = "Red")) + 
+  labs(x = "time", y = "Values") + 
+  facet_wrap(data$fileID)
+```
+
+```{r}
+###################### MAKING NICER PLOTS ###########################
+#dividing dataset by study
+data_1 <- data %>% 
+  filter(Study == 1)
+
+data_2 <- data %>% 
+  filter(Study == 2)
+
+data_3 <- data %>% 
+  filter(Study == 3)
+
+data_4 <- data %>% 
+  filter(Study == 4)
+```
 
 
-
-#there is something weird with study 4
-data_clean$Study <- as.factor(data_clean$Study)
-
-
-#plotting Study 1-3
-data_clean_S123 <- filter(data_clean, Study != 4)
-
-ggplot(data_clean_S123) +
-  geom_path(aes(time,HR1, color = "Blue")) + 
+```{r}
+#making a plot for each study by HR
+plot_1_HR <- ggplot(data_1) +
+  geom_path(aes(time, HR1, color = "Blue")) + 
   geom_path(aes(time, HR2, color = "Red")) + 
   labs(x = "time", y = "Values") + 
-  facet_wrap(data_clean_S123$new_ID)
+  facet_wrap(data_1$ID2)
 
-
-#plotting Study 4
-data_clean_S4 <- filter(data_clean, Study == 4)
-
-ggplot(data_clean_S4) +
-  geom_path(aes(time,HR1, color = "Blue")) + 
+plot_2_HR <- ggplot(data_2) +
+  geom_path(aes(time, HR1, color = "Blue")) + 
   geom_path(aes(time, HR2, color = "Red")) + 
   labs(x = "time", y = "Values") + 
-  facet_wrap(data_clean_S4$new_ID)
+  facet_wrap(data_2$ID2)
 
+plot_3_HR <- ggplot(data_3) +
+  geom_path(aes(time, HR1, color = "Blue")) + 
+  geom_path(aes(time, HR2, color = "Red")) + 
+  labs(x = "time", y = "Values") +
+  facet_wrap(data_3$ID2)
+
+plot_4_HR <- ggplot(data_4) +
+  geom_path(aes(time, HR1, color = "Blue")) + 
+  geom_path(aes(time, HR2, color = "Red")) + 
+  labs(x = "time", y = "Values") +
+  facet_wrap(data_4$ID2)
+
+
+
+plot_1_HR
+plot_2_HR
+plot_3_HR
+plot_4_HR
+
+
+
+
+
+
+
+
+
+
+
+```
+
+```{r}
+#making a plot for each study by Respiration
+plot_1_Resp <- ggplot(data_1) +
+  geom_path(aes(time, Resp1, color = "Blue")) + 
+  geom_path(aes(time, Resp2, color = "Red")) + 
+  labs(x = "time", y = "Values") + 
+  facet_wrap(data_1$ID2)
+
+plot_2_Resp <- ggplot(data_2) +
+  geom_path(aes(time, Resp1, color = "Blue")) + 
+  geom_path(aes(time, Resp2, color = "Red")) + 
+  labs(x = "time", y = "Values") + 
+  facet_wrap(data_2$ID2)
+
+plot_3_Resp <- ggplot(data_3) +
+  geom_path(aes(time, Resp1, color = "Blue")) + 
+  geom_path(aes(time, Resp2, color = "Red")) + 
+  labs(x = "time", y = "Values") + 
+  facet_wrap(data_3$ID2)
+
+plot_4_Resp <- ggplot(data_4) +
+  geom_path(aes(time, Resp1, color = "Blue")) + 
+  geom_path(aes(time, Resp2, color = "Red")) + 
+  labs(x = "time", y = "Values") +
+  facet_wrap(data_4$ID2)
+
+plot_1_Resp
+plot_2_Resp
+plot_3_Resp
+plot_4_Resp
+
+
+```
+
+
+
+```{r}
 
 # Remove bad data
 
