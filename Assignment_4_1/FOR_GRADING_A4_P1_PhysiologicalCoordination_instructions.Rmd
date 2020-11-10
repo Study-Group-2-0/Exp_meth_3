@@ -54,14 +54,24 @@ The data files can be found here: https://www.dropbox.com/sh/bvvk7t3fvsplh9o/AAD
 
 ```{r}
 # Load the libraries
-pacman::p_load(tidyverse, )
+pacman::p_load(tidyverse, groupdata2, gridExtra)
 
 ```
 
 
 ```{r}
+################################### SINGLE FILE ###################################################
+
 # Load the file
+df_single <- read_csv("data/Study1_G1_T1_Synchronous.csv")
+
 # Plot
+plot_single_raw <- ggplot(df_single) +
+  geom_path(aes(time, HR1, color = "Blue")) + 
+  geom_path(aes(time, HR2, color = "Red")) + 
+  labs(x = "time", y = "Heartrate") +
+  ggtitle("Raw data")
+
 
 ## Remove outliers
 
@@ -75,38 +85,64 @@ removeOuts <- function(ts,threshold){
 }
 threshold=2.5 # Default value at 2.5 sds from the mean. But you can increase it, if you want.
 
+df_single <- df_single %>% 
+  mutate(
+    HR1 = removeOuts(HR1, threshold),
+    HR2 = removeOuts(HR2, threshold),
+    Resp1 = removeOuts(Resp1, threshold),
+    Resp2 = removeOuts(Resp2, threshold),
+  )
 
 # Plot raw data against those with the artifacts removed
-
+plot_single_outlier <- ggplot(df_single) +
+  geom_path(aes(time, HR1, color = "Blue")) + 
+  geom_path(aes(time, HR2, color = "Red")) + 
+  labs(x = "time", y = "Heartrate") +
+  ggtitle("Outliers Removed")
 
 ## Scale
 ### Tip: if scale() gives some issues, try the one below
-#z_scale <- function(column){
-#  column_c <- (column - mean(column)) / sd(column)
-#}
+z_scale <- function(column){
+  column_c <- (column - mean(column)) / sd(column)
+}
+
+df_single <- df_single %>% 
+  mutate(
+    HR1 = z_scale(HR1),
+    HR2 = z_scale(HR2),
+    Resp1 = z_scale(Resp1),
+    Resp2 = z_scale(Resp2)
+  )
 
 # Plot again to check how scaled data look like
+plot_single_scale <- ggplot(df_single) +
+  geom_path(aes(time, HR1, color = "Blue")) + 
+  geom_path(aes(time, HR2, color = "Red")) + 
+  labs(x = "time", y = "Heartrate") +
+  ggtitle("Scaled")
 
 
 ## Downsample
 ### You can use the code below. It is almost the same as the one in the video lecture.
-#d1 = d %>%
-#  group(n = 100, method = 'greedy') %>%
-#  dplyr::summarise(
-#    time = mean(time,na.rm=T),
-#    HR1 = mean(HR1S,na.rm=T),
-#    HR2 = mean(HR2S,na.rm=T),
-#    Resp1 = mean(Resp1S,na.rm=T),
-#    Resp2 = mean(Resp2S,na.rm=T),
+df_single <- df_single %>%
+  group(n = 100, method = 'greedy') %>%
+  dplyr::summarise(
+   time = mean(time,na.rm=T),
+    HR1 = mean(HR1,na.rm=T),
+    HR2 = mean(HR2,na.rm=T),
+    Resp1 = mean(Resp1,na.rm=T),
+    Resp2 = mean(Resp2,na.rm=T))
 #    rowname = rowname[1]) #the index we use to put them back together 
 
 ## Plot the downsampled data. You can use the code from the slides
+plot_single_downs <- ggplot(df_single) +
+  geom_path(aes(time, HR1, color = "Blue")) + 
+  geom_path(aes(time, HR2, color = "Red")) + 
+  labs(x = "time", y = "Heartrate") +
+  ggtitle("Downsampled")
 
 
-## Now add the group, trial, condition to the cleaned up, scaled, downsampled data
-
-## Tip the info is in the file name
-
+grid.arrange(plot_single_raw, plot_single_outlier, plot_single_scale, plot_single_downs)
 
 ```
 
@@ -123,31 +159,195 @@ A couple of tips:
 
 
 ```{r}
-# Define a function running the loading, artifact removal, scaling, downsampling, info adding.
+#### the coloumn "time" is named "Time" in study 4. This is a problem for pre_processing function. So we have moved all csv-files in study 4 to a new folder called data_4. This for-loop iterates over all the study4-files, creates a new coloum called "time", and overwrites the old file. 
+#Dont run this chunk if your folder-structure doesnt allow it.
 
-data_preprocess <- function(filename, threshold = 2.5){
-  
-  # To be filled in
-  
-  return(d1)
+list_study4 = list.files(path = "data_4/", pattern = ".csv")
 
+for (filename in list_study4){
+  path_name <- paste0("data_4/",filename)
+  data = read_csv(path_name)
+  
+  data <- data %>% 
+    mutate(
+      time = min
+    )
+  
+  
+  write_csv(data, path_name)
+  
+  
 }
 
-#  Identify all files to be read
 
-# Run the function on the whole dataset using map_df
 
-         
+```
+
+```{r}
+#Function for preprocessing
+
+data_preprocess <- function(filename, threshold = 2.5){
+
+  # Reading data
+  path_name <- paste0("data_fixed/",filename)
+  data <- read_csv(path_name)
+
+  # Downsampling
+  data = data %>%
+  group(n = 100, method = 'greedy') %>%
+  dplyr::summarise(
+    time = mean(time,na.rm=T),
+    HR1 = mean(HR1,na.rm=T),
+    HR2 = mean(HR2,na.rm=T),
+    Resp1 = mean(Resp1,na.rm=T),
+    Resp2 = mean(Resp2,na.rm=T),
+    ECG1 = mean(ECG1,na.rm = T),
+    ECG2 = mean(ECG2,na.rm = T))
+
+  # Preprocessing 
+  data <- data %>% 
+  mutate(
+    # Extracting ID collumns
+    Study = str_extract_all(filename, "\\d")[[1]][1],
+    Pair = str_extract(filename, "G\\d{1,2}"),
+    Pair = str_extract(Pair, "\\d{1,2}"),
+    Trial = str_extract(filename, "T\\d"),
+    Trial = str_extract(Trial, "\\d"),
+    Condition = str_sub(filename, 14, -5),
+    Condition = str_replace(Condition, "_", ""),
+    ID = paste0(Study, Pair),
+    fileID = paste0(Study, Pair, Trial),
+    Time = time,
+    
+    
+
+    # Removing outliers and scaling
+    Resp1 = z_scale(removeOuts(Resp1, threshold)),
+    Resp2 = z_scale(removeOuts(Resp1, threshold)),
+    ECG1 = z_scale(removeOuts(ECG1, threshold)),
+    ECG2 = z_scale(removeOuts(ECG2, threshold)),
+    HR1 = z_scale(removeOuts(HR1, threshold)),
+    HR2 = z_scale(removeOuts(HR2, threshold))
+
+  ) %>% 
+    select(
+      c(ID, fileID, Study, Pair, Trial, Condition, time, HR1:ECG2))
+
+    
+
+  return(data)
+}
+
+
+```
+
+```{r, include = False}
+#pure magic m8
+data <- list.files(path = "data_fixed/", pattern = ".csv") %>% 
+  map_df(data_preprocess)
+
+```
+
+
+```{r}
+#processing data further. Removing Na's
+data <- data %>% 
+  filter(
+    !is.na(time),
+    !is.na(HR1),
+    !is.na(HR2),
+    !is.na(Resp1),
+    !is.na(Resp2)
+  )
+
+
+```
+
+
+
+```{r}
+#write to csv
+write_csv(data, "FINAL_DATA.csv")
+
+```
+
+
+
+
+```{r}
+#loading data
+df <- read_csv("FINAL_DATA.csv")
+```
+
+```{r}
 # Now we need to make sure all the data are meaningful or something has to be removed
 # E.g. "Study1_G1_T1_Synchronous" has one bad respiration signal. We could replace it with NAs
 
-# plots plots plots
+################### DOING PLOTS ####################
 
-# Remove bad data
+# Function for HR
+plotting_hr <- function(file){
+  df %>% 
+    filter(fileID == file) %>% 
+    ggplot()+
+      geom_path(aes(time, HR1, color = "Red"))+
+      geom_path(aes(time, HR2, color = "Blue"))+
+      labs(x = "Time", y = "HR", title = file)+
+      theme_classic()
+}
 
-# Save the data
+# Function for Resp
+plotting_resp <- function(file){
+  df %>% 
+    filter(fileID == file) %>% 
+    ggplot()+
+      geom_path(aes(time, Resp1, color = "Red"))+
+      geom_path(aes(time, Resp2, color = "Blue"))+
+      labs(x = "Time", y = "Resp", title = file)+
+      theme_classic()
+}
+
+# Listing files
+files <- unique(df$fileID)
+
+# Heart Rate
+for(f in files[1:10]){ 
+  plot <- plotting_hr(f)
+  print(plot)
+}
+
+# Respiration
+for(f in files[1:10]){ 
+  plot <- plotting_resp(f)
+  print(plot)
+}
+```
+
+
+```{r}
+#After looking through all the plots
+#Excluding the following files (see rapport for more information)
+files_to_remove <- c(433, 461, 132, 313, 435,251, 252, 253, 261, 262, 263, 392, 281, 282, 283, 111, 112, 435, 392, 414)
+
+data_clean <- df %>% 
+  filter( !(fileID %in% files_to_remove))
 
 ```
+
+
+```{r}
+######################################## PREPROCESSING DONE ##################################################
+
+#write to csv
+write_csv(data_clean, "FINAL_DATA.csv")
+
+```
+
+```{r}
+df <- read_csv("FINAL_DATA.csv")
+
+```
+
 
 ## Now we need to run some analysis
 
