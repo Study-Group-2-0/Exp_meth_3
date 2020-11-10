@@ -54,7 +54,7 @@ The data files can be found here: https://www.dropbox.com/sh/bvvk7t3fvsplh9o/AAD
 
 ```{r}
 # Load the libraries
-pacman::p_load(tidyverse, ggplot2, reshape2, gridExtra, groupdata2,radiant.data)
+pacman::p_load(tidyverse, ggplot2, reshape2, gridExtra, groupdata2,)
 ```
 
 
@@ -68,8 +68,8 @@ df1 <- read_csv("data/Study1_G1_T1_Synchronous.csv") %>%
 plotHR <- ggplot(df1) +
   geom_path(aes(time, HR1, color = "Blue")) + 
   geom_path(aes(time, HR2, color = "Red")) + 
-  labs(x = "time", y = "Values")
-
+  labs(x = "time", y = "Values") +
+  ggtitle("Raw Data")
 
 ## Remove outliers
 
@@ -98,10 +98,9 @@ df1 <- df1 %>%
 plotHR_out <- ggplot(df1) +
   geom_path(aes(time, HR1, color = "Blue")) + 
   geom_path(aes(time, HR2, color = "Red")) + 
-  labs(x = "time", y = "Values")
+  labs(x = "time", y = "Values") + 
+  ggtitle("Artifacts removed")
 
-
-grid.arrange(plotHR, plotHR_out)
 
 ## Scale
 ### Tip: if scale() gives some issues, try the one below
@@ -121,30 +120,30 @@ df1 <- df1 %>%
 plotHR_out_scale <- ggplot(df1) +
   geom_path(aes(time,HR1, color = "Blue")) + 
   geom_path(aes(time, HR2, color = "Red")) + 
-  labs(x = "time", y = "Values")
-
-grid.arrange(plotHR_out, plotHR_out_scale)
+  labs(x = "time", y = "Values") + 
+  ggtitle("Scaled and artifacts removed")
 
 
 ## Downsample
 ### You can use the code below. It is almost the same as the one in the video lecture.
-df1_downs <- df1 %>%
-  groupdata2::group(n = 100, method = 'greedy') %>%
-  dplyr::summarise(
+df1_downs <- df1 %>% 
+    group(n = 100, method = 'greedy') %>%
+    dplyr::summarise(
     time = mean(time,na.rm=T),
     HR1 = mean(HR1,na.rm=T),
     HR2 = mean(HR2,na.rm=T),
     Resp1 = mean(Resp1,na.rm=T),
-    Resp2 = mean(Resp2,na.rm=T)
+    Resp2 = mean(Resp2,na.rm=T))
     #rowname = rowname[1]) #the index we use to put them back together 
 
 ## Plot the downsampled data. You can use the code from the slides
 plotHR_downs <- ggplot(df1_downs) +
   geom_path(aes(time,HR1, color = "Blue")) + 
   geom_path(aes(time, HR2, color = "Red")) + 
-  labs(x = "time", y = "Values")
+  labs(x = "time", y = "Values") +
+  ggtitle("Downsampled data")
 
-grid.arrange(plotHR_out_scale, plotHR_downs)
+grid.arrange(plotHR, plotHR_out, plotHR_out_scale, plotHR_downs)
 
 ## Now add the group, trial, condition to the cleaned up, scaled, downsampled data
 filename = "Study1_G11_T1_Synchronous.csv"
@@ -162,8 +161,6 @@ df1_downs <- df1_downs %>%
     New_ID = paste0(Study,"_", Group),
     New_ID_2 = paste0(Study, "_", Group, "_", Trial)
   )
-
-
 
 ## Tip the info is in the file name
 
@@ -243,7 +240,9 @@ pitch_data = list.files(path = "data/",pattern = ".csv") %>% ## NB replace with 
 ```
 
 ```{r}
-#### the coloumn "time" is named "Time" in study 4. This is a problem for GULLE FUNCTION. So we have moved all csv-files in study 4 to a new folder called data_4. This for-loop iterates over all the study4-files, creates a new coloum called "time", and overwrites the old file.
+#### the coloumn "time" is named "Time" in study 4. This is a problem for GULLE FUNCTION. So we have moved all csv-files in study 4 to a new folder called data_4. This for-loop iterates over all the study4-files, creates a new coloum called "time", and overwrites the old file. 
+#Dont run this chunk if your folder-structure doesnt allow it.
+
 list_study4 = list.files(path = "data_4/", pattern = ".csv")
 
 for (filename in list_study4){
@@ -265,7 +264,8 @@ for (filename in list_study4){
 ```
 
 ```{r}
-#GULLE FUNCTION
+#Small functions for removing outliers and scaling
+
 #Removing outliers
 removeOuts <- function(ts,threshold){
   ts[ts > (mean(ts,na.rm=T) +
@@ -280,8 +280,11 @@ z_scale <- function(column){
   column_z <- (column - mean(column)) / sd(column)
   return(column_z)
 }
+```
 
 
+```{r}
+#Large function for preprocessing
 
 data_preprocess <- function(filename, threshold = 2.5){
 
@@ -379,8 +382,8 @@ data <- data %>%
     Pair = as.factor(Pair),
     Trial = as.factor(Trial),
     Condition = as.factor(Condition),
-    ID2 = paste0(Pair,Trial),
-    ID2 = as.factor(ID2)
+    Pair_Trial = paste0(Pair,Trial),
+    Pair_Trial = as.factor(ID2)
     
   )
 ```
@@ -427,43 +430,31 @@ plot_1_HR <- ggplot(data_1) +
   geom_path(aes(time, HR1, color = "Blue")) + 
   geom_path(aes(time, HR2, color = "Red")) + 
   labs(x = "time", y = "Values") + 
-  facet_wrap(data_1$ID2)
+  facet_wrap(data_1$Pair_Trial)
 
 plot_2_HR <- ggplot(data_2) +
   geom_path(aes(time, HR1, color = "Blue")) + 
   geom_path(aes(time, HR2, color = "Red")) + 
   labs(x = "time", y = "Values") + 
-  facet_wrap(data_2$ID2)
+  facet_wrap(data_2$Pair_Trial)
 
 plot_3_HR <- ggplot(data_3) +
   geom_path(aes(time, HR1, color = "Blue")) + 
   geom_path(aes(time, HR2, color = "Red")) + 
   labs(x = "time", y = "Values") +
-  facet_wrap(data_3$ID2)
+  facet_wrap(data_3$Pair_Trial)
 
 plot_4_HR <- ggplot(data_4) +
   geom_path(aes(time, HR1, color = "Blue")) + 
   geom_path(aes(time, HR2, color = "Red")) + 
   labs(x = "time", y = "Values") +
-  facet_wrap(data_4$ID2)
-
+  facet_wrap(data_4$Pair_Trial)
 
 
 plot_1_HR
 plot_2_HR
 plot_3_HR
 plot_4_HR
-
-
-
-
-
-
-
-
-
-
-
 ```
 
 ```{r}
@@ -472,25 +463,25 @@ plot_1_Resp <- ggplot(data_1) +
   geom_path(aes(time, Resp1, color = "Blue")) + 
   geom_path(aes(time, Resp2, color = "Red")) + 
   labs(x = "time", y = "Values") + 
-  facet_wrap(data_1$ID2)
+  facet_wrap(data_1$Pair_Trial)
 
 plot_2_Resp <- ggplot(data_2) +
   geom_path(aes(time, Resp1, color = "Blue")) + 
   geom_path(aes(time, Resp2, color = "Red")) + 
   labs(x = "time", y = "Values") + 
-  facet_wrap(data_2$ID2)
+  facet_wrap(data_2$Pair_Trial)
 
 plot_3_Resp <- ggplot(data_3) +
   geom_path(aes(time, Resp1, color = "Blue")) + 
   geom_path(aes(time, Resp2, color = "Red")) + 
   labs(x = "time", y = "Values") + 
-  facet_wrap(data_3$ID2)
+  facet_wrap(data_3$Pair_Trial)
 
 plot_4_Resp <- ggplot(data_4) +
   geom_path(aes(time, Resp1, color = "Blue")) + 
   geom_path(aes(time, Resp2, color = "Red")) + 
   labs(x = "time", y = "Values") +
-  facet_wrap(data_4$ID2)
+  facet_wrap(data_4$Pair_Trial)
 
 plot_1_Resp
 plot_2_Resp
@@ -503,7 +494,6 @@ plot_4_Resp
 
 
 ```{r}
-
 # Remove bad data
 
 # Save the data
