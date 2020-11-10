@@ -3,6 +3,8 @@ title: "Assignment 4 - Heart rate, respiration and interpersonal coordination"
 author: "Riccardo Fusaroli"
 date: "August 20, 2019"
 output: html_document
+editor_options: 
+  chunk_output_type: inline
 ---
 
 ```{r setup, include=FALSE}
@@ -186,7 +188,7 @@ df1 = df %>%
 
 ```{r}
 ## Now add the group, trial, condition to the cleaned up, scaled, downsampled data
-filename <- "Study1_G2_T3_SelfPaced.csv"
+filename <- "Study2_G9_T3_TurnTaking.csv"
 p <- str_sub(filename, 14, -5)
 p
 str_replace(p, "_", "")
@@ -296,21 +298,54 @@ data_preprocess <- function(filename, threshold = 2.5){
 
 ```{r}
 # TEsting the function
-filename = "Study1_G2_T3_SelfPaced.csv"
+filename = "Study2_G9_T3_TurnTaking.csv"
 test <- data_preprocess(filename, threshold = 2.5)
 
 #  Identify all files to be read
 data <- list.files(path = "data/", pattern = ".csv") %>% 
   map_df(data_preprocess)
 
-write_csv(data, "data_Gustav.csv")
-# Run the function on the whole dataset using map_df
+write_csv(data_andes, "FINAL_DATA.csv")
 
+
+```
+
+```{r}
+#Loading the final dataset
+df <- read_csv("data_Gustav.csv")
+```
+
+
+```{r}
+######### DOING PLOTS :#       ####################
 # Now we need to make sure all the data are meaningful or something has to be removed
 # E.g. "Study1_G1_T1_Synchronous" has one bad respiration signal. We could replace it with NAs
 
-# plots plots plots
 
+# plots plots plots
+plotting <- function(file){
+  data_andes %>% 
+    filter(fileID == file) %>% 
+    ggplot()+
+      geom_path(aes(time, HR1, color = "Red"))+
+      geom_path(aes(time, HR2, color = "Blue"))+
+      labs(x = "Time", y = "HR", title = file)+
+      theme_classic()
+}
+
+plotting(111)
+
+
+files <- unique(data_andes$fileID)
+
+for(f in files[61:94]){ 
+  plot <- plotting(f)
+  print(plot)
+}
+```
+
+
+```{r}
 # Remove bad data
 
 # Save the data
