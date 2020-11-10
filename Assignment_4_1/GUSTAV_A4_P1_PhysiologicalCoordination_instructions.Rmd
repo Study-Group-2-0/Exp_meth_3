@@ -305,26 +305,23 @@ test <- data_preprocess(filename, threshold = 2.5)
 data <- list.files(path = "data/", pattern = ".csv") %>% 
   map_df(data_preprocess)
 
-write_csv(data_andes, "FINAL_DATA.csv")
+write_csv(data_clean, "FINAL_DATA.csv")
 
 
 ```
 
 ```{r}
 #Loading the final dataset
-df <- read_csv("data_Gustav.csv")
+df <- read_csv("FINAL_DATA.csv")
 ```
 
 
 ```{r}
-######### DOING PLOTS :#       ####################
-# Now we need to make sure all the data are meaningful or something has to be removed
-# E.g. "Study1_G1_T1_Synchronous" has one bad respiration signal. We could replace it with NAs
+################### DOING PLOTS     ####################
 
-
-# plots plots plots
-plotting <- function(file){
-  data_andes %>% 
+# Function for HR
+plotting_hr <- function(file){
+  df %>% 
     filter(fileID == file) %>% 
     ggplot()+
       geom_path(aes(time, HR1, color = "Red"))+
@@ -333,20 +330,43 @@ plotting <- function(file){
       theme_classic()
 }
 
-plotting(111)
+# Function for Resp
+plotting_resp <- function(file){
+  df %>% 
+    filter(fileID == file) %>% 
+    ggplot()+
+      geom_path(aes(time, Resp1, color = "Red"))+
+      geom_path(aes(time, Resp2, color = "Blue"))+
+      labs(x = "Time", y = "Resp", title = file)+
+      theme_classic()
+}
 
+# Listing files
+files <- unique(df$fileID)
 
-files <- unique(data_andes$fileID)
-
-for(f in files[61:94]){ 
-  plot <- plotting(f)
+# Heart Rate
+for(f in files[1:32]){ 
+  plot <- plotting_hr(f)
   print(plot)
 }
+
+# Respiration
+for(f in files[1:32]){ 
+  plot <- plotting_resp(f)
+  print(plot)
+}
+
 ```
 
 
 ```{r}
 # Remove bad data
+files_to_remove <- c(433, 461, 132, 313, 435,251, 252, 253, 261, 262, 263, 392, 281, 282, 283, 111, 112, 435, 392, 414)
+
+data_clean <- df %>% 
+  filter( !(fileID %in% files_to_remove))
+
+
 
 # Save the data
 
