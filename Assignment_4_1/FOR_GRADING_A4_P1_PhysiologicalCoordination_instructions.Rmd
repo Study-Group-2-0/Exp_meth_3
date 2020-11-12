@@ -180,7 +180,6 @@ for (filename in list_study4){
 }
 
 
-
 ```
 
 ```{r}
@@ -340,10 +339,11 @@ data_clean <- df %>%
 
 #write to csv
 write_csv(data_clean, "FINAL_DATA.csv")
-
 ```
 
+
 ```{r}
+#Loading final preprocessed data
 df1 <- read_csv("FINAL_DATA.csv")
 
 ```
