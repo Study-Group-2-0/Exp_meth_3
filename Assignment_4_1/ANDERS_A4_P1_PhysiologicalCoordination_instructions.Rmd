@@ -54,7 +54,7 @@ The data files can be found here: https://www.dropbox.com/sh/bvvk7t3fvsplh9o/AAD
 
 ```{r}
 # Load the libraries
-pacman::p_load(tidyverse, ggplot2, reshape2, gridExtra, groupdata2,)
+pacman::p_load(tidyverse, ggplot2, reshape2, gridExtra, groupdata2)
 ```
 
 
@@ -381,10 +381,7 @@ data <- data %>%
     Study = as.factor(Study),
     Pair = as.factor(Pair),
     Trial = as.factor(Trial),
-    Condition = as.factor(Condition),
-    Pair_Trial = paste0(Pair,Trial),
-    Pair_Trial = as.factor(ID2)
-    
+    Condition = as.factor(Condition)
   )
 ```
 
@@ -489,6 +486,57 @@ plot_3_Resp
 plot_4_Resp
 
 
+```
+
+```{r}
+################### DOING PLOTS ####################
+
+# Function for HR
+plotting_hr <- function(file){
+  data %>% 
+    filter(fileID == file) %>% 
+    ggplot()+
+      geom_path(aes(time, HR1, color = "Red"))+
+      geom_path(aes(time, HR2, color = "Blue"))+
+      labs(x = "Time", y = "HR", title = file)+
+      theme_classic()
+}
+
+# Function for Resp
+plotting_resp <- function(file){
+  data %>% 
+    filter(fileID == file) %>% 
+    ggplot()+
+      geom_path(aes(time, Resp1, color = "Red"))+
+      geom_path(aes(time, Resp2, color = "Blue"))+
+      labs(x = "Time", y = "Resp", title = file)+
+      theme_classic()
+}
+
+# Listing files
+files <- unique(data$fileID)
+
+# Heart Rate
+for(f in files[63:94]){ 
+  plot <- plotting_hr(f)
+  print(plot)
+}
+
+# Respiration
+for(f in files[63:94]){ 
+  plot <- plotting_resp(f)
+  print(plot)
+}
+
+
+```
+
+```{r}
+# Respiration
+for(f in files[63:94]){ 
+  plot <- plotting_resp(f)
+  print(plot)
+}
 ```
 
 
