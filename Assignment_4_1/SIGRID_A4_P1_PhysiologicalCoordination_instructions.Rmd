@@ -86,6 +86,16 @@ read_data <- function(filename) {
 
     threshold = 2.5
     
+    data1 <- data %>% 
+      filter(
+        startsWith(
+          filename, 'Study4')) %>% 
+      mutate(
+          time = TimeMs / 1000 / 60
+        )
+    
+    data <- merge(data1, data)
+    
       #downsampling
     data <- data %>% group(n = 100, method = 'greedy') %>%
       dplyr::summarise(
@@ -107,7 +117,7 @@ read_data <- function(filename) {
       Trial = str_extract(filename, "T\\d{1}"),
       Trial = str_extract(Trial, "\\d{1}"),
       Trial = as.factor(Trial),
-      Condition = substr(filename, 14, nchar(filename)-5),
+      Condition = substr(filename, 14, nchar(filename)-4),
       Condition = str_replace(Condition, "_", ""),
       New_id = paste0(Study, Group, Trial),
       
@@ -130,7 +140,8 @@ read_data <- function(filename) {
 
 ```{r, eval = FALSE}
 # test it on just one file while writing the function
-test_data = read_data("Study2_G10_T2_TurnTaking.csv")
+test_data = read_data("Study4_G1_T1_Synchronous.csv")
+test_data2 = read_data("Study3_G9_T2_Synchronous.csv")
 
 # when you've created a function that works, you can
 data = list.files(path = "data/",pattern = ".csv") %>% purrr::map_df(read_data)
@@ -142,12 +153,9 @@ write_csv(data, "clean_data.csv")
 
 ```{r}
 # Load the file
-file <- read_csv('data/Study1_G1_T1_Synchronous.csv')
+file <- read_csv("data/Study3_G9_T2_Synchronous.csv")
 
 # Plot
-#file_melt <- melt(file)
-#ggplot() + geom_path(file, aes(time, 'Resp1')) + geom_path(file, aes(time, 'Resp2'))
-
 ggplot(file) + geom_path(aes(time, Resp1, color = 'P1')) + geom_path(aes(time, Resp2, color = 'P2'))
 
 ## Remove outliers
@@ -222,7 +230,6 @@ d1 = d %>%
 
 ## Plot the downsampled data. You can use the code from the slides
 
-
 ## Now add the group, trial, condition to the cleaned up, scaled, downsampled data
 
 ## Tip the info is in the file name
@@ -245,21 +252,62 @@ A couple of tips:
 ```{r}
 # Define a function running the loading, artifact removal, scaling, downsampling, info adding.
 
-data_preprocess <- function(filename, threshold = 2.5){
+#data_preprocess <- function(filename, threshold = 2.5){
   
   # To be filled in
   
-  return(d1)
-
-}
+ # return(d1)
+#
+#}
 
 #  Identify all files to be read
 
 # Run the function on the whole dataset using map_df
 
-         
+df <- read_csv('FINAL_DATA.csv')
+       
 # Now we need to make sure all the data are meaningful or something has to be removed
 # E.g. "Study1_G1_T1_Synchronous" has one bad respiration signal. We could replace it with NAs
+
+################### DOING PLOTS     ####################
+
+# Function for HR
+plotting_hr <- function(file){
+  df %>% 
+    filter(fileID == file) %>% 
+    ggplot()+
+      geom_path(aes(time, HR1, color = "Red"))+
+      geom_path(aes(time, HR2, color = "Blue"))+
+      labs(x = "Time", y = "HR", title = file)+
+      theme_classic()
+}
+
+# Function for Resp
+plotting_resp <- function(file){
+  df %>% 
+    filter(fileID == file) %>% 
+    ggplot()+
+      geom_path(aes(time, Resp1, color = "Red"))+
+      geom_path(aes(time, Resp2, color = "Blue"))+
+      labs(x = "Time", y = "Resp", title = file)+
+      theme_classic()
+}
+
+# Listing files
+files <- unique(df$fileID)
+
+# Heart Rate
+for(f in files[32:62]){ 
+  plot <- plotting_hr(f)
+  print(plot)
+}
+
+# Respiration
+for(f in files[32:62]){ 
+  plot <- plotting_resp(f)
+  print(plot)
+}
+
 
 # plots plots plots
 
@@ -268,6 +316,12 @@ data_preprocess <- function(filename, threshold = 2.5){
 # Save the data
 
 ```
+
+```{r}
+#loading the data
+df <- read_csv('FINAL_DATA.csv')
+```
+
 
 ## Now we need to run some analysis
 
@@ -295,10 +349,73 @@ Bonus question: what if we include an additional layer? Is my heart rate just ad
 
 # Generate a column for each: previous HR1, HR2, Resp1, Resp2. Tip: use the function Lag()
 # Generate a column for each: change in HR1, HR2, Resp1, Resp2
+df <- df %>% mutate(
+  HR1_previous = lag(HR1, k = 1),
+  HR2_previous = lag(HR2, k = 1),
+  Resp1_previous = lag(Resp1, k = 1),
+  Resp2_previous = lag(Resp2, k = 1),
+  HR1_change = HR1 - HR1_previous,
+  HR2_change = HR2 - HR2_previous,
+  Resp1_change = Resp1 - Resp1_previous,
+  Resp2_change = Resp2 - Resp2_previous
+)
 
+#very bad plot
+ggplot(df) + geom_path(aes(time, HR1, color = 'Red')) + geom_path(aes(time, HR1_previous, color = 'Blue')) + labs(x = 'Time', y = 'HR')
 
 # Make the data long, so we can analyze both participants at the same time. Tip: you can use the function gather () 
 ## N.B. This is a bit tricky and you might have to do it in several steps
+
+ #a column indicating own hr and one own respiration
+df <- melt(df, id.vars = c("ID", 
+                           "fileID", 
+                           'Study', 
+                           'Pair', 
+                           'Trial', 
+                           'Condition', 
+                           'time', 
+                           'HR2', 
+                           'Resp2',
+                           'HR1_previous',
+                           'HR2_previous',
+                           'Resp1_previous',
+                           'Resp2_previous',
+                           'HR1_change',
+                           'HR2_change', 
+                           'Resp1_change',
+                           'Resp2_change'
+                           ), measure.vars = c("HR1", "Resp1")) %>% 
+  mutate(
+  HR1_Resp1 = variable,
+  HR1_Resp1_value = value
+  ) 
+
+#a column indicating other hr and one other respiration
+df <- melt(df, id.vars = c("ID", 
+                    "fileID", 
+                    'Study', 
+                    'Pair', 
+                    'Trial', 
+                    'Condition', 
+                    'time', 
+                    'HR1_previous',
+                    'HR2_previous',
+                    'Resp1_previous',
+                    'Resp2_previous',
+                    'HR1_change',
+                    'HR2_change', 
+                    'Resp1_change',
+                    'Resp2_change',
+                    'HR1_Resp1',
+                    'HR1_Resp1_value'
+              ), measure.vars = c("HR2", "Resp2")) %>% 
+  mutate(
+  HR2_Resp2 = variable,
+  HR2_Resp2_value = value
+  )
+
+#a column indicating change in hr from previous round and one in respiration
+
 
 # Set the most interesting contrast e.g. by defining synchronous or conversation as the baseline
 
