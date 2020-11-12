@@ -344,7 +344,7 @@ write_csv(data_clean, "FINAL_DATA.csv")
 ```
 
 ```{r}
-df <- read_csv("FINAL_DATA.csv")
+df1 <- read_csv("FINAL_DATA.csv")
 
 ```
 
