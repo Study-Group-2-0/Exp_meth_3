@@ -619,8 +619,13 @@ df_melt_spread <- df_melt_spread[order(df_melt_spread$time),] %>%
     HR_other = ifelse(Participant ==1, lead(HR2, k = 1), lag(HR1, k = 1)),
     Resp_own = ifelse(Participant == 1, Resp1, Resp2),
     Resp_other = ifelse(Participant ==1, lead(Resp2, k = 1), lag(Resp1, k = 1)),
-    HR_change = lag(HR_own),
-    Resp_change = lag(Resp_own))
+    HR_change = (HR_own - lag(HR_own, k = 2)),
+    Resp_change = (Resp_own - lag(Resp_own, k = 2)),
+    HR_change_other = ifelse(Participant == 1,(HR_other - lead(HR_other)) ,(HR_other - lag(HR_other))), 
+    Resp_change_other = ifelse(Participant == 1,(Resp_other - lead(Resp_other)) ,(Resp_other - lag(HR_other))) 
+    )
+   
+#flere af disse er forkerte, løsning er lag(Hr, k = 2) 
 ```
 
 
