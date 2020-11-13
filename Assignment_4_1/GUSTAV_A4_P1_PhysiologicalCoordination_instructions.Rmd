@@ -413,12 +413,7 @@ df <- df %>%
   melt(id.vars = c("ID", "fileID", "Study", "Pair", "Trial", "Condition", "time")) %>% 
   mutate(
     # Making an ifelse statement that sorts participant 1 and 2. 
-    Participant = ifelse(variable == "HR1" 
-                         | variable == "Resp1" 
-                         | variable == "HR1_previous" 
-                         | variable == "Resp1_previous" 
-                         | variable == "HR1_change" 
-                         | variable == "Resp1_change", 
+    Participant = ifelse(variable == "HR1" | variable == "Resp1" , 
                          paste0("1",as.character(ID)),
                          paste0("2", as.character(ID))),
     Participant = as.numeric(Participant)
@@ -431,7 +426,6 @@ df <- df %>%
   arrange(fileID, time) %>% 
   
   # Creating the different parameters
-  
   mutate(
     #The original measurements
     par_no = str_extract(as.character(Participant), "\\d"),
@@ -458,32 +452,12 @@ df <- df %>%
     Resp_change_self = Resp_previous_self - Resp_self,
     Resp_change_other = Resp_previous_other - Resp_other
   ) %>% 
+  # Deselecting irelevant collumns
   select(
     !(HR1:Resp2)
   )
+?arrange
 
-
-```
-
-
-```{r}
-# Making all Na's to 0
-df[is.na(df)] <- 0
-
-df <- df %>% 
-  # Adding the variables for each participant
-  mutate(
-    HR = HR1 + HR2, 
-    Resp = Resp1 + Resp2,
-    HR_previous = HR1_previous + HR2_previous,
-    Resp_previous = Resp1_previous + Resp2_previous,
-    HR_change = HR1_change + HR2_change,
-    Resp_change = Resp1_change + Resp2_change
-  ) %>% 
-  # Selecting relevant variables. 
-  select(
-    !(HR1:Resp2_change)
-  )
 ```
 
 
