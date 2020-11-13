@@ -408,19 +408,6 @@ Bonus question: what if we include an additional layer? Is my heart rate just ad
 df <- read_csv("FINAL_DATA.csv")
 
 df <- df %>% 
-  mutate(
-    #Adding the previous value
-    HR1_previous = lag(HR1),
-    HR2_previous = lag(HR2),
-    Resp1_previous = lag(Resp2),
-    Resp2_previous = lag(Resp2),
-    
-    #Adding the change variable
-    HR1_change = HR1 - lag(HR1),
-    HR2_change = HR2 - lag(HR2),
-    Resp1_change = Resp1 - lag(Resp1),
-    Resp2_change = Resp2 - lag(Resp2)
-  ) %>% 
   
   # Transforming the data into a long format
   melt(id.vars = c("ID", "fileID", "Study", "Pair", "Trial", "Condition", "time")) %>% 
@@ -438,8 +425,48 @@ df <- df %>%
   ) %>%  
   
   # Making the data wide format again
-  spread(variable, value)
+  spread(variable, value)%>%
+  
+  #Arranging the data by fileID and time
+  arrange(fileID, time) %>% 
+  
+  # Creating the different parameters
+  
+  mutate(
+    #The original measurements
+    par_no = str_extract(as.character(Participant), "\\d"),
+    HR_self = ifelse(par_no == 1, HR1, HR2),
+    HR_other = ifelse(par_no == 2, lag(HR_self), lead(HR_self)),
+    Resp_self = ifelse(par_no == 1, Resp1, Resp2),
+    Resp_other = ifelse(par_no == 2, lag(Resp_self), lead(Resp_self)),
+    
+    #THe previous values
+    HR_previous_self = lag(HR_self, n = 2),
+    HR_previous_other = lag(HR_other, n = 2),
+    Resp_previous_self = lag(Resp_self, n = 2),
+    Resp_previous_other = lag(Resp_other, n = 2),
+    
+    #The next values
+    HR_lead_self = lead(HR_self, n = 2),
+    HR_lead_other = lead(HR_other, n = 2),
+    Resp_lead_self = lead(Resp_self, n = 2),
+    Resp_lead_other = lead(Resp_other, n = 2),
+    
+    #The change parameters 
+    HR_change_self = HR_previous_self - HR_self,
+    HR_change_other = HR_previous_other - HR_other,
+    Resp_change_self = Resp_previous_self - Resp_self,
+    Resp_change_other = Resp_previous_other - Resp_other
+  ) %>% 
+  select(
+    !(HR1:Resp2)
+  )
 
+
+```
+
+
+```{r}
 # Making all Na's to 0
 df[is.na(df)] <- 0
 
