@@ -86,15 +86,18 @@ read_data <- function(filename) {
 
     threshold = 2.5
     
-    data1 <- data %>% 
-      filter(
-        startsWith(
-          filename, 'Study4')) %>% 
-      mutate(
-          time = TimeMs / 1000 / 60
-        )
+    ifelse(startsWith(filename, 'Study4'), rename(data, time = TimeMs))
     
-    data <- merge(data1, data)
+    
+    #data1 <- data %>% 
+     # filter(
+      #  startsWith(
+       #   filename, 'Study4')) %>% 
+      #mutate(
+      #    time = TimeMs / 1000 / 60
+      #  )
+    
+  #  data <- merge(data1, data)
     
       #downsampling
     data <- data %>% group(n = 100, method = 'greedy') %>%
@@ -360,13 +363,54 @@ df <- df %>% mutate(
   Resp2_change = Resp2 - Resp2_previous
 )
 
+
+# then, separate files into two ID's
+df <- melt(df, id.vars = c("ID", 
+                           "fileID", 
+                           'Study', 
+                           'Pair', 
+                           'Trial', 
+                           'Condition', 
+                           'time')) %>% 
+  mutate(participant = ifelse(variable == 'Resp1' | variable == 'HR1' | variable == 'HR1_previous'| variable == 'Resp1_previous' | variable == 'HR1_change' | variable == 'Resp1_change', paste0('1', as.character(ID)), paste0('2',as.character(ID))))
+
+#rearranging the order of the columns
+df <- select(df, 'participant', 'ID', "fileID", 'Study', 'Pair', 'Trial','Condition','time', 'variable', 'value')
+
 #very bad plot
 ggplot(df) + geom_path(aes(time, HR1, color = 'Red')) + geom_path(aes(time, HR1_previous, color = 'Blue')) + labs(x = 'Time', y = 'HR')
 
 # Make the data long, so we can analyze both participants at the same time. Tip: you can use the function gather () 
 ## N.B. This is a bit tricky and you might have to do it in several steps
 
+# separating the variable/value columns again 
+test <- df %>% spread(variable, value)
+
+test$participant <- as.character(test$participant)
+
+test <- test %>%  mutate(
+  HR_self = ifelse(starts_with(participant, '1'), 'HR1', 'HR2')
+  )
+
+str_extract(Trial, "\\d{1}")
+
+# making one column for HR, Resp etc.
+df[is.na(df)] <- 0
+
+#making new columns
+
+test <- df %>% mutate(
+  'HR' = 'HR1' + 'HR2',
+  'Resp' = 'Resp1' + 'Resp2',
+  'HR_previous' = 'HR1_previous' + 'HR2_previous',
+  'HR_change' = 'HR1_change' + 'HR2_change',
+  'Resp_previous' = 'Resp1_previous' + 'Resp2_previous',
+  'Resp_change' = 'Resp1_change' + 'Resp2_change'
+) %>% select(test, -c('HR1', 'HR2', 'Resp1', 'Resp2', 'HR1_change', 'HR2_change', 'HR1_previous', 'HR2_previous', 'Resp1_change', 'Resp2_change', 'Resp1_previous', 'Resp2_previous')
+)
+
  #a column indicating own hr and one own respiration
+
 df <- melt(df, id.vars = c("ID", 
                            "fileID", 
                            'Study', 
@@ -374,7 +418,8 @@ df <- melt(df, id.vars = c("ID",
                            'Trial', 
                            'Condition', 
                            'time', 
-                           'HR2', 
+                           'participant',
+                           'Resp1', 
                            'Resp2',
                            'HR1_previous',
                            'HR2_previous',
@@ -384,11 +429,56 @@ df <- melt(df, id.vars = c("ID",
                            'HR2_change', 
                            'Resp1_change',
                            'Resp2_change'
-                           ), measure.vars = c("HR1", "Resp1")) %>% 
+                           ), measure.vars = c("HR1", "HR2")) %>% 
   mutate(
-  HR1_Resp1 = variable,
-  HR1_Resp1_value = value
-  ) 
+  HR = value
+  )
+
+
+df <- melt(df, id.vars = c("ID", 
+                           "fileID", 
+                           'Study', 
+                           'Pair', 
+                           'Trial', 
+                           'Condition', 
+                           'time', 
+                           'participant',
+                           'HR1_previous',
+                           'HR2_previous',
+                           'Resp1_previous',
+                           'Resp2_previous',
+                           'HR1_change',
+                           'HR2_change', 
+                           'Resp1_change',
+                           'Resp2_change',
+                           'HR'
+                           ), measure.vars = c("Resp1", "Resp2")) %>% 
+  mutate(
+  Resp = value
+  )
+
+
+df <- melt(df, id.vars = c("ID", 
+                           "fileID", 
+                           'Study', 
+                           'Pair', 
+                           'Trial', 
+                           'Condition', 
+                           'time', 
+                           'Resp1', 
+                           'Resp2',
+                           'HR1_previous',
+                           'HR2_previous',
+                           'Resp1_previous',
+                           'Resp2_previous',
+                           'HR1_change',
+                           'HR2_change', 
+                           'Resp1_change',
+                           'Resp2_change'
+                           ), measure.vars = c("HR1", "HR2")) %>% 
+  mutate(
+  HR = value
+  )
 
 #a column indicating other hr and one other respiration
 df <- melt(df, id.vars = c("ID", 
@@ -406,16 +496,36 @@ df <- melt(df, id.vars = c("ID",
                     'HR2_change', 
                     'Resp1_change',
                     'Resp2_change',
-                    'HR1_Resp1',
-                    'HR1_Resp1_value'
-              ), measure.vars = c("HR2", "Resp2")) %>% 
+                    'HR'
+              ), measure.vars = c("Resp1", "Resp2")) %>% 
   mutate(
-  HR2_Resp2 = variable,
-  HR2_Resp2_value = value
+  Resp = value,
   )
 
-#a column indicating change in hr from previous round and one in respiration
+df$value <- NULL
+df$variable <- NULL
 
+#a column indicating change in hr from previous round and one in respiration
+df <- melt(df, id.vars = c("ID", 
+                    "fileID", 
+                    'Study', 
+                    'Pair', 
+                    'Trial', 
+                    'Condition', 
+                    'time', 
+                    'HR1_previous',
+                    'HR2_previous',
+                    'Resp1_previous',
+                    'Resp2_previous',
+                    'HR1_change',
+                    'HR2_change', 
+                    'Resp1_change',
+                    'Resp2_change',
+                    'HR'
+              ), measure.vars = c("Resp1", "Resp2")) %>% 
+  mutate(
+  Resp = value,
+  )
 
 # Set the most interesting contrast e.g. by defining synchronous or conversation as the baseline
 
