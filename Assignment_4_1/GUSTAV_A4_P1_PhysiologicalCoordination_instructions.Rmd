@@ -305,7 +305,7 @@ test <- data_preprocess(filename, threshold = 2.5)
 data <- list.files(path = "data/", pattern = ".csv") %>% 
   map_df(data_preprocess)
 
-write_csv(data_clean, "FINAL_DATA.csv")
+write_csv(test, "FINAL_DATA.csv")
 
 
 ```
@@ -313,6 +313,14 @@ write_csv(data_clean, "FINAL_DATA.csv")
 ```{r}
 #Loading the final dataset
 df <- read_csv("FINAL_DATA.csv")
+
+test <- df %>% 
+  mutate(
+    time = ifelse(Study == 3, time/60000, time)
+  )
+
+
+
 ```
 
 
@@ -395,14 +403,64 @@ Bonus question: what if we include an additional layer? Is my heart rate just ad
 
 
 ```{r}
-
 # Generate a column for each: previous HR1, HR2, Resp1, Resp2. Tip: use the function Lag()
 # Generate a column for each: change in HR1, HR2, Resp1, Resp2
+df <- read_csv("FINAL_DATA.csv")
+
+df <- df %>% 
+  mutate(
+    #Adding the previous value
+    HR1_previous = lag(HR1),
+    HR2_previous = lag(HR2),
+    Resp1_previous = lag(Resp2),
+    Resp2_previous = lag(Resp2),
+    
+    #Adding the change variable
+    HR1_change = HR1 - lag(HR1),
+    HR2_change = HR2 - lag(HR2),
+    Resp1_change = Resp1 - lag(Resp1),
+    Resp2_change = Resp2 - lag(Resp2)
+  ) %>% 
+  
+  # Transforming the data into a long format
+  melt(id.vars = c("ID", "fileID", "Study", "Pair", "Trial", "Condition", "time")) %>% 
+  mutate(
+    # Making an ifelse statement that sorts participant 1 and 2. 
+    Participant = ifelse(variable == "HR1" 
+                         | variable == "Resp1" 
+                         | variable == "HR1_previous" 
+                         | variable == "Resp1_previous" 
+                         | variable == "HR1_change" 
+                         | variable == "Resp1_change", 
+                         paste0("1",as.character(ID)),
+                         paste0("2", as.character(ID))),
+    Participant = as.numeric(Participant)
+  ) %>%  
+  
+  # Making the data wide format again
+  spread(variable, value)
+
+# Making all Na's to 0
+df[is.na(df)] <- 0
+
+df <- df %>% 
+  # Adding the variables for each participant
+  mutate(
+    HR = HR1 + HR2, 
+    Resp = Resp1 + Resp2,
+    HR_previous = HR1_previous + HR2_previous,
+    Resp_previous = Resp1_previous + Resp2_previous,
+    HR_change = HR1_change + HR2_change,
+    Resp_change = Resp1_change + Resp2_change
+  ) %>% 
+  # Selecting relevant variables. 
+  select(
+    !(HR1:Resp2_change)
+  )
+```
 
 
-# Make the data long, so we can analyze both participants at the same time. Tip: you can use the function gather () 
-## N.B. This is a bit tricky and you might have to do it in several steps
-
+```{r}
 # Set the most interesting contrast e.g. by defining synchronous or conversation as the baseline
 
 # Model change as a function of own and other previous state 
