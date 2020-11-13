@@ -54,7 +54,7 @@ The data files can be found here: https://www.dropbox.com/sh/bvvk7t3fvsplh9o/AAD
 
 ```{r}
 # Load the libraries
-pacman::p_load(tidyverse, ggplot2, reshape2, gridExtra, groupdata2,)
+pacman::p_load(tidyverse, ggplot2, reshape2, gridExtra, groupdata2)
 ```
 
 
@@ -381,10 +381,7 @@ data <- data %>%
     Study = as.factor(Study),
     Pair = as.factor(Pair),
     Trial = as.factor(Trial),
-    Condition = as.factor(Condition),
-    Pair_Trial = paste0(Pair,Trial),
-    Pair_Trial = as.factor(ID2)
-    
+    Condition = as.factor(Condition)
   )
 ```
 
@@ -491,6 +488,57 @@ plot_4_Resp
 
 ```
 
+```{r}
+################### DOING PLOTS ####################
+
+# Function for HR
+plotting_hr <- function(file){
+  data %>% 
+    filter(fileID == file) %>% 
+    ggplot()+
+      geom_path(aes(time, HR1, color = "Red"))+
+      geom_path(aes(time, HR2, color = "Blue"))+
+      labs(x = "Time", y = "HR", title = file)+
+      theme_classic()
+}
+
+# Function for Resp
+plotting_resp <- function(file){
+  data %>% 
+    filter(fileID == file) %>% 
+    ggplot()+
+      geom_path(aes(time, Resp1, color = "Red"))+
+      geom_path(aes(time, Resp2, color = "Blue"))+
+      labs(x = "Time", y = "Resp", title = file)+
+      theme_classic()
+}
+
+# Listing files
+files <- unique(data$fileID)
+
+# Heart Rate
+for(f in files[63:94]){ 
+  plot <- plotting_hr(f)
+  print(plot)
+}
+
+# Respiration
+for(f in files[63:94]){ 
+  plot <- plotting_resp(f)
+  print(plot)
+}
+
+
+```
+
+```{r}
+# Respiration
+for(f in files[63:94]){ 
+  plot <- plotting_resp(f)
+  print(plot)
+}
+```
+
 
 
 ```{r}
@@ -529,6 +577,18 @@ plot_4_Resp
 
 ## Now we need to run some analysis
 
+```{r}
+# Load the libraries
+pacman::p_load(tidyverse, ggplot2, reshape2, gridExtra, groupdata2, reshape2)
+```
+
+```{r}
+#reading preprocessed data
+df <- read_csv("FINAL_DATA.csv")
+```
+
+
+
 Let's start with a multilevel model that accounts for 
 - stability (how each signal is autocorrelated)
 - interpersonal dependence (each signal is dependent from the previous state of the other signal)
@@ -536,8 +596,138 @@ Let's start with a multilevel model that accounts for
 The data needs to be further prepared, so we can analyze both participants in the same model.
 We need to turn the data into a long format:
 - a column indicating own hr and one own respiration
-- a column indicating other hr and one other respiration
+- a column indicating other hr and one other respiration   
 - a column indicating change in hr from previous round and one in respiration
+```{r}
+#melting df and making participant ID's
+df_melt <- melt(df, id.vars = c("ID", "fileID", "Study", "Pair", "Trial", "Condition", "time")) %>% 
+  mutate(
+    Participant = ifelse(variable == "HR1" | variable == "Resp1","1","2"))
+  
+                         
+#Spread makes each variable a coloumn again. Now we have 2 coloumns for each timestamp in each study. One for Participant 1 and one for participant 2.
+df_melt_spread <- spread(df_melt, variable, value)
+
+#df_melt_spread[is.na(df_melt_spread)] <- 0
+
+#Order dataframe by "time". There are 2 rows (1 per participant) for each value of time. Thus the values in the participant coloumn switches
+#between "1" and "2". In this way, we can use the lag-function and lead-function to obtain values for HR_oter and Resp_other. 
+df_melt_spread <- df_melt_spread[order(df_melt_spread$time),] %>% 
+  mutate(
+    Participant = as.integer(Participant),
+    HR_own = ifelse(Participant == 1, HR1, HR2),
+    HR_other = ifelse(Participant ==1, lead(HR2, k = 1), lag(HR1, k = 1)),
+    Resp_own = ifelse(Participant == 1, Resp1, Resp2),
+    Resp_other = ifelse(Participant ==1, lead(Resp2, k = 1), lag(Resp1, k = 1)),
+    HR_change = lag(HR_own),
+    Resp_change = lag(Resp_own))
+```
+
+
+```{r}
+#checking to see if participant coloumn is somehow fucked
+df_melt_spread$Participant_check <- seq.int(2)
+
+df_melt_spread$Participant_check_sum <- ifelse(df_melt_spread$Participant == df_melt_spread$Participant_check, 0, 1)
+sum(df_melt_spread$Participant_check_sum)
+
+df_melt_spread_new <- df_melt_spread %>% 
+  filter(Participant_check_sum == 1)
+
+df_melt_spread_new$Participant_check <- seq.int(2)
+
+df_melt_spread_new$Participant_check_sum <- ifelse(df_melt_spread_new$Participant == df_melt_spread_new$Participant_check, 0, 1)
+sum(df_melt_spread_new$Participant_check_sum)
+
+#seems like it is not
+```
+
+
+
+```{r}
+#Other stufff
+
+
+#HR_value_1 = ifelse(variable == "HR1" | variable == "HR2", value, 0),
+    #Resp_value_1 = ifelse(variable == "Resp1" | variable == "Resp2", value, 0))
+
+
+df_melt_f <- spread(df_melt, variable, value)
+df_melt_f[is.na(df_melt_f)] <- 0
+
+df_melt_f <- df_melt_f %>% 
+  mutate(
+  HR_value = HR1 + HR2,
+  Resp_value = Resp1 + Resp2
+  ) %>% 
+  select(
+    -c("HR1", "HR2", "Resp1", "Resp2")
+  )
+
+df_melt_f <- df_melt_f %>% 
+  mutate(
+    HR1 = as.numeric(HR1),
+    HR2 = as.numeric(HR2),
+    HR_value = df_melt_f$HR1 + df_melt_f$HR2,
+    Resp_value = Resp1 + Resp2
+  )
+
+
+
+
+
+(unique(df_melt_spread$time))
+
+df_melt_spread <- df_melt_spread %>% 
+  mutate(
+  HR_self = ifelse(HR1 == 0, HR2, HR1),
+  HR_other = ifelse()
+  
+  )
+
+df_melt_spread <- df_melt_spread %>% 
+  group_by(unique(df_melt_spread$time))
+
+
+df_melt_spread <- df_melt_spread %>% 
+  if df_melt_spread$time = 
+
+
+
+
+
+df_melt_Resp <- melt(df, id.vars = c("ID", "fileID", "Study", "Pair", "Trial", "Condition", "time")) %>% 
+  mutate(
+    Participant = ifelse(variable == "HR1" | variable == "Resp1", "1", "2"),
+    HR_value = ifelse(variable == "HR1" | variable == "HR2", value, 0),
+    Resp_value = ifelse(variable == "Resp1" | variable == "Resp2", value, 0)) %>% 
+  filter(Resp_value>0) %>% 
+  select(-c(HR_value))
+
+
+df_melt_final <- merge(df_melt_HR, df_melt_Resp, by = "Participant", all = T)
+
+
+
+
+    
+    
+    
+
+              
+  
+              
+              
+
+
+
+
+
+
+
+```
+
+
 
 We can then run an analysis where change is a function of one's previous state (stability, see slides), and the other's previous state (coupling). Make sure to:
 - set up the most interesting contrasts: how do these parameters vary by condition? which condition should be baseline?
