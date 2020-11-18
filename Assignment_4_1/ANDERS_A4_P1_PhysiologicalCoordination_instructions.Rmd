@@ -584,7 +584,7 @@ pacman::p_load(tidyverse, ggplot2, reshape2, gridExtra, groupdata2, reshape2)
 
 ```{r}
 #reading preprocessed data
-df <- read_csv("FINAL_DATA.csv")
+df_raw <- read_csv("FINAL_DATA.csv")
 ```
 
 
@@ -612,20 +612,49 @@ df_melt_spread <- spread(df_melt, variable, value)
 
 #Order dataframe by "time". There are 2 rows (1 per participant) for each value of time. Thus the values in the participant coloumn switches
 #between "1" and "2". In this way, we can use the lag-function and lead-function to obtain values for HR_oter and Resp_other. 
-df_melt_spread <- df_melt_spread[order(df_melt_spread$time),] %>% 
+df_melt_spread <- df_melt_spread[order(df_melt_spread$time, df_melt_spread$fileID),] %>% 
   mutate(
     Participant = as.integer(Participant),
-    HR_own = ifelse(Participant == 1, HR1, HR2),
-    HR_other = ifelse(Participant ==1, lead(HR2, k = 1), lag(HR1, k = 1)),
-    Resp_own = ifelse(Participant == 1, Resp1, Resp2),
-    Resp_other = ifelse(Participant ==1, lead(Resp2, k = 1), lag(Resp1, k = 1)),
-    HR_change = (HR_own - lag(HR_own, k = 2)),
-    Resp_change = (Resp_own - lag(Resp_own, k = 2)),
-    HR_change_other = ifelse(Participant == 1,(HR_other - lead(HR_other)) ,(HR_other - lag(HR_other))), 
-    Resp_change_other = ifelse(Participant == 1,(Resp_other - lead(Resp_other)) ,(Resp_other - lag(HR_other))) 
-    )
-   
-#flere af disse er forkerte, løsning er lag(Hr, k = 2) 
+    HR_self = ifelse(Participant == 1, HR1, HR2),
+    HR_other = ifelse(Participant ==1, lead(HR2, n = 1), lag(HR1, n = 1)),
+    
+    Resp_self = ifelse(Participant == 1, Resp1, Resp2),
+    Resp_other = ifelse(Participant ==1, lead(Resp2, n = 1), lag(Resp1, n = 1)),
+    
+    HR_change_self = (lag(HR_self, n = 2) - HR_self),
+    Resp_change_self = (lag(Resp_self, n = 2) - Resp_self),
+    
+    HR_change_other = ifelse(Participant == 1,lead(HR_change_self), lag(HR_change_self)), 
+    Resp_change_other = ifelse(Participant == 1,lead(Resp_change_self), lag(Resp_change_self)),
+    
+    HR_lead = lead(HR_self, n = 2), 
+    Resp_lead = lead(Resp_self, n = 2)) %>% 
+      select(
+        -c("HR1", "HR2", "Resp1", "Resp2")
+      )
+
+df_melt_spread_new <- df_melt_spread %>% 
+  arrange(fileID, time) %>% 
+  mutate(
+    Participant = as.integer(Participant),
+    HR_self = ifelse(Participant == 1, HR1, HR2),
+    HR_other = ifelse(Participant ==1, lead(HR2, n = 1), lag(HR1, n = 1)),
+    
+    Resp_self = ifelse(Participant == 1, Resp1, Resp2),
+    Resp_other = ifelse(Participant ==1, lead(Resp2, n = 1), lag(Resp1, n = 1)),
+    
+    HR_change_self = (lag(HR_self, n = 2) - HR_self),
+    Resp_change_self = (lag(Resp_self, n = 2) - Resp_self),
+    
+    HR_change_other = ifelse(Participant == 1,lead(HR_change_self), lag(HR_change_self)), 
+    Resp_change_other = ifelse(Participant == 1,lead(Resp_change_self), lag(Resp_change_self)),
+    
+    HR_lead = lead(HR_self, n = 2), 
+    Resp_lead = lead(Resp_self, n = 2)) %>% 
+      select(
+        -c("HR1", "HR2", "Resp1", "Resp2")
+      )
+    
 ```
 
 
@@ -732,6 +761,24 @@ df_melt_final <- merge(df_melt_HR, df_melt_Resp, by = "Participant", all = T)
 
 ```
 
+```{r}
+################# trying pivot_longer #######################
+df_raw %>% 
+  group_by(Group, Condition) %>% 
+  mutate(
+    
+    
+  )
+
+
+df_pivot <- tidyr::pivot_longer(df_raw, c(HR1,HR2)) %>% 
+  mutate(
+    HR_self = value,
+    Participant = ifelse(name == "HR1", paste0(Study,Pair,"1"), paste0(Study,Pair,"2"))
+  )
+
+
+```
 
 
 We can then run an analysis where change is a function of one's previous state (stability, see slides), and the other's previous state (coupling). Make sure to:
@@ -745,15 +792,26 @@ Bonus question: what if we include an additional layer? Is my heart rate just ad
 
 
 ```{r}
-
 # Generate a column for each: previous HR1, HR2, Resp1, Resp2. Tip: use the function Lag()
 # Generate a column for each: change in HR1, HR2, Resp1, Resp2
 
 
 # Make the data long, so we can analyze both participants at the same time. Tip: you can use the function gather () 
 ## N.B. This is a bit tricky and you might have to do it in several steps
+```
+
+
+```{r}
+############################## ANALYSIS #################################
+df <- read_csv("READY_FOR_ANALYSIS.csv")
+
+df <- df %>% 
+  mutate(
+    Condition = as.factor(Condition)
+  )
 
 # Set the most interesting contrast e.g. by defining synchronous or conversation as the baseline
+
 
 # Model change as a function of own and other previous state 
 
@@ -775,7 +833,7 @@ Tip: sample() is your friend, but make sure to shuffle things within participant
 ```{r}
 
 # Create a shuffled dataset
-# Concatenate it to the original dataset (and remember to have a column telling you which is which)
+# Concatenate it to the original dataset (and remember to have a column telling you which is which, call the coloumn "type")
 
 # Create the same models as in the previous chunk, but adding an interaction by shuffled vs. real
 
