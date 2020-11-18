@@ -456,7 +456,8 @@ df <- df %>%
   select(
     !(HR1:Resp2)
   )
-?arrange
+
+write_csv(df, "READY_FOR_ANALYSIS.csv")
 
 ```
 
