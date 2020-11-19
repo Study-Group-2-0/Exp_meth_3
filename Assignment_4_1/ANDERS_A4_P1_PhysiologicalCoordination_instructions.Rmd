@@ -828,6 +828,8 @@ m2 <- lmerTest::lmer(HR_change_self ~ 0 + (HR_previous_self + HR_previous_other)
 summary(m2)
 
 
+############### WE USE : BECAUSE WE ARE ONLY INTERRESTED IN INTERACTION
+
 # Bonus points: Add to the previous model also change in the other to see whether my adaptation is influenced by the other's adaptation.
 
 ```
@@ -897,14 +899,14 @@ df_shuffled <- df %>%
 
 df_shuffled <- rbind(as.data.frame(df_shuffled),as.data.frame(df))
 
-write_csv(df_shuffled, "SHUFFLED_CONTROLS.csv")
+#write_csv(df_shuffled, "SHUFFLED_CONTROLS.csv")
 ```
 
 
 ```{r}
 # Create the same models as in the previous chunk, but adding an interaction by shuffled vs. real
 
-m1_shuffled <- lmerTest::lmer(HR_change_self ~ 0 + (HR_previous_self + HR_previous_other):Condition + (HR_previous_self + HR_previous_other):Type + (0+Condition|Participant) + (0+Condition|Pair), subset(df_shuffled, Study == "3"), REML = F, control = lmerControl(optimizer = "nloptwrap", calc.derivs = F))  
+m1_shuffled <- lm(HR_change_self ~ 0 + (HR_previous_self + HR_previous_other):Condition:Type, subset(df_shuffled, Study == "3" & Participant == 231), REML = F, control = lmerControl(optimizer = "nloptwrap", calc.derivs = F))  
 summary(m1_shuffled)
 
 
