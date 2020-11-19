@@ -483,10 +483,44 @@ Shuffled controls break the temporal dependencies of time-series by shuffling th
 Tip: sample() is your friend, but make sure to shuffle things within participant/condition and not throughout the whole dataset
  
 ```{r}
+df <- read_csv("READY_FOR_ANALYSIS.csv")
 
 # Create a shuffled dataset
 # Concatenate it to the original dataset (and remember to have a column telling you which is which)
+df$Type <-  "Real"
 
+df_shuffled <- df %>% 
+  group_by(Participant, Condition) %>% 
+  mutate(
+  HR_self = sample(HR_self),
+  HR_other = sample(HR_self),
+  Resp_self = sample(HR_self),
+  Resp_other = sample(HR_self),
+  
+  #The previous
+  HR_previous_self = sample(HR_previous_self),
+  HR_previous_other = sample(HR_previous_other),
+  Resp_previous_self = sample(Resp_previous_self),
+  Resp_previous_other = sample(Resp_previous_other),
+  
+  # THe next
+  HR_lead_self = sample(HR_lead_self),
+  HR_lead_other = sample(HR_lead_other),
+  Resp_lead_self = sample(Resp_lead_self),
+  Resp_lead_other = sample(Resp_lead_other),
+  
+  # THe change
+  HR_change_self = sample(HR_change_self),
+  HR_change_other = sample(HR_change_other),
+  Resp_change_self = sample(Resp_change_self),
+  Resp_change_other = sample(Resp_change_other),
+  
+  Type = "Shuffled"
+  )
+
+df_shuffled <- rbind(as.data.frame(df_shuffled),as.data.frame(df))
+
+write_csv(df_shuffle, "SHUFFLED_CONTROLS.csv")
 # Create the same models as in the previous chunk, but adding an interaction by shuffled vs. real
 
 ```
@@ -496,8 +530,69 @@ Tip: sample() is your friend, but make sure to shuffle things within participant
  - Per each real pair, identify at least one surrogate pair (matching one of the participants, with somebody doing the same task, but in a different pair)
 
 ```{r}
-
+####################### CREATING SURROGATE PAIRS ############################
 # Identify unique pairs within a given study (to keep things manageable) and create list of possible surrogate pairs (e.g. individual 1 from pair 1 and individual 2 from pair 2)
+
+# Making a new dataframe with surrogate pair id's
+set.seed(125)
+
+hep <- df %>% 
+  #Grouping by study and condition
+  group_by(Study,Condition) %>% 
+  
+  #Getting unique participant IDs
+  summarise(participant = unique(Participant)) %>% 
+  
+  #Extracting info on whether they are par1 or par2 in a pair
+  mutate(par.no = str_extract(as.character(participant), "\\d") ) %>% 
+  
+  #Making seperate collumns for par1 and par2 
+  pivot_wider(names_from = par.no, values_from = participant) %>% 
+  
+  # Renaming the variables
+  rename(
+    par1 = 3,
+    par2 = 4
+  ) %>%  
+  
+  # Unpacking the lists from the pivot_wider function
+  unnest(cols = c("par1","par2")) %>% 
+  
+  # Rearranging the order of par2 to make new surrogate pairs
+  mutate(
+    par2 = sample(par2),
+  ) %>% 
+  
+  # Ungrouping in order to make unique surrogatepair names
+  ungroup() %>% 
+  
+  # Making the new surrogate pair numbers
+  mutate(
+    Surrogate = seq.int(1,78)
+  ) %>% 
+  
+  # Making the data long format
+  melt(id.vars = c("Study","Condition","Surrogate")) %>% 
+  
+  # Making the unique variable to merge by
+  mutate(
+    par_cond = as.factor(paste0(as.character(value),Condition))
+  ) %>% 
+  
+  # Selecting the relevant collumns
+  select(par_cond, Surrogate)
+
+# Making the unique id variabl to merge by in the dataframe
+df <- df %>% 
+  mutate(
+    par_cond = as.factor(paste0(as.character(Participant),Condition))
+  )
+
+# Merging to the final data
+df <- merge(df, heppe)
+
+
+
 
 # Starting from the wide format, create "surrogate" dataset with the data from surrogate pairs
 
