@@ -569,7 +569,7 @@ hep <- df %>%
   # Making the new surrogate pair numbers
   mutate(
     Surrogate = seq.int(1,78)
-  ) #%>% 
+  ) %>% 
   
   # Making the data long format
   melt(id.vars = c("Study","Condition","Surrogate")) %>% 
@@ -591,9 +591,12 @@ df <- df %>%
 # Merging to the final data
 df <- merge(df, hep)
 
-
+# Because of the random shuffling of the surrogate pairs, some participants are randomly assigned their original partner.
 bad_surrogate_pairs <- c(8,9,12,16,17,19,30,31,37,70)
+```
 
+
+```{r}
 # Starting from the wide format, create "surrogate" dataset with the data from surrogate pairs
 
 # Make it into long format
