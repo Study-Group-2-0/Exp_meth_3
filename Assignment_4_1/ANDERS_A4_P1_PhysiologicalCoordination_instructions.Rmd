@@ -579,7 +579,7 @@ for(f in files[63:94]){
 
 ```{r}
 # Load the libraries
-pacman::p_load(tidyverse, ggplot2, reshape2, gridExtra, groupdata2, reshape2)
+pacman::p_load(tidyverse, ggplot2, reshape2, gridExtra, groupdata2, reshape2, lme4)
 ```
 
 ```{r}
@@ -807,18 +807,51 @@ df <- read_csv("READY_FOR_ANALYSIS.csv")
 
 df <- df %>% 
   mutate(
-    Condition = as.factor(Condition)
+    Condition = as.factor(Condition),
+    Participant = as.factor(Participant),
+    Pair = as.factor(Pair),
+    Study = as.factor(Study)
   )
 
 # Set the most interesting contrast e.g. by defining synchronous or conversation as the baseline
+```
 
 
+```{r}
 # Model change as a function of own and other previous state 
 
+m1 <- lmerTest::lmer(HR_change_self ~ 0 + (HR_previous_self + HR_previous_other):Condition + (0+Condition|Participant) + (0+Condition|Pair), subset(df, Study == "3"), REML = F, control = lmerControl(optimizer = "nloptwrap", calc.derivs = F))  
+summary(m1)
+
+
+m2 <- lmerTest::lmer(HR_change_self ~ 0 + (HR_previous_self + HR_previous_other)*Condition + (0+Condition|Participant) + (0+Condition|Pair), subset(df, Study == "3"), REML = F, control = lmerControl(optimizer = "nloptwrap", calc.derivs = F))  
+summary(m2)
+
+
+############### WE USE : BECAUSE WE ARE ONLY INTERRESTED IN INTERACTION
 
 # Bonus points: Add to the previous model also change in the other to see whether my adaptation is influenced by the other's adaptation.
 
 ```
+
+```{r}
+############################## SIMPLE MODEL AND PLOT ######################
+#simple models
+HR_model1 <- lm(HR_change_self ~0+ (HR_self + HR_other) : Condition, subset(df, Study=="4" & Participant == 142))
+summary(HR_model1)
+
+
+df %>% 
+  subset(Study=="4") %>%
+  group_by(Participant, Condition) %>% 
+  mutate(time=seq(n())) %>%
+  subset(Participant == 142) %>%
+  ggplot() + geom_line(aes(time, HR_self, color="HR_self")) + geom_line(aes(time, HR_other, color="HR_other")) + facet_wrap(Condition ~ ., ncol =1 )+ labs(y = "HR")+ theme_classic()
+
+
+
+```
+
 
 
 ## Now we need to create control baselines.
@@ -829,17 +862,60 @@ First shuffled controls, then surrogate pairs.
 
 Shuffled controls break the temporal dependencies of time-series by shuffling the value within one time-series. This ensures the "coordination" observed is not due to the actual values in the series and not their sequence.
 Tip: sample() is your friend, but make sure to shuffle things within participant/condition and not throughout the whole dataset
- 
+
 ```{r}
-
 # Create a shuffled dataset
-# Concatenate it to the original dataset (and remember to have a column telling you which is which, call the coloumn "type")
+# Concatenate it to the original dataset (and remember to have a column telling you which is which)
+df$Type <-  "Real"
 
+df_shuffled <- df %>% 
+  group_by(Participant, Condition) %>% 
+  mutate(
+  HR_self = sample(HR_self),
+  HR_other = sample(HR_self),
+  Resp_self = sample(HR_self),
+  Resp_other = sample(HR_self),
+
+  #The previous
+  HR_previous_self = sample(HR_previous_self),
+  HR_previous_other = sample(HR_previous_other),
+  Resp_previous_self = sample(Resp_previous_self),
+  Resp_previous_other = sample(Resp_previous_other),
+
+  # THe next
+  HR_lead_self = sample(HR_lead_self),
+  HR_lead_other = sample(HR_lead_other),
+  Resp_lead_self = sample(Resp_lead_self),
+  Resp_lead_other = sample(Resp_lead_other),
+
+  # THe change
+  HR_change_self = sample(HR_change_self),
+  HR_change_other = sample(HR_change_other),
+  Resp_change_self = sample(Resp_change_self),
+  Resp_change_other = sample(Resp_change_other),
+
+  Type = "Shuffled"
+  )
+
+df_shuffled <- rbind(as.data.frame(df_shuffled),as.data.frame(df))
+
+#write_csv(df_shuffled, "SHUFFLED_CONTROLS.csv")
+```
+
+
+```{r}
 # Create the same models as in the previous chunk, but adding an interaction by shuffled vs. real
 
+m1_shuffled <- lm(HR_change_self ~ 0 + (HR_previous_self + HR_previous_other):Condition:Type, subset(df_shuffled, Study == "3" & Participant == 231), REML = F, control = lmerControl(optimizer = "nloptwrap", calc.derivs = F))  
+summary(m1_shuffled)
+
+
+m2_shuffled <- lmerTest::lmer(HR_change_self ~ 0 + (HR_previous_self + HR_previous_other)*Condition + Type + (0+Condition|Participant) + (0+Condition|Pair), subset(df_shuffled, Study == "3"), REML = F, control = lmerControl(optimizer = "nloptwrap", calc.derivs = F))  
+summary(m2)
+
+
 ```
- 
- 
+
 ### TRICKY! Creating controls: surrogate pair controls
  - Per each real pair, identify at least one surrogate pair (matching one of the participants, with somebody doing the same task, but in a different pair)
 
@@ -854,6 +930,18 @@ Tip: sample() is your friend, but make sure to shuffle things within participant
 # Create models as in chunks above, but adding an interaction with the Real vs. Surrogate variable (exclude shuffled ones for simplicity)
 
 
+
+```
+ 
+ 
+```{r}
+df <- df %>% 
+  mutate(
+    Participant_78 = paste0(Participant, Condition),
+    Participant_78 = as.factor(Participant_78)
+  )
+
+length(unique(df$Participant_78))
 
 ```
  
