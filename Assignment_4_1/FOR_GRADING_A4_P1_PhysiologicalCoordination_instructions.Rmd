@@ -54,13 +54,13 @@ The data files can be found here: https://www.dropbox.com/sh/bvvk7t3fvsplh9o/AAD
 
 ```{r}
 # Load the libraries
-pacman::p_load(tidyverse, groupdata2, gridExtra)
+pacman::p_load(tidyverse, groupdata2, gridExtra, lmerTest, reshape2, tidymodels)
 
 ```
 
 
 ```{r}
-################################### SINGLE FILE ###################################################
+################################### SINGLE FILE ########################################
 
 # Load the file
 df_single <- read_csv("data/Study1_G1_T1_Synchronous.csv")
@@ -159,6 +159,8 @@ A couple of tips:
 
 
 ```{r}
+###################### FIXING STUDY 4 COLUMN NAMES ###########################
+
 #### the coloumn "time" is named "Time" in study 4. This is a problem for pre_processing function. So we have moved all csv-files in study 4 to a new folder called data_4. This for-loop iterates over all the study4-files, creates a new coloum called "time", and overwrites the old file. 
 #Dont run this chunk if your folder-structure doesnt allow it.
 
@@ -172,18 +174,12 @@ for (filename in list_study4){
     mutate(
       time = min
     )
-  
-  
   write_csv(data, path_name)
-  
-  
 }
-
-
 ```
 
 ```{r}
-#Function for preprocessing
+############################ FUNCTION FOR PREPROCESSING ############################
 
 data_preprocess <- function(filename, threshold = 2.5){
 
@@ -217,8 +213,6 @@ data_preprocess <- function(filename, threshold = 2.5){
     ID = paste0(Study, Pair),
     fileID = paste0(Study, Pair, Trial),
     Time = time,
-    
-    
 
     # Removing outliers and scaling
     Resp1 = z_scale(removeOuts(Resp1, threshold)),
@@ -232,16 +226,13 @@ data_preprocess <- function(filename, threshold = 2.5){
     select(
       c(ID, fileID, Study, Pair, Trial, Condition, time, HR1:ECG2))
 
-    
-
   return(data)
 }
-
-
 ```
 
 ```{r, include = False}
-#pure magic m8
+############################### PURE MAGIC M8 ###################################
+
 data <- list.files(path = "data_fixed/", pattern = ".csv") %>% 
   map_df(data_preprocess)
 
@@ -249,7 +240,7 @@ data <- list.files(path = "data_fixed/", pattern = ".csv") %>%
 
 
 ```{r}
-#processing data further. Removing Na's
+################ REMOVING NA's AND FIXING TIME VARIABLE TO ARBITRARY ###########################
 data <- data %>% 
   filter(
     !is.na(time),
@@ -257,12 +248,12 @@ data <- data %>%
     !is.na(HR2),
     !is.na(Resp1),
     !is.na(Resp2)
+  ) %>% 
+  group_by(fileID) %>% 
+  mutate(
+    time = seq(n())
   )
-
-
 ```
-
-
 
 ```{r}
 #write to csv
@@ -271,18 +262,19 @@ write_csv(data, "FINAL_DATA.csv")
 ```
 
 
-
-
 ```{r}
 #loading data
 df <- read_csv("FINAL_DATA.csv")
+
 ```
 
 ```{r}
+########################## SEARCHING FOR ARTEFACTS #####################################
+
 # Now we need to make sure all the data are meaningful or something has to be removed
 # E.g. "Study1_G1_T1_Synchronous" has one bad respiration signal. We could replace it with NAs
 
-################### DOING PLOTS ####################
+# We create two functions for plotting HR and Resp for an individual file. By running the functions on each file we can investigate the files for artefacts and remove files with bad data.
 
 # Function for HR
 plotting_hr <- function(file){
@@ -309,13 +301,13 @@ plotting_resp <- function(file){
 # Listing files
 files <- unique(df$fileID)
 
-# Heart Rate
+# Heart Rate - Only first ten files 
 for(f in files[1:10]){ 
   plot <- plotting_hr(f)
   print(plot)
 }
 
-# Respiration
+# Respiration - Only first ten files
 for(f in files[1:10]){ 
   plot <- plotting_resp(f)
   print(plot)
@@ -324,8 +316,7 @@ for(f in files[1:10]){
 
 
 ```{r}
-#After looking through all the plots
-#Excluding the following files (see rapport for more information)
+#After having looked through all the plots we have decided to exclude the following files (see rapport for more information)
 files_to_remove <- c(433, 461, 132, 313, 435,251, 252, 253, 261, 262, 263, 392, 281, 282, 283, 111, 112, 435, 392, 414)
 
 data_clean <- df %>% 
@@ -335,17 +326,10 @@ data_clean <- df %>%
 
 
 ```{r}
-######################################## PREPROCESSING DONE ##################################################
+############################ PREPROCESSING DONE #######################################
 
 #write to csv
 write_csv(data_clean, "FINAL_DATA.csv")
-```
-
-
-```{r}
-#Loading final preprocessed data
-df1 <- read_csv("FINAL_DATA.csv")
-
 ```
 
 
@@ -370,24 +354,134 @@ Bonus question: what if we include an additional layer? Is my heart rate just ad
 - to start answering this we can add a column indicating the previous change in hr in the other and one in respiration
 - we can then build on the previous models by also adding the previous change in the other
 
+```{r}
+################## LOADING PREPROCESSED DATA ######################
+df <- read_csv("FINAL_DATA.csv")
+```
 
 ```{r}
+####################### REFORMATING DATA TO FIT ANALYSIS ########################
 
-# Generate a column for each: previous HR1, HR2, Resp1, Resp2. Tip: use the function Lag()
-# Generate a column for each: change in HR1, HR2, Resp1, Resp2
+df <- df %>% 
+  
+  # Transforming the data into a long format
+  melt(id.vars = c("ID", "fileID", "Study", "Pair", "Trial", "Condition", "time")) %>% 
+  mutate(
+    # Making an ifelse statement that sorts participant 1 and 2. 
+    Participant = ifelse(variable == "HR1" | variable == "Resp1" , 
+                         paste0("1",as.character(ID)),
+                         paste0("2", as.character(ID))),
+    Participant = as.numeric(Participant)
+  ) %>%  
+  
+  # Making the data wide format again
+  spread(variable, value) %>%
+  
+  #Arranging the data by fileID and time
+  arrange(fileID, time) %>% 
+  
+  # Creating the different parameters
+  mutate(
+    #The original measurements
+    par_no = str_extract(as.character(Participant), "\\d"),
+    HR_self = ifelse(par_no == 1, HR1, HR2),
+    HR_other = ifelse(par_no == 2, lag(HR_self), lead(HR_self)),
+    Resp_self = ifelse(par_no == 1, Resp1, Resp2),
+    Resp_other = ifelse(par_no == 2, lag(Resp_self), lead(Resp_self)),
+    
+    #The previous values
+    HR_previous_self = lag(HR_self, n = 2),
+    HR_previous_other = lag(HR_other, n = 2),
+    Resp_previous_self = lag(Resp_self, n = 2),
+    Resp_previous_other = lag(Resp_other, n = 2),
+    
+    #The next values
+    HR_lead_self = lead(HR_self, n = 2),
+    HR_lead_other = lead(HR_other, n = 2),
+    Resp_lead_self = lead(Resp_self, n = 2),
+    Resp_lead_other = lead(Resp_other, n = 2),
+    
+    #The change parameters 
+    HR_change_self = HR_lead_self - HR_self,
+    HR_change_other = HR_lead_other - HR_other,
+    Resp_change_self = Resp_lead_self - Resp_self,
+    Resp_change_other = Resp_lead_other - Resp_other
+  ) %>% 
+  # Deselecting irelevant collumns
+  select(
+    !(HR1:Resp2)
+  )
+```
+
+```{r}
+############################## SIMPLE MODEL AND PLOT FOR 1 PARTICIPANT - HR######################
+#simple models
+HR_model1 <- lm(HR_change_self ~0+ (HR_self + (HR_other-HR_self)) : Condition, 
+                subset(df, Study=="4" & Participant == 142))
+summary(HR_model1)
+
+# Plotting one participant for all conditions
+df %>% 
+  subset(Study=="4") %>%
+  group_by(Participant, Condition) %>% 
+  mutate(time=seq(n())) %>%
+  subset(Participant == 142) %>%
+  ggplot() + geom_line(aes(time, HR_self, color="HR_self")) + geom_line(aes(time, HR_other, color="HR_other")) + facet_wrap(Condition ~ ., ncol =1 )+ labs(y = "HR")+ theme_classic()
+
+```
+```{r}
+########################## SIMPLE MODEL AND PLOT FOR 1 PARTICIPANT - Resp #####################
+#simple models
+Resp_model1 <- lm(Resp_change_self ~0+ (Resp_self + (Resp_other-Resp_self)) : Condition, 
+                subset(df, Study=="4" & Participant == 142))
+summary(Resp_model1)
+
+# Plotting one participant for all conditions
+df %>% 
+  subset(Study=="4") %>%
+  group_by(Participant, Condition) %>% 
+  mutate(time=seq(n())) %>%
+  subset(Participant == 142) %>%
+  ggplot() + geom_line(aes(time, Resp_self, color="Resp_self")) + geom_line(aes(time, Resp_other, color="Resp_other")) + facet_wrap(Condition ~ ., ncol =1 )+ labs(y = "Resp")+ theme_classic()
+
+```
 
 
-# Make the data long, so we can analyze both participants at the same time. Tip: you can use the function gather () 
-## N.B. This is a bit tricky and you might have to do it in several steps
-
-# Set the most interesting contrast e.g. by defining synchronous or conversation as the baseline
+```{r}
+########################### MAKING THE FIRST MODELS - HR ######################## - ANDERS
 
 # Model change as a function of own and other previous state 
 
+# Model including only interaction effects with HR
+m1 <- lmerTest::lmer(HR_change_self ~ 0 + (HR_self + (HR_other - HR_self)):Condition 
+                     + (0+Condition|Participant) + (0+Condition|Pair) + (0+Condition|Study), 
+                     df, REML = F, 
+                     control = lmerControl(optimizer = "nloptwrap", calc.derivs = F))  
+summary(m1)
 
-# Bonus points: Add to the previous model also change in the other to see whether my adaptation is influenced by the other's adaptation.
+# Model including both interactions and fixed effects with HR
+m1_INTER <- lmerTest::lmer(HR_change_self ~ 0 + (HR_self + (HR_other - HR_self))*Condition 
+                     + (0+Condition|Participant) + (0+Condition|Pair) + (0+Condition|Study), 
+                     df, REML = F, 
+                     control = lmerControl(optimizer = "nloptwrap", calc.derivs = F))  
+summary(m1_INTER)
+
+# We have excluded the intercept since we are only interested in change. We will only be using interaction effects from here on since we are only interested in the change in a given condition. Thus all of our following models's interaction effects will be specified with a ":" instead of "*" 
+```
+
+
+```{r}
+########################### MAKING THE FIRST MODEL - RESP ########################
+
+# Model including only interaction effects with RESP - Very significant
+m2 <- lmerTest::lmer(Resp_change_self ~ 0 + (Resp_self + (Resp_other - Resp_self)):Condition 
+                     + (0+Condition|Participant) + (0+Condition|Pair) + (0+Condition|Study), 
+                     df, REML = F, 
+                     control = lmerControl(optimizer = "nloptwrap", calc.derivs = F))  
+summary(m2)
 
 ```
+
 
 
 ## Now we need to create control baselines.
@@ -400,12 +494,64 @@ Shuffled controls break the temporal dependencies of time-series by shuffling th
 Tip: sample() is your friend, but make sure to shuffle things within participant/condition and not throughout the whole dataset
  
 ```{r}
+####################### CREATING SHUFFLED CONTROLS ##############################
 
-# Create a shuffled dataset
-# Concatenate it to the original dataset (and remember to have a column telling you which is which)
+# Creating the type column in the original dataset
+df$Type <-  "Real"
 
-# Create the same models as in the previous chunk, but adding an interaction by shuffled vs. real
+# Making a new dataset where all predictor variables are shuffled
+df_shuffled <- df %>% 
+  # Making sure that the data for each participant for each condition is separately sampled. 
+  group_by(Participant, Condition) %>% 
+  
+  mutate(
+  HR_self = sample(HR_self),
+  HR_other = sample(HR_self),
+  Resp_self = sample(HR_self),
+  Resp_other = sample(HR_self),
+  
+  #The previous
+  HR_previous_self = sample(HR_previous_self),
+  HR_previous_other = sample(HR_previous_other),
+  Resp_previous_self = sample(Resp_previous_self),
+  Resp_previous_other = sample(Resp_previous_other),
+  
+  # The next
+  HR_lead_self = sample(HR_lead_self),
+  HR_lead_other = sample(HR_lead_other),
+  Resp_lead_self = sample(Resp_lead_self),
+  Resp_lead_other = sample(Resp_lead_other),
+  
+  # The change
+  HR_change_self = sample(HR_change_self),
+  HR_change_other = sample(HR_change_other),
+  Resp_change_self = sample(Resp_change_self),
+  Resp_change_other = sample(Resp_change_other),
+  
+  Type = "Shuffled"
+  )
 
+# Concatenating the two dataframes with each others
+df_shuffled <- rbind(as.data.frame(df_shuffled),as.data.frame(df))
+```
+
+
+```{r}
+################### CREATING MODELS WITH SHUFFLED CONTROLS AS BASELINE ################## - SIGRID
+
+# HR 
+m1_shuffled <- lmerTest::lmer(HR_change_self ~ 0 + (HR_self + (HR_other - HR_self)):Condition:Type 
+                     + (0+Condition|Participant) + (0+Condition|Pair) + (0+Condition|Study), 
+                     df_shuffled, REML = F, 
+                     control = lmerControl(optimizer = "nloptwrap", calc.derivs = F))  
+summary(m1_shuffled)
+
+# Resp
+m2_shuffled <- lmerTest::lmer(Resp_change_self ~ 0 + (Resp_self + (Resp_other - Resp_self)):Condition:Type 
+                     + (0+Condition|Participant) + (0+Condition|Pair) + (0+Condition|Study), 
+                     df_shuffled, REML = F, 
+                     control = lmerControl(optimizer = "nloptwrap", calc.derivs = F))  
+summary(m2_shuffled)
 ```
  
  
@@ -413,15 +559,129 @@ Tip: sample() is your friend, but make sure to shuffle things within participant
  - Per each real pair, identify at least one surrogate pair (matching one of the participants, with somebody doing the same task, but in a different pair)
 
 ```{r}
+################################ CREATING SURROGATE PAIRS ##############################
+# PS: THIS RECIPE IS HOMEMADE
+# PPS: HOMEMADE IS ALWAYS THE BEST
 
-# Identify unique pairs within a given study (to keep things manageable) and create list of possible surrogate pairs (e.g. individual 1 from pair 1 and individual 2 from pair 2)
 
-# Starting from the wide format, create "surrogate" dataset with the data from surrogate pairs
+# Making sure that the surrogate pairs created are replicated
+set.seed(125)
 
-# Make it into long format
+# Making a new dataframe with surrogate pair id's
+hep <- df %>% 
+  #Grouping by study and condition
+  group_by(Study,Condition) %>% 
+  
+  #Getting unique participant IDs
+  summarise(participant = unique(Participant)) %>% 
+  
+  #Extracting info on whether they are par1 or par2 in a pair
+  mutate(par.no = str_extract(as.character(participant), "\\d") ) %>% 
+  
+  #Making seperate collumns for par1 and par2 
+  pivot_wider(names_from = par.no, values_from = participant) %>% 
+  
+  # Renaming the columns
+  rename(
+    par1 = 3,
+    par2 = 4
+  ) %>%  
+  
+  # Unpacking the lists from the pivot_wider function
+  unnest(cols = c("par1","par2")) %>% 
+  
+  # Randomizing par2 within study and condition to make the new surrogate pairs
+  mutate(par2 = sample(par2)) %>% 
+  
+  # Ungrouping in order to make unique surrogatepair names
+  ungroup() %>% 
+  
+  # Making the new surrogate pair numbers
+  mutate(Surrogate_ID = seq.int(1,78)) %>% 
+  
+  # Making the data long format
+  melt(id.vars = c("Study","Condition","Surrogate_ID")) %>% 
+  
+  # Making the unique variable to merge by
+  mutate(
+    par_cond = as.factor(paste0(as.character(value),Condition))
+  ) %>% 
+  
+  # Selecting the relevant columns
+  select(par_cond, Surrogate_ID)
+
+# Because of the random shuffling of the surrogate pairs, some participants are randomly assigned to their original partners.
+bad_surrogate_pairs <- c(8,9,12,16,17,19,30,31,37,70)
+
+# Making the unique id variable to merge by in the original dataframe
+df <- df %>% 
+  mutate(par_cond = as.factor(paste0(as.character(Participant),Condition)))
+
+
+######################### MERGING AND FILTERING OUT BAD SURROGATE PAIRS #####################
+# Making a new dataframe where the Pair column is replaced with the surrogate ID's
+df_surrogate <- merge(df, hep) %>% 
+  # Reformating the dataframe to make it compatible with the original data
+  mutate(
+    Pair = Surrogate_ID,
+    
+    # Creating a type column to use in the model
+    Type = "Surrogate") %>% 
+  
+  select(!("Surrogate_ID")) %>% 
+  
+  # Filtering out bad surrogate pairs
+  filter(
+    !(Pair %in% bad_surrogate_pairs)
+  )  %>% 
+
+###################### REMAKING THE "OTHER" COLUMNS ACCORDING TO SURROGATE PAIRS #############
+  # Ordering by pair and time
+  arrange(Pair, time) %>% 
+  
+  group_by(Pair) %>% 
+  
+  # Some fileIDs have more datapoints than others. Removing these redundant datapoints, to make sure that each surrogate pair has equal amount of data. 
+  mutate(par_no = ifelse(par_no == lead(par_no), 0, par_no)) %>% 
+  filter(par_no != 0) %>% 
+  
+  # Making the new "other" columns according to the new pairs. 
+  mutate(
+    HR_other = ifelse(par_no == 2, lag(HR_self), lead(HR_self)),
+    Resp_other = ifelse(par_no == 2, lag(Resp_self), lead(Resp_self)),
+    HR_previous_other = lag(HR_other, n = 2),
+    Resp_previous_other = lag(Resp_other, n = 2),
+    HR_lead_other = lead(HR_other, n = 2),
+    Resp_previous_other = lead(Resp_other, n = 2),
+    HR_change_other = HR_lead_other - HR_other,
+    Resp_change_other = Resp_lead_other - Resp_other
+  ) %>% 
+  select(c(ID:Type,par_cond))
+
+# Binding the surrogate dataframe to the original data
+df_surrogate <- rbind(as.data.frame(df), as.data.frame(df_surrogate))
+
+```
+
+
+```{r}
+################### CREATING MODELS WITH SURROGATE PAIRS AS BASELINE ####################### - GUSTAV
 
 # Create models as in chunks above, but adding an interaction with the Real vs. Surrogate variable (exclude shuffled ones for simplicity)
 
+# HR 
+m1_surrogate <- lmerTest::lmer(HR_change_self ~ 0 + (HR_self + (HR_other - HR_self)):Condition:Type 
+                     + (0+Condition|Participant) + (0+Condition|Pair)+(0+Condition|Study), 
+                     df_surrogate, REML = F, 
+                     control = lmerControl(optimizer = "nloptwrap", calc.derivs = F))  
+summary(m1_surrogate)
+
+# Resp
+m2_surrogate <- lmerTest::lmer(Resp_change_self ~ 0 + (Resp_self + (Resp_other - Resp_self)):Condition:Type 
+                     + (0+Condition|Participant) + (0+Condition|Pair) + (0+Condition|Study), 
+                     df_surrogate, REML = F, 
+                     control = lmerControl(optimizer = "nloptwrap", calc.derivs = F))  
+summary(m2_surrogate)
 
 
 ```

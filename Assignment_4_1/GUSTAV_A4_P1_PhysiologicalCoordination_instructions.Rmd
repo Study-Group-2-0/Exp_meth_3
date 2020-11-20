@@ -463,10 +463,18 @@ write_csv(df, "READY_FOR_ANALYSIS.csv")
 
 
 ```{r}
-# Set the most interesting contrast e.g. by defining synchronous or conversation as the baseline
-
+########################### MAKING THE FIRST MODELS ########################
 # Model change as a function of own and other previous state 
 
+m1 <- lmerTest::lmer(HR_change_self ~ 0 + (HR_self + (HR_other - HR_self)):Condition + 
+                       (0+Condition|Participant) + (0+Condition|Pair), 
+                     subset(df, Study == "3"), REML = F, 
+                     control = lmerControl(optimizer = "nloptwrap", calc.derivs = F))  
+summary(m1)
+
+
+m2 <- lmerTest::lmer(HR_change_self ~ 0 + (HR_previous_self + HR_previous_other)*Condition + (0+Condition|Participant) + (0+Condition|Pair), subset(df, Study == "3"), REML = F, control = lmerControl(optimizer = "nloptwrap", calc.derivs = F))  
+summary(m2)
 
 # Bonus points: Add to the previous model also change in the other to see whether my adaptation is influenced by the other's adaptation.
 
