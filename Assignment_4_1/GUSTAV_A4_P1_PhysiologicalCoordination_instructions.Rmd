@@ -520,7 +520,7 @@ df_shuffled <- df %>%
 
 df_shuffled <- rbind(as.data.frame(df_shuffled),as.data.frame(df))
 
-write_csv(df_shuffle, "SHUFFLED_CONTROLS.csv")
+
 # Create the same models as in the previous chunk, but adding an interaction by shuffled vs. real
 
 ```
@@ -568,11 +568,11 @@ hep <- df %>%
   
   # Making the new surrogate pair numbers
   mutate(
-    Surrogate = seq.int(1,78)
+    Surrogate_ID = seq.int(1,78)
   ) %>% 
   
   # Making the data long format
-  melt(id.vars = c("Study","Condition","Surrogate")) %>% 
+  melt(id.vars = c("Study","Condition","Surrogate_ID")) %>% 
   
   # Making the unique variable to merge by
   mutate(
@@ -580,7 +580,7 @@ hep <- df %>%
   ) %>% 
   
   # Selecting the relevant collumns
-  select(par_cond, Surrogate)
+  select(par_cond, Surrogate_ID)
 
 # Making the unique id variabl to merge by in the dataframe
 df <- df %>% 
