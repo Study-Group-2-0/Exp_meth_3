@@ -405,12 +405,21 @@ df <- df %>%
     HR_change_self = HR_lead_self - HR_self,
     HR_change_other = HR_lead_other - HR_other,
     Resp_change_self = Resp_lead_self - Resp_self,
-    Resp_change_other = Resp_lead_other - Resp_other
+    Resp_change_other = Resp_lead_other - Resp_other,
+    
+    Condition = as.factor(Condition)
   ) %>% 
   # Deselecting irelevant collumns
   select(
     !(HR1:Resp2)
   )
+```
+
+```{r}
+######################## BASELINE ############################
+levels(df$Condition)
+
+#conversation is our baseline
 ```
 
 ```{r}
