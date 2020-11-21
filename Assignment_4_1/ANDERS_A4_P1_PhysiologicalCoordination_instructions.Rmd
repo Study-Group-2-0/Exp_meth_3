@@ -841,7 +841,7 @@ HR_model1 <- lm(HR_change_self ~0+ (HR_self + HR_other) : Condition, subset(df, 
 summary(HR_model1)
 
 
-df %>% 
+df %>% ½
   subset(Study=="4") %>%
   group_by(Participant, Condition) %>% 
   mutate(time=seq(n())) %>%
