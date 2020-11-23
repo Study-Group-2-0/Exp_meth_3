@@ -53,14 +53,14 @@ The data files can be found here: https://www.dropbox.com/sh/bvvk7t3fvsplh9o/AAD
 - Add a column for study, group, trial and condition
 
 ```{r}
-# Load the libraries
+# Load the libraries # ANDERS
 pacman::p_load(tidyverse, groupdata2, gridExtra, lmerTest, reshape2, tidymodels)
 
 ```
 
 
 ```{r}
-################################### SINGLE FILE ########################################
+################################### SINGLE FILE - SIGRID ########################################
 
 # Load the file
 df_single <- read_csv("data/Study1_G1_T1_Synchronous.csv")
@@ -159,7 +159,7 @@ A couple of tips:
 
 
 ```{r}
-###################### FIXING STUDY 4 COLUMN NAMES ###########################
+###################### FIXING STUDY 4 COLUMN NAMES - GUSTAV ###########################
 
 #### the coloumn "time" is named "Time" in study 4. This is a problem for pre_processing function. So we have moved all csv-files in study 4 to a new folder called data_4. This for-loop iterates over all the study4-files, creates a new coloum called "time", and overwrites the old file. 
 #Dont run this chunk if your folder-structure doesnt allow it.
@@ -179,7 +179,7 @@ for (filename in list_study4){
 ```
 
 ```{r}
-############################ FUNCTION FOR PREPROCESSING ############################
+############################ FUNCTION FOR PREPROCESSING - ANDERS ############################
 
 data_preprocess <- function(filename, threshold = 2.5){
 
@@ -231,7 +231,7 @@ data_preprocess <- function(filename, threshold = 2.5){
 ```
 
 ```{r, include = False}
-############################### PURE MAGIC M8 ###################################
+############################### PURE MAGIC M8 - SIGRID ###################################
 
 data <- list.files(path = "data_fixed/", pattern = ".csv") %>% 
   map_df(data_preprocess)
@@ -240,7 +240,7 @@ data <- list.files(path = "data_fixed/", pattern = ".csv") %>%
 
 
 ```{r}
-################ REMOVING NA's AND FIXING TIME VARIABLE TO ARBITRARY ###########################
+################ REMOVING NA's AND FIXING TIME VARIABLE TO ARBITRARY - GUSTAV ###########################
 data <- data %>% 
   filter(
     !is.na(time),
@@ -269,7 +269,7 @@ df <- read_csv("FINAL_DATA.csv")
 ```
 
 ```{r}
-########################## SEARCHING FOR ARTEFACTS #####################################
+########################## SEARCHING FOR ARTEFACTS - ANDERS #####################################
 
 # Now we need to make sure all the data are meaningful or something has to be removed
 # E.g. "Study1_G1_T1_Synchronous" has one bad respiration signal. We could replace it with NAs
@@ -316,7 +316,7 @@ for(f in files[1:10]){
 
 
 ```{r}
-#After having looked through all the plots we have decided to exclude the following files (see rapport for more information)
+#After having looked through all the plots we have decided to exclude the following files (see rapport for more information) - GUYSTAV
 files_to_remove <- c(433, 461, 132, 313, 435,251, 252, 253, 261, 262, 263, 392, 281, 282, 283, 111, 112, 435, 392, 414)
 
 data_clean <- df %>% 
@@ -360,7 +360,7 @@ df <- read_csv("FINAL_DATA.csv")
 ```
 
 ```{r}
-####################### REFORMATING DATA TO FIT ANALYSIS ########################
+####################### REFORMATING DATA TO FIT ANALYSIS - SIGRID ########################
 
 df <- df %>% 
   
@@ -416,14 +416,14 @@ df <- df %>%
 ```
 
 ```{r}
-######################## BASELINE ############################
+######################## BASELINE - GUSTAV ############################
 levels(df$Condition)
 
 #conversation is our baseline
 ```
 
 ```{r}
-############################## SIMPLE MODEL AND PLOT FOR 1 PARTICIPANT - HR######################
+############################## SIMPLE MODEL AND PLOT FOR 1 PARTICIPANT - HR - SIGRID ######################
 #simple models
 HR_model1 <- lm(HR_change_self ~0+ (HR_self + (HR_other-HR_self)) : Condition, 
                 subset(df, Study=="4" & Participant == 142))
@@ -439,7 +439,7 @@ df %>%
 
 ```
 ```{r}
-########################## SIMPLE MODEL AND PLOT FOR 1 PARTICIPANT - Resp #####################
+########################## SIMPLE MODEL AND PLOT FOR 1 PARTICIPANT - Resp - ANDERS #####################
 #simple models
 Resp_model1 <- lm(Resp_change_self ~0+ (Resp_self + (Resp_other-Resp_self)) : Condition, 
                 subset(df, Study=="4" & Participant == 142))
@@ -476,10 +476,7 @@ m1_INTER <- lmerTest::lmer(HR_change_self ~ 0 + (HR_self + (HR_other - HR_self))
 summary(m1_INTER)
 
 # We have excluded the intercept since we are only interested in change. We will only be using interaction effects from here on since we are only interested in the change in a given condition. Thus all of our following models's interaction effects will be specified with a ":" instead of "*" 
-```
 
-
-```{r}
 ########################### MAKING THE FIRST MODEL - RESP ########################
 
 # Model including only interaction effects with RESP - Very significant
@@ -503,7 +500,7 @@ Shuffled controls break the temporal dependencies of time-series by shuffling th
 Tip: sample() is your friend, but make sure to shuffle things within participant/condition and not throughout the whole dataset
  
 ```{r}
-####################### CREATING SHUFFLED CONTROLS ##############################
+####################### CREATING SHUFFLED CONTROLS - SIGRID ##############################
 
 # Creating the type column in the original dataset
 df$Type <-  "Real"
@@ -568,7 +565,7 @@ summary(m2_shuffled)
  - Per each real pair, identify at least one surrogate pair (matching one of the participants, with somebody doing the same task, but in a different pair)
 
 ```{r}
-################################ CREATING SURROGATE PAIRS ##############################
+################################ CREATING SURROGATE PAIRS - GUSTAV ##############################
 # PS: THIS RECIPE IS HOMEMADE
 # PPS: HOMEMADE IS ALWAYS THE BEST
 
