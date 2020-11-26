@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Building on the shoulders of giants: meta-analysis
 
-## Questions to be answereda
+## Questions to be answered
 
 1. What is the current evidence for distinctive vocal patterns in schizophrenia? Report how many papers report quantitative estimates, comment on what percentage of the overall studies reviewed they represent (see PRISMA chart) your method to analyze them, the estimated effect size of the difference (mean effect size and standard error) and forest plots representing it. N.B. Only measures of pitch mean and pitch sd are required for the assignment (all the other measures have been removed from the dataset for the sake of simplicity). 
 
@@ -24,13 +24,95 @@ knitr::opts_chunk$set(echo = TRUE)
 - Download the data on all published articles analyzing voice in schizophrenia and the prisma chart as reference of all articles found and reviewed
 Data: https://www.dropbox.com/s/0l9ur0gaabr80a8/Matrix_MetaAnalysis_Diagnosis_updated290719.xlsx?dl=0
 Prisma chart: https://www.dropbox.com/s/vbjf6ff73dv9tru/PRISMA%202009%20flow%20diagram_PP.pptx?dl=0 
+
 - Look through the dataset to find out which columns to use, and if there is any additional information written as comments (real world data is always messy!).
-    * Hint: PITCH_F0M and PITCH_F0SD group of variables are what you need
+Hint: PITCH_F0M and PITCH_F0SD group of variables are what you need
+
+```{r}
+#loading packages
+pacman::p_load(tidyverse, readxl, metafor, lmerTest)
+
+```
+
+```{r}
+#Loading data
+df <- read_excel("Matrix_MetaAnalysis_Diagnosis_updated290719.xlsx")
+
+```
+
+
+ 
 - Following the procedure in the slides calculate effect size and standard error of the effect size per each study. N.B. we focus on pitch mean and pitch standard deviation.
  . first try using lmer (to connect to what you know of mixed effects models)
  . then use rma() (to get some juicy additional statistics)
+ 
+```{r}
+########################################## preparing dataset and making yi and vi coloumns ######################################
+df <- df %>% 
+  mutate(
+    MALE_HC = as.numeric(MALE_HC),
+    FEMALE_HC = as.numeric(FEMALE_HC),
+    MALE_SZ = as.numeric(MALE_SZ),
+    FEMALE_SZ = as.numeric(FEMALE_SZ),
+    PITCH_F0_HC_M = as.numeric(PITCH_F0_HC_M),
+    PITCH_F0_SZ_M = as.numeric(PITCH_F0_SZ_M),
+    PITCH_F0_HC_SD = as.numeric(PITCH_F0_HC_SD),
+    PITCH_F0_SZ_SD = as.numeric(PITCH_F0_SZ_SD),
+    n_controls = MALE_HC + FEMALE_HC,
+    n_patients = MALE_SZ + FEMALE_SZ,
+    TYPE_OF_TASK = as.factor(TYPE_OF_TASK)
+  )
+
+  
+df <- escalc(measure = "SMD", n1i = n_controls, n2i = n_patients, m1i = PITCH_F0_HC_M, m2i = PITCH_F0_SZ_M,
+             sd1i = PITCH_F0_HC_SD, sd2i = PITCH_F0_SZ_SD, data = df)
+             
+```
+
+
+
+
+```{r}
+################################################# using lmer models ##################################################
+
+m1_only_random <- lmer(yi ~ 1 + (1 | StudyID), weights = 1/vi, data=df, control=lmerControl(check.nobs.vs.nlev="ignore", check.nobs.vs.nRE="ignore"))
+summary(m1_only_random)
+
+m1_full <- lmer(yi ~ 1 + TYPE_OF_TASK+ (1 | StudyID), weights = 1/vi, data=df, control=lmerControl(check.nobs.vs.nlev="ignore", check.nobs.vs.nRE="ignore"))
+summary(m1_full)
+
+
+```
+
+
+```{r}
+########################################## USING RMA ############################################
+
+#first model with only random effects
+m2_only_random <- rma(yi, vi, data = df, slab = StudyID)
+summary(m2_only_random)
+baujat(m2_only_random) #bajaut plot
+
+
+
+#second model with random and mixed effects
+m2_full <- rma(yi, vi, mods = cbind(TYPE_OF_TASK), data = df, slab=StudyID)
+summary(m2_full)
+baujat(m2_full) #bajaut plot
+
+
+
+```
+ 
 
 - Build a forest plot of the results (forest(model))
+```{r}
+
+```
+
+
+
+
  
 - Go back to Assignment 3, add your own study to the data table, and re-run meta-analysis. Do the results change?
 
