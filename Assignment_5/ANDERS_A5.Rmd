@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Building on the shoulders of giants: meta-analysis
 
-## Questions to be answered
+## Questions to be answereda
 
 1. What is the current evidence for distinctive vocal patterns in schizophrenia? Report how many papers report quantitative estimates, comment on what percentage of the overall studies reviewed they represent (see PRISMA chart) your method to analyze them, the estimated effect size of the difference (mean effect size and standard error) and forest plots representing it. N.B. Only measures of pitch mean and pitch sd are required for the assignment (all the other measures have been removed from the dataset for the sake of simplicity). 
 
