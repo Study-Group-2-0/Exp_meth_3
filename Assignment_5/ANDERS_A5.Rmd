@@ -50,21 +50,20 @@ df <- read_excel("Matrix_MetaAnalysis_Diagnosis_updated290719.xlsx")
 ########################################## preparing dataset and making yi and vi coloumns ######################################
 df <- df %>% 
   mutate(
-    MALE_HC = as.numeric(MALE_HC),
-    FEMALE_HC = as.numeric(FEMALE_HC),
-    MALE_SZ = as.numeric(MALE_SZ),
-    FEMALE_SZ = as.numeric(FEMALE_SZ),
+    SAMPLE_SIZE_HC = as.numeric(SAMPLE_SIZE_HC),
+    SAMPLE_SIZE_SZ = as.numeric(SAMPLE_SIZE_SZ),
     PITCH_F0_HC_M = as.numeric(PITCH_F0_HC_M),
     PITCH_F0_SZ_M = as.numeric(PITCH_F0_SZ_M),
     PITCH_F0_HC_SD = as.numeric(PITCH_F0_HC_SD),
     PITCH_F0_SZ_SD = as.numeric(PITCH_F0_SZ_SD),
-    n_controls = MALE_HC + FEMALE_HC,
-    n_patients = MALE_SZ + FEMALE_SZ,
     TYPE_OF_TASK = as.factor(TYPE_OF_TASK)
-  )
+  ) %>% 
+  select(ArticleID, StudyID, Title, Authors, Year_publication, DIAGNOSIS, MALE_SZ, FEMALE_SZ, MALE_HC, FEMALE_HC, SAMPLE_SIZE_HC, SAMPLE_SIZE_SZ, TYPE_OF_TASK, PITCH_F0_HC_M, PITCH_F0_SZ_M, PITCH_F0_HC_SD, PITCH_F0_SZ_SD)
+     
+  
 
   
-df <- escalc(measure = "SMD", n1i = n_controls, n2i = n_patients, m1i = PITCH_F0_HC_M, m2i = PITCH_F0_SZ_M,
+df_excl3 <- escalc(measure = "SMD", n1i = SAMPLE_SIZE_HC, n2i = SAMPLE_SIZE_SZ, m1i = PITCH_F0_HC_M, m2i = PITCH_F0_SZ_M,
              sd1i = PITCH_F0_HC_SD, sd2i = PITCH_F0_SZ_SD, data = df)
              
 ```
@@ -75,10 +74,10 @@ df <- escalc(measure = "SMD", n1i = n_controls, n2i = n_patients, m1i = PITCH_F0
 ```{r}
 ################################################# using lmer models ##################################################
 
-m1_only_random <- lmer(yi ~ 1 + (1 | StudyID), weights = 1/vi, data=df, control=lmerControl(check.nobs.vs.nlev="ignore", check.nobs.vs.nRE="ignore"))
+m1_only_random <- lmer(yi ~ 1 + (1 | StudyID), weights = 1/vi, data=df_excl3, control=lmerControl(check.nobs.vs.nlev="ignore", check.nobs.vs.nRE="ignore"))
 summary(m1_only_random)
 
-m1_full <- lmer(yi ~ 1 + TYPE_OF_TASK+ (1 | StudyID), weights = 1/vi, data=df, control=lmerControl(check.nobs.vs.nlev="ignore", check.nobs.vs.nRE="ignore"))
+m1_full <- lmer(yi ~ 1 + TYPE_OF_TASK+ (1 | StudyID), weights = 1/vi, data=df_excl3, control=lmerControl(check.nobs.vs.nlev="ignore", check.nobs.vs.nRE="ignore"))
 summary(m1_full)
 
 
@@ -89,14 +88,14 @@ summary(m1_full)
 ########################################## USING RMA ############################################
 
 #first model with only random effects
-m2_only_random <- rma(yi, vi, data = df, slab = StudyID)
+m2_only_random <- rma(yi, vi, data = df_excl3, slab = StudyID)
 summary(m2_only_random)
 baujat(m2_only_random) #bajaut plot
 
 
 
 #second model with random and mixed effects
-m2_full <- rma(yi, vi, mods = cbind(TYPE_OF_TASK), data = df, slab=StudyID)
+m2_full <- rma(yi, vi, mods = cbind(TYPE_OF_TASK), data = df_excl3, slab=StudyID)
 summary(m2_full)
 baujat(m2_full) #bajaut plot
 
@@ -104,16 +103,136 @@ baujat(m2_full) #bajaut plot
 
 ```
  
-
+ 
 - Build a forest plot of the results (forest(model))
 ```{r}
+############################ FOREST PLOTS ############################
+forest(m2_only_random)
+forest(m2_full)
+``` 
+ 
+ 
+ 
+ 
+Funnel Plot
+```{r}
+############################## FUNNEL PLOT AND NUMERIC TEST ##############################
+
+#funnel plots
+funnel(m2_only_random)
+funnel(m2_full)
+
+
+#numeric tests
+regtest(m2_only_random)
+regtest(m2_full)
+
+ranktest(m2_only_random)
+ranktest(m2_full)
+
+
+```
+
+
+ 
+- Go back to Assignment 3, add your own study to the data table, and re-run meta-analysis. Do the results change?
+```{r}
+#loading dataset from assignment 3
+data_3 <- read_csv("FINAL_DATA_A3.csv")
+```
+ 
+
+ 
+```{r}
+################################### ADDING OUR OWN STUDY FROM PORT 3 TO THE DF ###########################################
+
+#these dataframes inform values inputted in the df
+#we manually insert values from these df's into the add_row argument in the next line of code
+gender_diagnosis_data_3 <- data_3 %>% 
+  group_by(Gender, Diagnosis) %>% 
+  summarize(length(unique(New_id)))
+
+sample_size_data_3 <- data_3 %>% 
+  group_by(Diagnosis) %>% 
+  summarize(length(unique(New_id)))
+
+pitch_mean_data_3 <- data_3 %>% 
+  group_by(Diagnosis) %>% 
+  summarize(mean(mean)) 
+
+pitch_sd_data_3 <- data_3 %>% 
+  group_by(Diagnosis) %>% 
+  summarize(sd(mean)) 
+
+
+
+
+#adding a new row with our study from assignment 3
+df <- as_tibble(df) %>% 
+  add_row(ArticleID = 49,
+          StudyID = 51,
+          DIAGNOSIS = "SZ",
+          MALE_SZ = 73,
+          FEMALE_SZ = 63,
+          MALE_HC = 90,
+          FEMALE_HC = 69,
+          SAMPLE_SIZE_HC = 160,
+          SAMPLE_SIZE_SZ = 136,
+          TYPE_OF_TASK = "CONSTR",
+          PITCH_F0_HC_M = 156.8,
+          PITCH_F0_SZ_M = 167.0,
+          PITCH_F0_HC_SD = 59.2,
+          PITCH_F0_SZ_SD = 55.2
+          )   
+          
+          
 
 ```
 
 
 
 
- 
-- Go back to Assignment 3, add your own study to the data table, and re-run meta-analysis. Do the results change?
+```{r}
+######################### RUNNING META ANALYSIS - (INCLUDING OUR DATA FROM PORT 3) ################################
+
+df_incl3 <- escalc(measure = "SMD", n1i = SAMPLE_SIZE_HC, n2i = SAMPLE_SIZE_SZ, m1i = PITCH_F0_HC_M, m2i = PITCH_F0_SZ_M,
+             sd1i = PITCH_F0_HC_SD, sd2i = PITCH_F0_SZ_SD, data = df)
+```
+
 
 - Now look at the output of rma() and check tau and I2
+```{r}
+########################################## USING RMA - (INCLUDING OUR DATA FROM PORT 3) ############################################
+
+#first model with only random effects
+m2_only_random <- rma(yi, vi, data = df_incl3, slab = StudyID)
+summary(m2_only_random)
+baujat(m2_only_random) #bajaut plot
+
+
+
+#second model with random and mixed effects
+m2_full <- rma(yi, vi, mods = cbind(TYPE_OF_TASK), data = df_incl3, slab=StudyID)
+summary(m2_full)
+baujat(m2_full) #bajaut plot
+
+
+
+```
+ 
+ 
+- Build a forest plot of the results (forest(model))
+```{r}
+############################ FOREST PLOTS INCLUDING PORT 3 - (INCLUDING OUR DATA FROM PORT 3)############################
+forest(m2_only_random)
+forest(m2_full)
+``` 
+```
+
+
+
+
+
+
+
+
