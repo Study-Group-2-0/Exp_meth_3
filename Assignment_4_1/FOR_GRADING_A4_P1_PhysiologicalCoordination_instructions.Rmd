@@ -1,7 +1,7 @@
 ---
 title: "Assignment 4 - Heart rate, respiration and interpersonal coordination"
-author: "Riccardo Fusaroli"
-date: "August 20, 2019"
+author: "Sigrid Agersnap, Anders Hjulmand and Gustav Helms"
+date: "November 25, 2020"
 output: html_document
 ---
 
@@ -63,7 +63,7 @@ pacman::p_load(tidyverse, groupdata2, gridExtra, lmerTest, reshape2, tidymodels)
 ################################### SINGLE FILE - SIGRID ########################################
 
 # Load the file
-df_single <- read_csv("data/Study1_G1_T1_Synchronous.csv")
+df_single <- read_csv("Study1_G1_T1_Synchronous.csv")
 
 # Plot
 plot_single_raw <- ggplot(df_single) +
@@ -158,7 +158,7 @@ A couple of tips:
 - you need to make sure all the data are meaningful or something has to be removed. Plotting is your friend. E.g. "Study1_G1_T1_Synchronous" has one bad respiration signal. We could replace it with NAs
 
 
-```{r}
+```{r, eval = FALSE, echo = TRUE}
 ###################### FIXING STUDY 4 COLUMN NAMES - GUSTAV ###########################
 
 #### the coloumn "time" is named "Time" in study 4. This is a problem for pre_processing function. So we have moved all csv-files in study 4 to a new folder called data_4. This for-loop iterates over all the study4-files, creates a new coloum called "time", and overwrites the old file. 
@@ -178,7 +178,7 @@ for (filename in list_study4){
 }
 ```
 
-```{r}
+```{r, eval = FALSE, echo = TRUE}
 ############################ FUNCTION FOR PREPROCESSING - ANDERS ############################
 
 data_preprocess <- function(filename, threshold = 2.5){
@@ -230,7 +230,7 @@ data_preprocess <- function(filename, threshold = 2.5){
 }
 ```
 
-```{r, include = False}
+```{r, eval = FALSE, echo = TRUE}
 ############################### PURE MAGIC M8 - SIGRID ###################################
 
 data <- list.files(path = "data_fixed/", pattern = ".csv") %>% 
@@ -239,8 +239,8 @@ data <- list.files(path = "data_fixed/", pattern = ".csv") %>%
 ```
 
 
-```{r}
-################ REMOVING NA's AND FIXING TIME VARIABLE TO ARBITRARY - GUSTAV ###########################
+```{r, eval = FALSE, echo = TRUE}
+################ REMOVING NA's AND FIXING TIME VARIABLE TO ARBITRARY - GUSTAV #####################
 data <- data %>% 
   filter(
     !is.na(time),
@@ -255,7 +255,7 @@ data <- data %>%
   )
 ```
 
-```{r}
+```{r, eval = FALSE, echo = TRUE}
 #write to csv
 write_csv(data, "FINAL_DATA.csv")
 
@@ -301,21 +301,21 @@ plotting_resp <- function(file){
 # Listing files
 files <- unique(df$fileID)
 
-# Heart Rate - Only first ten files 
-for(f in files[1:10]){ 
+# Heart Rate - Only first three files 
+for(f in files[1:3]){ 
   plot <- plotting_hr(f)
   print(plot)
 }
 
-# Respiration - Only first ten files
-for(f in files[1:10]){ 
+# Respiration - Only first three files
+for(f in files[1:3]){ 
   plot <- plotting_resp(f)
   print(plot)
 }
 ```
 
 
-```{r}
+```{r, eval = FALSE, echo = TRUE}
 #After having looked through all the plots we have decided to exclude the following files (see rapport for more information) - GUYSTAV
 files_to_remove <- c(433, 461, 132, 313, 435,251, 252, 253, 261, 262, 263, 392, 281, 282, 283, 111, 112, 435, 392, 414)
 
@@ -325,7 +325,7 @@ data_clean <- df %>%
 ```
 
 
-```{r}
+```{r, eval = FALSE, echo = TRUE}
 ############################ PREPROCESSING DONE #######################################
 
 #write to csv
@@ -354,7 +354,7 @@ Bonus question: what if we include an additional layer? Is my heart rate just ad
 - to start answering this we can add a column indicating the previous change in hr in the other and one in respiration
 - we can then build on the previous models by also adding the previous change in the other
 
-```{r}
+```{r, eval = FALSE, echo = TRUE}
 ################## LOADING PREPROCESSED DATA ######################
 df <- read_csv("FINAL_DATA.csv")
 ```
@@ -423,7 +423,7 @@ levels(df$Condition)
 ```
 
 ```{r}
-############################## SIMPLE MODEL AND PLOT FOR 1 PARTICIPANT - HR - SIGRID ######################
+##################### SIMPLE MODEL AND PLOT FOR 1 PARTICIPANT - HR - SIGRID ######################
 #simple models
 HR_model1 <- lm(HR_change_self ~0+ (HR_self + (HR_other-HR_self)) : Condition, 
                 subset(df, Study=="4" & Participant == 142))
@@ -438,8 +438,9 @@ df %>%
   ggplot() + geom_line(aes(time, HR_self, color="HR_self")) + geom_line(aes(time, HR_other, color="HR_other")) + facet_wrap(Condition ~ ., ncol =1 )+ labs(y = "HR")+ theme_classic()
 
 ```
+
 ```{r}
-########################## SIMPLE MODEL AND PLOT FOR 1 PARTICIPANT - Resp - ANDERS #####################
+################ SIMPLE MODEL AND PLOT FOR 1 PARTICIPANT - Resp - ANDERS #####################
 #simple models
 Resp_model1 <- lm(Resp_change_self ~0+ (Resp_self + (Resp_other-Resp_self)) : Condition, 
                 subset(df, Study=="4" & Participant == 142))
@@ -456,7 +457,7 @@ df %>%
 ```
 
 
-```{r}
+```{r, eval = FALSE, echo = TRUE}
 ########################### MAKING THE FIRST MODELS - HR ######################## - ANDERS
 
 # Model change as a function of own and other previous state 
@@ -542,7 +543,7 @@ df_shuffled <- rbind(as.data.frame(df_shuffled),as.data.frame(df))
 ```
 
 
-```{r}
+```{r, eval = FALSE, echo = TRUE}
 ################### CREATING MODELS WITH SHUFFLED CONTROLS AS BASELINE ################## - SIGRID
 
 # HR 
@@ -670,7 +671,7 @@ df_surrogate <- rbind(as.data.frame(df), as.data.frame(df_surrogate))
 ```
 
 
-```{r}
+```{r, eval = FALSE, echo = TRUE}
 ################### CREATING MODELS WITH SURROGATE PAIRS AS BASELINE ####################### - GUSTAV
 
 # Create models as in chunks above, but adding an interaction with the Real vs. Surrogate variable (exclude shuffled ones for simplicity)
