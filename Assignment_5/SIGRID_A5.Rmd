@@ -19,19 +19,76 @@ knitr::opts_chunk$set(echo = TRUE)
 
 3. Assess the quality of the literature: report and comment on heterogeneity of the studies (tau, I2), on publication bias (funnel plot), and on influential studies.
 
-## Tips on the process to follow:
+```{r loading packages}
+pacman::p_load(lme4, lmerTest, readxl, tidyverse, metafor)
+```
 
+## Tips on the process to follow:
 - Download the data on all published articles analyzing voice in schizophrenia and the prisma chart as reference of all articles found and reviewed
 Data: https://www.dropbox.com/s/0l9ur0gaabr80a8/Matrix_MetaAnalysis_Diagnosis_updated290719.xlsx?dl=0
 Prisma chart: https://www.dropbox.com/s/vbjf6ff73dv9tru/PRISMA%202009%20flow%20diagram_PP.pptx?dl=0 
 - Look through the dataset to find out which columns to use, and if there is any additional information written as comments (real world data is always messy!).
     * Hint: PITCH_F0M and PITCH_F0SD group of variables are what you need
+    
+```{r loading data}
+data <- read_excel('Matrix_MetaAnalysis_Diagnosis_updated290719.xlsx')
+
+#data_pitch <- data %>% as.tibble %>% 
+ # select(
+  #  1:22, 69:73
+  #)
+```
+
+
 - Following the procedure in the slides calculate effect size and standard error of the effect size per each study. N.B. we focus on pitch mean and pitch standard deviation.
  . first try using lmer (to connect to what you know of mixed effects models)
  . then use rma() (to get some juicy additional statistics)
 
+```{r}
+############### BYURAKN'S CODE ################
+# SMD = standardized mean difference, yi = observed effect size, vi = sampling variance
+pitch_d <- escalc(
+  measure = 'SMD', 
+  n1i = SAMPLE_SIZE_HC, 
+  n2i = SAMPLE_SIZE_SZ, 
+  m1i = PITCH_F0_HC_M, 
+  m2i = PITCH_F0_SZ_M, 
+  sd1i = PITCH_F0_HC_SD, 
+  sd2i = PITCH_F0_SZ_SD, data = data)
+
+#Mixed effects implementation
+m <- lmer(yi ~ 1 + (1 | StudyID), weights = 1/vi, data = pitch_d, control=lmerControl(check.nobs.vs.nlev="ignore", check.nobs.vs.nRE="ignore"))
+summary(m)
+
+#Meta-analysis optimization:
+m2 <-rma (yi, vi, data = pitch_d, slab = StudyID)
+forest(m2)
+
+#What if we have a fixed effect?
+m3 <- lmer(yi ~ 1 + ### + (1|StudyID), weights = 1/vi, data = pitch_d, control=lmerControl(check.nobs.vs.nlev="ignore", check.nobs.vs.nRE="ignore"))
+summary(m3)
+
+#m4 <- rma(yi, vi, mods = cbind(as.factor(), data = pitch_d, slab=study)
+
+
+```
+
 - Build a forest plot of the results (forest(model))
+ 
+```{r}
+forest(m2)
+```
+ 
  
 - Go back to Assignment 3, add your own study to the data table, and re-run meta-analysis. Do the results change?
 
+```{r}
+
+```
+
 - Now look at the output of rma() and check tau and I2
+
+```{r}
+
+```
+
