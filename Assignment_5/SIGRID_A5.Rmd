@@ -38,6 +38,20 @@ data <- read_excel('Matrix_MetaAnalysis_Diagnosis_updated290719.xlsx')
   #  1:22, 69:73
   #)
 ```
+```{r}
+#### PREPPING COLUMNS IN DATAFRAME
+df <- data %>% 
+  mutate(
+    SAMPLE_SIZE_HC = as.numeric(SAMPLE_SIZE_HC),
+    SAMPLE_SIZE_SZ = as.numeric(SAMPLE_SIZE_SZ),
+    PITCH_F0_HC_M = as.numeric(PITCH_F0_HC_M),
+    PITCH_F0_SZ_M = as.numeric(PITCH_F0_SZ_M),
+    PITCH_F0_HC_SD = as.numeric(PITCH_F0_HC_SD),
+    PITCH_F0_SZ_SD = as.numeric(PITCH_F0_SZ_SD),
+    TYPE_OF_TASK = as.factor(TYPE_OF_TASK)
+  ) %>% 
+  select(ArticleID, StudyID, Title, Authors, Year_publication, DIAGNOSIS, MALE_SZ, FEMALE_SZ, MALE_HC, FEMALE_HC, SAMPLE_SIZE_HC, SAMPLE_SIZE_SZ, TYPE_OF_TASK, PITCH_F0_HC_M, PITCH_F0_SZ_M, PITCH_F0_HC_SD, PITCH_F0_SZ_SD)
+```
 
 
 - Following the procedure in the slides calculate effect size and standard error of the effect size per each study. N.B. we focus on pitch mean and pitch standard deviation.
@@ -47,46 +61,135 @@ data <- read_excel('Matrix_MetaAnalysis_Diagnosis_updated290719.xlsx')
 ```{r}
 ############### BYURAKN'S CODE ################
 # SMD = standardized mean difference, yi = observed effect size, vi = sampling variance
-pitch_d <- escalc(
+df <- escalc(
   measure = 'SMD', 
   n1i = SAMPLE_SIZE_HC, 
   n2i = SAMPLE_SIZE_SZ, 
   m1i = PITCH_F0_HC_M, 
   m2i = PITCH_F0_SZ_M, 
   sd1i = PITCH_F0_HC_SD, 
-  sd2i = PITCH_F0_SZ_SD, data = data)
+  sd2i = PITCH_F0_SZ_SD, data = df)
+```
 
+
+```{r}
+################### LMER MODELS #############
 #Mixed effects implementation
-m <- lmer(yi ~ 1 + (1 | StudyID), weights = 1/vi, data = pitch_d, control=lmerControl(check.nobs.vs.nlev="ignore", check.nobs.vs.nRE="ignore"))
-summary(m)
-
-#Meta-analysis optimization:
-m2 <-rma (yi, vi, data = pitch_d, slab = StudyID)
-forest(m2)
+m1_random <- lmer(yi ~ 1 + (1 | StudyID), weights = 1/vi, data = pitch_d, control=lmerControl(check.nobs.vs.nlev="ignore", check.nobs.vs.nRE="ignore"))
+summary(m1_random)
 
 #What if we have a fixed effect?
-m3 <- lmer(yi ~ 1 + ### + (1|StudyID), weights = 1/vi, data = pitch_d, control=lmerControl(check.nobs.vs.nlev="ignore", check.nobs.vs.nRE="ignore"))
-summary(m3)
+m1_full <- lmer(yi ~ 1 + TYPE_OF_TASK + (1|StudyID), weights = 1/vi, data = pitch_d, control=lmerControl(check.nobs.vs.nlev="ignore", check.nobs.vs.nRE="ignore"))
+summary(m1_full)
 
-#m4 <- rma(yi, vi, mods = cbind(as.factor(), data = pitch_d, slab=study)
+```
 
+
+```{r}
+################# RMA MODELS ##############
+#Meta-analysis optimization:
+m2_random <-rma (yi, vi, data = pitch_d, slab = StudyID)
+summary(m2)
+forest(m2)
+baujat(m2_random)
+
+m2_full <- rma(yi, vi, mods = cbind(as.factor(TYPE_OF_TASK), data = pitch_d, slab=study)
+summary(m2_full)
+forest(m2_full)
+baujat(m2_full)
 
 ```
 
 - Build a forest plot of the results (forest(model))
  
-```{r}
-forest(m2)
-```
- 
- 
 - Go back to Assignment 3, add your own study to the data table, and re-run meta-analysis. Do the results change?
 
 ```{r}
+#loading dataset from assignment 3
+data_3 <- read_csv("FINAL_DATA_A3.csv")
+```
+
+```{r}
+############### ADDING STUDY FROM PORTFOLIO 3 TO THE DF #############################
+#these dataframes contain values which are then added to the df
+gender_diagnosis_data_3 <- data_3 %>% 
+  group_by(Gender, Diagnosis) %>% 
+  summarize(length(unique(New_id)))
+
+sample_size_data_3 <- data_3 %>% 
+  group_by(Diagnosis) %>% 
+  summarize(length(unique(New_id)))
+
+pitch_mean_data_3 <- data_3 %>% 
+  group_by(Diagnosis) %>% 
+  summarize(mean(mean)) 
+
+pitch_sd_data_3 <- data_3 %>% 
+  group_by(Diagnosis) %>% 
+  summarize(sd(mean)) 
+
+#adding a new row with the study from assignment 3
+df <- as_tibble(df) %>% 
+  add_row(ArticleID = 49,
+          StudyID = 51,
+          Title = 'Voice Patterns in Schizophrenia: A systematic Review and Bayesian Meta-Analysis',
+          Authors = 'Parola Alberto, Simonsen Arndis, Bliksted Vibeke, Fusaroli Riccardo',
+          DIAGNOSIS = "SZ",
+          MALE_SZ = '73',
+          FEMALE_SZ = '63',
+          MALE_HC = '90',
+          FEMALE_HC = '69',
+          SAMPLE_SIZE_HC = 160,
+          SAMPLE_SIZE_SZ = 136,
+          TYPE_OF_TASK = "CONSTR",
+          PITCH_F0_HC_M = 156.8,
+          PITCH_F0_SZ_M = 167.0,
+          PITCH_F0_HC_SD = 59.2,
+          PITCH_F0_SZ_SD = 55.2
+          )   
+
+df3$TYPE_OF_TASK <- as.factor(df3$TYPE_OF_TASK)
+```
+
+```{r}
+############################# CALCULATING NEW VI + YI ########################
+
+df3 <- df %>% escalc(
+  measure = 'SMD', 
+  n1i = SAMPLE_SIZE_HC, 
+  n2i = SAMPLE_SIZE_SZ, 
+  m1i = PITCH_F0_HC_M, 
+  m2i = PITCH_F0_SZ_M, 
+  sd1i = PITCH_F0_HC_SD, 
+  sd2i = PITCH_F0_SZ_SD, data = df)
 
 ```
 
 - Now look at the output of rma() and check tau and I2
+
+```{r}
+################ USING RMA (INCLUDING THE DATA FROM PORT 3) ###########################
+# first model with only random effects
+m3_random <- rma(yi, vi, data = df3, slab = StudyID)
+summary(m3_random)
+
+# forest plot
+forest(m3_random)
+
+# baujat plot
+baujat(m3_random) 
+
+
+# second model with random and mixed effects
+m3_full <- rma(yi, vi, mods = cbind(as.factor(TYPE_OF_TASK)), data = df3, slab=StudyID)
+summary(m3_full)
+
+# forest plot
+forest(m3_full)
+
+# baujat plot
+baujat(m3_full) 
+```
 
 ```{r}
 
