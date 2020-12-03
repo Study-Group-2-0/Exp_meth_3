@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Building on the shoulders of giants: meta-analysis
+# Building on the shoulders of giants: meta-analysiss
 
 ## Questions to be answered
 
@@ -98,7 +98,7 @@ baujat(m2_only_random) #bajaut plot
 m2_full <- rma(yi, vi, mods = cbind(TYPE_OF_TASK), data = df_excl3, slab=StudyID)
 summary(m2_full)
 baujat(m2_full) #bajaut plot
-
+class(m2_full)
 
 
 ```

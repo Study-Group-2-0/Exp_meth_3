@@ -2,7 +2,10 @@
 title: "Assignment 5 - Meta-analysis of pitch in schizophrenia"
 author: "Riccardo Fusaroli"
 date: "3/7/2019"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -186,7 +189,6 @@ df <- as_tibble(df) %>%
           PITCH_F0_SZ_SD = 55.2
           )   
 
-df3$TYPE_OF_TASK <- as.factor(df3$TYPE_OF_TASK)
 ```
 
 ```{r}
@@ -201,6 +203,9 @@ df3 <- df %>% escalc(
   m2i = PITCH_F0_SZ_M, 
   sd1i = PITCH_F0_HC_SD, 
   sd2i = PITCH_F0_SZ_SD, data = df)
+
+
+df3$TYPE_OF_TASK <- as.factor(df3$TYPE_OF_TASK)
 
 ```
 
