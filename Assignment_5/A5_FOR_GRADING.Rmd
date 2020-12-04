@@ -225,6 +225,9 @@ forest(m3_random)
 # baujat plot
 baujat(m3_random) 
 
+# Funnel plot
+funnel(m3_random)
+
 
 # second model with random and mixed effects
 m3_full <- rma(yi, vi, mods = cbind(TYPE_OF_TASK), data = df3, slab=StudyID)
