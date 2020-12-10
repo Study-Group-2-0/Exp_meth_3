@@ -3,6 +3,7 @@ title: "Assignment 1 - Data Cleaning - Instructions"
 author: "Sigrid Snapfield, Anders Wheelman and Gustav Helms"
 date: "04/09/2020"
 output:
+  word_document: default
   pdf_document: default
   html_document: default
 ---
@@ -70,6 +71,7 @@ Load the three data sets, after downloading them from dropbox and saving them in
 * Word data: https://www.dropbox.com/s/8ng1civpl2aux58/token_train.csv?dl=0
 
 ```{r}
+#ANDERS
 #Loading data sets
 demo_train <- read.csv("demo_train.csv")
 LU_train <- read.csv("LU_train.csv")
@@ -103,6 +105,7 @@ Tip: look through the chapter on data transformation in R for data science (http
 
 
 ```{r}
+#SIGRID
 #Changing collumn names
 colnames(demo_train)[1:2] <- c("SUBJ","VISIT")
 ```
@@ -113,6 +116,7 @@ Tip: The stringr package is what you need. str_extract () will allow you to extr
 
 
 ```{r}
+#GUSTAV
 #Changing visit number to numeric
 LU_train$VISIT <- str_extract(LU_train$VISIT, "\\d")
 token_train$VISIT <- str_extract(token_train$VISIT, "\\d")
@@ -132,6 +136,7 @@ Tip: You can either have one line of code for each child name that is to be chan
 
 
 ```{r}
+#SIGRID
 #Changing subject.ID.
 demo_train$SUBJ <- str_replace_all(demo_train$SUBJ, "[[:punct:]]", "")
 LU_train$SUBJ <- str_replace_all(LU_train$SUBJ, "[[:punct:]]", "")
@@ -176,6 +181,7 @@ Most variables should make sense, here the less intuitive ones.
 Feel free to rename the variables into something you can remember (i.e. nonVerbalIQ, verbalIQ)
 
 ```{r}
+#ANDERS
 #Selecting relevant variables for each df
 variables_to_include1 <- c("SUBJ", "VISIT", "Diagnosis","Ethnicity", "Gender", "Age", "ADOS",  "MullenRaw","ExpressiveLangRaw", "Socialization")
 variables_to_include2 <- c("SUBJ", "VISIT", "MOT_MLU", "CHI_MLU")
@@ -194,6 +200,7 @@ Some things to pay attention to:
 * make sure to understand whether (and if so why) there are NAs in the dataset (e.g. some measures were not taken at all visits, some recordings were lost or permission to use was withdrawn)
 
 ```{r}
+#GUSTAV
 #Merging the dataframes:
 df <- merge(demo_train, LU_train, by = c("SUBJ","VISIT"), all = T)
 df <- merge(df, token_train, by = c("SUBJ","VISIT"), all = T)
@@ -211,6 +218,7 @@ A possible way to do so:
 
 
 ```{r}
+#SIGRID
 #Creating new df for visit 1 only including the relevant variables.
 visit1 <- select(filter(df, df$VISIT==1), c("SUBJ","VISIT","ADOS", "MullenRaw","ExpressiveLangRaw","Socialization"))
 
@@ -231,6 +239,7 @@ Now we want to
 * Save the data set using into a csv file. Hint: look into write.csv()
 
 ```{r}
+#ANDERS
 #Anomymizing the names
 df$SUBJ <- as.integer(df$SUBJ)
 df$SUBJ <- as.factor(df$SUBJ)
@@ -243,6 +252,7 @@ levels(df$Diagnosis) <- c("ASD","TD")
 ```
 
 ```{r}
+#GUSTAV
 #Saving the df as a CSV
 write_csv(df,path="ASD_Children.csv")
 ```
